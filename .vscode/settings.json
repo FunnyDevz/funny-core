@@ -21,7 +21,8 @@
         "LuauCheckRecursionLimit": "1000000",
         "LuauVisitRecursionLimit": "1000000",
         "LuauTypeInferRecursionLimit": "1000000",
-        "LuauTypeMaximumStringifierLength": "50"
+        "LuauTypeMaximumStringifierLength": "50",
+        "LuauSetmetatableOverrides": "true"
     },
     "luau-lsp.diagnostics.workspace": true,
     "luau-lsp.fflags.enableNewSolver": true,

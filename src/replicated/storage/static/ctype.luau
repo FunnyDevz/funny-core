@@ -18,14 +18,6 @@ export type member = {
 }
 
 --[==[
-	Describes a runtime function member.
-
-	`func` shares the same metadata representation as `member`; its `type`
-	identifies the member as a function.
-]==]
-export type func = member
-
---[==[
 	Contains runtime type metadata associated with a registered value.
 
 	`classname` identifies the runtime class name.
@@ -61,7 +53,7 @@ export type metainfo = {
 	--[==[
 		Gets all function members described by this metadata.
 	]==]
-	read funcs: { func },
+	read funcs: { member },
 
 	--[==[
 		Gets additional user-defined attributes associated with this metadata.
@@ -129,7 +121,7 @@ export type metainfo = {
 		Returns the corresponding function metadata when the member exists,
 		or `nil` when no function with the specified name is present.
 	]==]
-	read read_func: (self: metainfo, name: string) -> func?,
+	read read_func: (self: metainfo, name: string) -> member?,
 
 	--[==[
 		Finds a field member by name.
@@ -166,7 +158,7 @@ export type metainfo = {
 
 		The returned sequence contains both field and function members.
 	]==]
-	read get_all: (self: metainfo) -> { member | func },
+	read get_all: (self: metainfo) -> { member },
 }
 
 type tbl = any
@@ -339,7 +331,7 @@ const metainfo: metainfo = table.freeze {
         return true
     end,
 
-    get_all = function (self: metainfo) : {func|member}
+    get_all = function (self: metainfo) : {member}
         const result = {}
         table.move(self.fields, 1, #self.fields, 1, result)
         table.move(self.funcs, 1, #self.funcs, #result + 1, result)

@@ -1,4 +1,5 @@
 --!nolint
+--gpp!
 
 const declare = require("@game/ReplicatedStorage/static/declare")
 const project = {}
@@ -50,6 +51,8 @@ do -- debug
 	]==]
 	project.debug.state = true
 
+	--#if DEBUG
+
 	--[==[
 		Для обычных `project.console.out()` будет трассировка стэка
 	]==]
@@ -64,6 +67,8 @@ do -- debug
 	project.debug.show_signal_internal = if not project.debug.state then false else false
 	project.debug.show_ikr6legs_solver_path = if not project.debug.state then false else false
 	project.debug.show_reference_internal = if not project.debug.state then false else false
+
+	--#endif
 end
 
 do -- object
@@ -143,18 +148,20 @@ function project.console_out_error(...: unknown): console_out_type
 	return nil :: console_out_type
 end
 
-function project.assert <T> (var: T, out: string?, error: boolean?) : T
+function project.assert <T> (var: T, out: string?, error: boolean?) : (T, boolean)
 	if error then
 		if not var then
 			project.console_out_error(out or "project assert failure")
+			return var, false
 		end
 	else
 		if not var then
 			project.console_out(out or "project soft-assert failure")
+			return var, false
 		end
 	end
 
-	return var
+	return var, true
 end
 
 --[=[

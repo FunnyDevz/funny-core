@@ -2,13 +2,16 @@
 
 --- CORE
 
-export type construct<T = unknown, U = unknown> = T & U
+--[==[
+    В этом проекте механика наследования построена на интерсекции типов. 
+]==]
+export type extend<extension = {}, base = {}> = setmetatable<extension & base, base>
 
 type mt__vs = { read __mode: "vs"}
 type mt__ks = { read __mode: "ks"}
 type mt__kvs = { read __mode: "kvs" }
 
-type object_identity = unknown | string
+type object_identity = number
 type object_type = string
 
 --[==[
@@ -22,7 +25,7 @@ type object_type = string
 export type object = {
 	read type: object_type,
 
-	read new: <T, U>(self: T, that: U?) -> construct<T, U>,
+	read new: <T, U>(self: T, that: U?) -> extend<T, U>,
 	read it: (self: object, otype: object_type) -> boolean,
 	read is: (self: object, otype: object_type) -> boolean,
     read as: <T>(self: object, otype: object_type) -> object & T,
@@ -34,6 +37,7 @@ export type object = {
 
     --[string]: unknown?
 }
+
 
 --[==[
    Represents an enumeration and contains its EnumItem values
@@ -51,7 +55,7 @@ export type object = {
     local items = ExampleEnumObject:get_enums_list()
     ```
 ]==]
-export type enumobject = construct<{
+export type enumobject = extend<{
 	read name: string,
 
 	read get_enums_list: (self: enumobject) -> { [unknown]: enumitem },
@@ -88,7 +92,7 @@ export type enumobject = construct<{
 
     ```
 ]==]
-export type enumitem<T = enumobject?> = construct<{
+export type enumitem<T = enumobject?> = extend<{
 	read name: string,
 	read hashlink: string,
 	read enum: T,
@@ -102,7 +106,7 @@ export type enumitem<T = enumobject?> = construct<{
 
     Every struct-type object is unchangeable and freezed, create a new structure if you need to change something
 ]==]
-export type struct = construct<{
+export type struct = extend<{
 	read clone: <T>(self: T, change: unknown?) -> T,
 	read each: <T>(self: struct, type: string, f: (value: T) -> T) -> {[unknown]: T},
 }, object>
@@ -112,7 +116,7 @@ export type struct = construct<{
     
     Variable is generic over the stored value type T
 ]==]
-export type variable<T = unknown> = construct<{
+export type variable<T = unknown> = extend<{
 	read creation_time: number,
     read get_value: (self: variable<T>) -> T,
     read set_value: (self: variable<T>, to: T) -> (),
@@ -126,23 +130,11 @@ export type variable<T = unknown> = construct<{
     It supports reading the pointed value, changing the target, and 
     inspecting whether the target currently exists or is held as a hard reference
 ]==]
-export type pointer<T = unknown> = construct<{
+export type pointer<T = unknown> = extend<{
 	read get_pointed: (self: pointer<T>) -> T,
 	read set_point: (self: pointer<T>, to: T, hard: boolean?) -> (),
 	read is_pointed_hard: (self: pointer<T>) -> boolean,
 	read is_pointed_exists: (self: pointer<T>) -> boolean,
-}, object>
-
---[==[
-    Represents a typed path to an Instance
-
-    A path stores a textual representation of a target and can resolve that path back to an object of type T
-]==]
-export type path<T = Instance> = construct<{
-    absolute_path: string,
-
-	read set_path: (self: path<T>, to: T|string) -> (),
-	read get_object: (self: path<T>) -> T?,
 }, object>
 
 --[==[
@@ -152,7 +144,7 @@ export type path<T = Instance> = construct<{
     An observer manages subscriptions through pointer objects
     Each subscription may have its own connection mode and additional parameters
 ]==]
-export type observer<T = enumitem | enumobject> = construct<
+export type observer<T = enumitem | enumobject> = extend<
 	{
 		deffered_call: boolean,
 		deffered_mode: boolean,
@@ -178,7 +170,7 @@ type observer_var <T = unknown> = ((...any)->())|thread|observer<T>
 --[==[
     Represents an object that performs a single role in the system as a singleton
 ]==]
-export type service = construct<{
+export type service = extend<{
     
 } & nameable & switchable, object>
 
@@ -188,7 +180,7 @@ export type service = construct<{
     A disposable provides a free operation that releases resources owned by the object
     The operation may be performed immediately or deferred
 ]==]
-export type disposable = construct<{
+export type disposable = extend<{
     --[==[
     Releases the resources associated with the disposable object.
 
@@ -235,14 +227,14 @@ export type disposable = construct<{
 
 -- Common
 
-export type event<T = enumitem, U... = ...unknown> = construct<{
+export type event<T = enumitem, U... = ...unknown> = extend<{
     read connect: <T0> (self: event<T,U...>, on: T, f: ((U...) -> ())|thread|observer<T>) -> connection<T,U...>,
     read once: <T0> (self: event<T,U...>, on: T, f: ((U...) -> ())|thread|observer<T>) -> connection<T,U...>,
     read wait: (self: event<T,U...>, on: T) -> U...,
     read invoke: (self: event<T,U...>, on: T, U...) -> (),
 } & expected_calltype<T?>, observer<T>> 
 
-export type connection<T = enumitem, U... = ()> = construct<{
+export type connection<T = enumitem, U... = ()> = extend<{
     count: number,
 
     read get_mode: (self: connection<T, U...>) -> enumitem_connection_variant,
@@ -253,12 +245,12 @@ export type connection<T = enumitem, U... = ()> = construct<{
 } & invokeable<connection<T,U...>,U...> & expected_calltype<T?>,
 observer<enumitem_setup_notification>>
 
-export type value<T = unknown> = construct<{
+export type value<T = unknown> = extend<{
     read get_value: (self: value<T>) -> T?,                    
     read set_value: (self: value<T>, new: T?, default: boolean?) -> (),
 }, observer<enumitem_operation_variant>>
 
-export type timer = construct<{
+export type timer = extend<{
     read get_elapsed: (self: timer) -> number,
     read get_remaining: (self: timer) -> number,
     read get_duration: (self: timer) -> number,
@@ -277,19 +269,19 @@ export type timer = construct<{
     Он не гарантирует наличие объекта, безопасность подключения к его сигналам или всего
     остального. Он контроллируется внешними управляющими механизмами
 ]==]
-export type reference<T = Instance> = construct<{
+export type reference<T = Instance> = extend<{
     read clear: (self: reference<T>) -> ()
 } & instanceable<reference<T>, T>, observer<enumitem_reference_notification>>
 
-export type signal<T... = ...unknown> = construct<{
+export type signal<T... = ...unknown> = extend<{
     read get_signal_event: (self: signal<T...>) -> event<enumitem_tick_notification, T...>
 }, reference<RBXScriptSignal<T...>>>
 
-export type controller = construct<{
+export type controller = extend<{
     state: enumitem_controller_state
 } & operatable<controller>, observer<enumitem_controller_state>>
 
-export type stack<T = unknown> = construct<{
+export type stack<T = unknown> = extend<{
 	max: number,
 
 	read pick: (self: stack<T>) -> T?,
@@ -297,7 +289,7 @@ export type stack<T = unknown> = construct<{
 	read count: (self: stack<T>) -> number,
 }, object>
 
-export type maid = construct< {
+export type maid = extend< {
 	read add_object: (self: maid, that: any, strong: boolean?) -> (),
 	read add_key: <T>(self: maid, of: { [T]: unknown }, key: T) -> (),
 	read remove_object: (self: maid, that: any) -> (),
@@ -308,7 +300,7 @@ export type maid = construct< {
 --[==[
     Объект, представляющий ленивое хранилище
 ]==]
-export type maybe <T = unknown, U = unknown> = construct<{
+export type maybe <T = unknown, U = unknown> = extend<{
 
     --[==[
         Выполяет переданную функцию только 1 раз, далее возвращает кэшированный
@@ -333,7 +325,7 @@ export type maybe <T = unknown, U = unknown> = construct<{
     read exist: (self: maybe<T,U>, it: U) -> boolean,
 }, observer<enumitem_operation_variant>>
 
-export type statemachine <T = enumitem> = construct<{
+export type statemachine <T = enumitem> = extend<{
     read get_state: (self: statemachine<T>, ...T) -> boolean,
     read set_state: (self: statemachine<T>, to: boolean?, ...T) -> (),
     
@@ -366,7 +358,7 @@ export type statemachine <T = enumitem> = construct<{
 -- Component
 
 
-export type profile<T = enumitem> = construct<{
+export type profile<T = enumitem> = extend<{
     read uid: number,
 
     read get_inlined: (self: profile<T>, uid: number) -> profile<T>, 
@@ -395,7 +387,7 @@ export type profile<T = enumitem> = construct<{
     read is_in_server: (self: profile<T>) -> boolean,
 }, observer<enumitem_user_notification>>
 
-export type localuser = construct<{
+export type localuser = extend<{
     read uid: number,
     read get_player: (self: localuser) -> Player,
 
@@ -434,7 +426,7 @@ export type localuser = construct<{
 
 
 ]==]
-export type world = construct<{
+export type world = extend<{
     --[==[
         Выполняет операцию рейкаста в мире
     ]==]
@@ -481,7 +473,7 @@ type collidable_ref = reference<collidable>
 --[==[
     Объект, представляющий группу коллизий
 ]==]
-export type collision = construct<{
+export type collision = extend<{
     read get_collision: (self: collision) -> ...reference<Instance>,
     read set_collision: (self: collision, ...collidable_ref|collidable_instance) -> (),
     read rem_collision: (self: collision, ...collidable_ref|collidable_instance) -> (),
@@ -493,7 +485,7 @@ export type collision = construct<{
 --[==[
     Объект, представляющий доменную логику раунда и дающий возможность структурно управлять игрой
 ]==]
-export type round = construct<{
+export type round = extend<{
     --[==[
         Возвращает специальную фракцию текущих персонажей в игре,
         она должна исчезнуть вместе с пропажей этого экземпляра
@@ -542,7 +534,7 @@ export type round = construct<{
     `character` может существовать и сам по себе, его не интересует
     кто им управляет и управляет ли
 ]==]
-export type faction = construct<{
+export type faction = extend<{
     --[==[
         Возвращает всех участников персонажей для этой фракции
 
@@ -579,7 +571,7 @@ export type faction = construct<{
 
     Дальнейшие операции и работа с ними производится исключительно
 ]==]
-export type character = construct<{
+export type character = extend<{
     --[==[
         Получить текущий токен персонажа
 
@@ -646,20 +638,42 @@ export type character = construct<{
     read get_humanoid_reference: (self: character) -> reference<Humanoid?>
 } & informable<character, characterinfo>, observer>
 
---[==[
-    Объект, представляющий логического персонажа R6
-
-]==]
-export type char6 = construct<{
-
+export type inventory = extend<{
+    --[==[
+        Текущее количество элементов внутри инвентаря
+    ]==]
+    read count: (self: inventory) -> number,
 
     --[==[
-        Гарантированно вернет Humanoid
+        Максимальный размер инвентаря, то есть сколько `ItemStack` влезет в этот `Inventory`
     ]==]
-    read get_humanoid: (self: char6) -> Humanoid    
-}, character>
+    read lenght: (self: inventory) -> number,
+}, observer>
 
+export type itemstack = extend<{
+    --[==[
+        Идентификация `ItemStack`
+    ]==]
+    read item: item, write item: item
+}, observer>
 
+export type itemcontext = extend<{
+    read item: item,
+    read user: object?,
+    read context: enumitem_item_context
+}, struct>
+
+export type itembehavior = extend<{
+    read on_equip: (self: itembehavior, context: itemcontext) -> (),
+    read on_unequip: (self: itembehavior, context: itemcontext) -> (),
+    read action: (self: itembehavior, context: itemcontext, delta: number) -> ()
+}, object>
+
+export type item = extend<{
+    read name: string,
+    read description: string,
+    read behavior: itembehavior
+}, object>
 
 --[==[
     Объект, представляющий собой игровую способность с возможностью определения
@@ -675,7 +689,7 @@ export type char6 = construct<{
     енамайтемы и сигнализирует о начальной фазе работы, после чего вручную управляйте ее
     конечным автоматом и уведомлениями прямо из функции способности
 ]==]
-export type ability <T... = ...unknown> = construct<{
+export type ability <T... = ...unknown> = extend<{
     --[==[
         Активирует способность от перспективы указанного персонажа
 
@@ -714,7 +728,7 @@ observer<enumitem_ability_notification>>
 --[==[
     Объект, предоставляющий несамостоятельную базу для IK R6 решателей
 ]==]
-export type ikr6solver = construct<{
+export type ikr6solver = extend<{
     --[==[
         Текущее время ожидания хотя-бы какого-либо движения
     ]==]
@@ -743,7 +757,7 @@ export type ikr6solver = construct<{
     Он полностью предоставляет собственное поведение и автоматизирован относительно
     алгоритмической сложности для пользователей
 ]==]
-export type ikr6legs = construct<{
+export type ikr6legs = extend<{
     --[==[
         Объект правой ноги, которым управляет этот решатель на автоматическом
         уровне
@@ -773,12 +787,40 @@ export type ikr6legs = construct<{
 } & initiable<ikr6legs>, ikr6solver>
 
 --[==[
+    Объект, представляющий самостоятельный buildin ik решатель для рук r6 рига
+
+    Он полностью предоставляет собственное поведение и автоматизирован относительно алгоритмической
+    сложности для пользователей
+]==]
+export type ikr6arms = extend<{
+    
+    --[==[
+        Возвращает правую руку
+    ]==]
+    read get_right_arm: (self: ikr6arms) -> ikr6arm,
+    
+    --[==[
+        Возвращает левую руку
+    ]==]
+    read get_left_arm: (self: ikr6arms) -> ikr6arm
+} & initiable<ikr6arms>, ikr6solver>
+
+export type ikr6arm = extend<{
+    --[==[
+        Выбираемая цель, к которой тянется рука.
+    ]==]
+    read get_target: (self: ikr6arm) -> vector,
+    read set_target: (self: ikr6arm, target: vector?, absolute: boolean?) -> ()
+
+}, ikr6limb<ikr6arminfo>>
+
+--[==[
     Объект, представляющий реализацию односуставной IK конечности, будь бы это нога,
     рука, или иной вид конечности
 
 
 ]==]
-export type ikr6limb <T = enumitem, U = ikr6limbinfo> = construct<{
+export type ikr6limb <T = enumitem, U = ikr6limbinfo> = extend<{
     --[==[
         Исходная точка от которой проводятся вычисления,
         по умолчанию является bottom torso позицией
@@ -908,12 +950,15 @@ export type ikr6limb <T = enumitem, U = ikr6limbinfo> = construct<{
         У этого объекта поведением задано управлять ненастоящей конечностью, чтобы не мешать
         другим операциям и объектам и не вызывать какие-либо другие эффекты
     ]==]
-    read get_fake: (self: ikr6limb<T,U>) -> reference<BasePart>
+    read get_fake: (self: ikr6limb<T,U>) -> reference<BasePart>,
+
+    --[==[
+        Принудительно пересоздать `fake`
+    ]==]
+    read rebuild_fake: (self: ikr6limb<T,U>) -> ()
 }  & initiable<ikr6limb<T,U>> & switchable & referenceable<ikr6limb<T,U>, BasePart> & stateable<ikr6limb<T,U>, T>  & informable<ikr6limb<T,U>, U>, disposable>
 
-export type ikr6foot = construct<{
-
-}, ikr6limb<enumitem_iklegs_state, ikr6leginfo>>
+export type ikr6foot = extend<{}, ikr6limb<enumitem_iklegs_state, ikr6leginfo>>
 
 
 
@@ -952,7 +997,7 @@ export type ikr6foot = construct<{
     на лету, а поскольку способность использует каждый раз те данные,
     что ей доступны на момент вызова, то и применяется это всегда
 ]==]
-export type abilityinfo = construct<{
+export type abilityinfo = extend<{
     
     --[==[
         Имеет ли способность время перезарядки после вызова?
@@ -1042,7 +1087,7 @@ export type abilityinfo = construct<{
     Объект, представляющий информацию о поведении IK решателя и диктующий ему
     условия его работы
 ]==]
-export type ikr6info = construct<{
+export type ikr6info = extend<{
 	--[==[
 		Время отсутствия движения перед переходом в idle-логику.
 
@@ -1075,7 +1120,7 @@ export type ikr6info = construct<{
 --[==[
     Объект, представляющий общую информацию о конечности для IK решателя
 ]==]
-export type ikr6limbinfo = construct<{
+export type ikr6limbinfo = extend<{
     --[==[
         Величина смещения от края `torso` к его центру
     ]==]
@@ -1247,14 +1292,19 @@ export type ikr6limbinfo = construct<{
     read limb_preffer_to_origin_clone: boolean,
 }, struct>
 
+--[==[
+    Объект, предоставляющий информацию для IK решателя, в частности для поведения рук.
+]==]
+export type ikr6arminfo = extend<{
 
+}, ikr6limbinfo>
 
 
 --[==[
 	Объект, предоставляющий информацию для IK решателя `char6`,
 	в частности информацию для поведения IK ног.
 ]==]
-export type ikr6leginfo = construct<{
+export type ikr6leginfo = extend<{
     --[==[
         Насколько выше предполагаемой точки положения ноги начать поиск поверхности? 
         Это позволяет не промахнуться, если персонаж находится над землёй, ступенькой или другой поверхностью
@@ -1329,7 +1379,7 @@ export type ikr6leginfo = construct<{
     поскольку она декларирует поведение относительно стандартного сценария,
     когда не вызываются никакие способности или выполняется что-либо еще
 ]==]
-export type characterinfo = construct<{
+export type characterinfo = extend<{
     read has_health: boolean,
     read has_stamina: boolean,
     read has_stamina_use: boolean,
@@ -1360,7 +1410,7 @@ export type characterinfo = construct<{
 --[==[
     Объект, представляющий набор информации для геометрических фигур
 ]==]
-export type rayinfo = construct<{
+export type rayinfo = extend<{
     --[==[
         Первый попавшийся объект будет возвращен, и только он
     ]==]
@@ -1447,7 +1497,7 @@ export type rayinfo = construct<{
 --[==[
     Объект, представляющий унифицированный результат выполнения той или иной операции
 ]==]
-export type result<T = unknown, U... = ...unknown> = construct<{
+export type result<T = unknown, U... = ...unknown> = extend<{
 
     --[==[
         Статус выполнения этой операции
@@ -1476,7 +1526,7 @@ export type result<T = unknown, U... = ...unknown> = construct<{
 
     Специфичный случай `cubevolume`
 ]==]
-export type aabbvolume = construct<{
+export type aabbvolume = extend<{
     --[==[
         Часть куба, которая участвует в определении области пространства,
         которую занимает этот объект. Указывает на крайний угол противположной
@@ -1503,7 +1553,7 @@ cubevolume<aabbvolume>>
 
     Специфичный случай `cubevolume`
 ]==]
-export type obbvolume = construct<geometry_rotatable &
+export type obbvolume = extend<geometry_rotatable &
     geometry_convertation<obbvolume, geometry_supported> &
     geometry_control<obbvolume> &
     geometry_half &
@@ -1515,7 +1565,7 @@ cubevolume<obbvolume>>
 --[==[
     Объект, представляющий собой сферическую область в пространстве
 ]==]
-export type spherevolume = construct<{
+export type spherevolume = extend<{
     radius: number,
 } & centerable<spherevolume> & 
     math_operations<spherevolume, spherevolume>, 
@@ -1526,7 +1576,7 @@ struct>
 
     Основание этого объекта является окружностью
 ]==]
-export type conevolume = construct<{
+export type conevolume = extend<{
 
     --[==[
         Кончик конуса будет выставлен на указанную точку в пространстве, при этом
@@ -1547,7 +1597,7 @@ geovolume<conevolume>>
 --[==[
     Объект, представляющий собой капсульную область в пространстве
 ]==]
-export type capsulevolume = construct<{
+export type capsulevolume = extend<{
 
 }
 & centerable<capsulevolume> & 
@@ -1563,7 +1613,7 @@ geovolume<capsulevolume>>
 
     Операции с этим объектом могут быть ресурсозатратными
 ]==]
-export type tetavolume = construct<{
+export type tetavolume = extend<{
 
     --[==[
         Возвращает все опорные вертексы этой области
@@ -1595,7 +1645,7 @@ geovolume<tetavolume>>
     Объект, представляющий собой треугольник из 3 векторов в пространстве,
     образующий таким образом часть полигона
 ]==]
-export type triangle = construct<{
+export type triangle = extend<{
     --[==[
         Утилитарная функция по созданию стандартного `triangle` объекта,
         фактически ничем не отличающаяся от примера:
@@ -1617,7 +1667,7 @@ geovolume<triangle>>
 --[==[
     Объект, представляющий собой полигон из 2 треугольников
 ]==]
-export type quad = construct<{
+export type quad = extend<{
     --[==[
         Левый треугольник, часть полигона
     ]==]
@@ -1635,14 +1685,14 @@ struct>
 --[==[
     Объект, использующийся для определения осей пространства
 ]==]
-export type directions = construct<vector_operations<directions, directions> & axisable<vector>, geovolume<directions>>
+export type directions = extend<vector_operations<directions, directions> & axisable<vector>, geovolume<directions>>
 
 --[==[
     Объект, представляющий собой геометрический аналог координаты
 
     Хранит в себе информацию о повороте и положении в пространстве
 ]==]
-export type basis = construct<{
+export type basis = extend<{
     read orthonormalize: (self: basis) -> basis,
     read euler_angles: (self: basis) -> ...number,
 
@@ -1690,7 +1740,7 @@ export type basis = construct<{
 --[==[
     Объект, представляющий собой область пространства в форме восьмиугольника
 ]==]
-export type cubevolume <T = cubevolume> = construct<{
+export type cubevolume <T = cubevolume> = extend<{
     --[==[
         Направление `+Y`, эквивалетное как `UpVector`
     ]==]
@@ -1760,7 +1810,7 @@ geovolume<cubevolume<T>>>
 
     Сам по себе не имеет смысла
 ]==]
-export type geovolume<T = any> = construct<math_operations<T, T>, struct>
+export type geovolume<T = any> = extend<math_operations<T, T>, struct>
 
 
 
@@ -1788,7 +1838,7 @@ export type geovolume<T = any> = construct<math_operations<T, T>, struct>
 -- Service
 
 
-export type securityrng = construct<{
+export type securityrng = extend<{
 	read seed: number,
 
 	read get_hash_sha256: (self: securityrng, element: string) -> string,
@@ -1799,24 +1849,9 @@ export type securityrng = construct<{
 --[==[
     Сервис для удаленного запуска функционала на другой машине
 ]==]
-export type remotecall = construct<{
+export type remotecall = extend<{
 
 }, service>
-
---[==[
-    Сервис для запуска предопределенных скриптов и модулей в параллельном режиме
-]==]
-export type parallel = construct<{
-    read get_worker: (self: parallel) -> ...Actor,
-
-    --[==[
-        Запускает нового работника, который будет параллельно выполнять свои задачи
-    ]==]
-    read add_worker: (self: parallel, ...Script|LocalScript|string|path) -> Actor,
-    read rem_worker: (self: parallel, ...Actor) -> ()
-}, service>
-
-
 
 
 
@@ -1861,23 +1896,41 @@ export type parallel = construct<{
 
 -- Enums
 
---!strict
+--[[
+
+    На данный момент внутри системы типизации Luau существует забавный хардкод. Для ИМЕННО Enum дата-типа, вернее
+    даже только для этого типа импорт его полей идет как модуль. По сути вы видите Enum тип именно как импортированный
+    модуль в системе типизации.
+
+    Сделано это намеренно. Однако, данная тулза не предоставляется ни одному другому разработчику. Ищите в исходниках
+    это чудо самостоятельно.
+
+
+    ---
+
+    Все енамы по сути повторяют такую же тему как и роблоксовские енамы. Они также объявляются и также обрабатываются системой
+    типов.
+
+    look: https://github.com/JohnnyMorganz/luau-lsp/blob/main/scripts/globalTypes.LocalUserSecurity.d.luau
+
+
+]]
 
 export type enumitem_default_variant = enumitem<enum_default_variant>
-export type enum_default_variant = construct<{
+export type enum_default_variant = extend<{
 	read Unknown: enumitem_default_variant,
 	read Any: enumitem_default_variant,
 }, enumobject>
 
 export type enumitem_tasky_variant = enumitem<enum_tasky_outcode_variant>
-export type enum_tasky_outcode_variant = construct<{
+export type enum_tasky_outcode_variant = extend<{
 	read Reenter: enumitem_tasky_variant,
 	read Goto: enumitem_tasky_variant,
 	read Error: enumitem_tasky_variant,
 }, enumobject>
 
 export type enumitem_input_notification = enumitem<enum_input_notification>
-export type enum_input_notification = construct<{
+export type enum_input_notification = extend<{
 	read CodeAdded: enumitem_input_notification,
 	read CodeRemoved: enumitem_input_notification,
 	read Pressed: enumitem_input_notification,
@@ -1890,7 +1943,7 @@ export type enum_input_notification = construct<{
 }, enumobject>
 
 export type enumitem_ability_notification = enumitem<enum_ability_notification>
-export type enum_ability_notification = construct<{
+export type enum_ability_notification = extend<{
 	read CastAbility: enumitem_ability_notification,
     read WaitingDataAbility: enumitem_ability_notification,
     read ActiveAbility: enumitem_ability_notification,
@@ -1899,9 +1952,17 @@ export type enum_ability_notification = construct<{
     read CooldownAbility: enumitem_ability_notification,
 }, enumobject>
 
+export type enumitem_item_context = enumitem<enum_item_context>
+export type enum_item_context = extend<{
+	read Primary: enumitem_item_context,
+	read Secondary: enumitem_item_context,
+	read Cycle: enumitem_item_context,
+	read Special: enumitem_item_context,
+}, enumobject>
+
 
 export type enumitem_state = enumitem<enum_state>
-export type enum_state = construct<{
+export type enum_state = extend<{
 	read Failure: enumitem_state,
 	read Loading: enumitem_state,
 	read Successful: enumitem_state,
@@ -1909,7 +1970,7 @@ export type enum_state = construct<{
 }, enumobject>
 
 export type enumitem_user_machine_variant = enumitem<enum_user_machine_variant>
-export type enum_user_machine_variant = construct<{
+export type enum_user_machine_variant = extend<{
 	read Computer: enumitem_user_machine_variant,
 	read Mobile: enumitem_user_machine_variant,
 	read Console: enumitem_user_machine_variant,
@@ -1917,14 +1978,14 @@ export type enum_user_machine_variant = construct<{
 }, enumobject>
 
 export type enumitem_controller_state = enumitem<enum_controller_state>
-export type enum_controller_state = construct<{
+export type enum_controller_state = extend<{
 	read Continue: enumitem_controller_state,
 	read Pause: enumitem_controller_state,
 	read Reset: enumitem_controller_state,
 }, enumobject>
 
 export type enumitem_iklegs_state = enumitem<enum_iklegs_state>
-export type enum_iklegs_state = construct<{
+export type enum_iklegs_state = extend<{
 	read Planted: enumitem_iklegs_state,
     read Stepping: enumitem_iklegs_state,
     read Settling: enumitem_iklegs_state,
@@ -1932,14 +1993,14 @@ export type enum_iklegs_state = construct<{
 
 
 export type enumitem_operation_variant = enumitem<enum_operation_variant>
-export type enum_operation_variant = construct<{
+export type enum_operation_variant = extend<{
 	read New: enumitem_operation_variant,
 	read Change: enumitem_operation_variant,
 	read Remove: enumitem_operation_variant,
 }, enumobject>
 
 export type enumitem_reference_notification = enumitem<enum_reference_notification>
-export type enum_reference_notification = construct<{
+export type enum_reference_notification = extend<{
 	read NewInstance: enumitem_reference_notification,
 	read ChangedInstance: enumitem_reference_notification,
 	read DestroyedInstance: enumitem_reference_notification,
@@ -1947,13 +2008,13 @@ export type enum_reference_notification = construct<{
 }, enumobject>
 
 export type enumitem_executor_notification = enumitem<enum_executor_notification>
-export type enum_executor_notification = construct<{
+export type enum_executor_notification = extend<{
 	read Process: enumitem_executor_notification,
 	read Simulation: enumitem_executor_notification,
 }, enumobject>
 
 export type enumitem_character_parameter_variant = enumitem<enum_character_parameter_variant>
-export type enum_character_parameter_variant = construct<{
+export type enum_character_parameter_variant = extend<{
 	read Health: enumitem_character_parameter_variant,
 	read Stamina: enumitem_character_parameter_variant,
 	read Speed: enumitem_character_parameter_variant,
@@ -1964,14 +2025,14 @@ export type enum_character_parameter_variant = construct<{
 }, enumobject>
 
 export type enumitem_attribute_notification = enumitem<enum_attribute_notification>
-export type enum_attribute_notification = construct<{
+export type enum_attribute_notification = extend<{
 	read Added: enumitem_attribute_notification,
 	read Changed: enumitem_attribute_notification,
 	read Removed: enumitem_attribute_notification,
 }, enumobject>
 
 export type enumitem_setup_notification = enumitem<enum_setup_notification>
-export type enum_setup_notification = construct<{
+export type enum_setup_notification = extend<{
 	read Install: enumitem_setup_notification,
 	read Installed: enumitem_setup_notification,
 	read Require: enumitem_setup_notification,
@@ -1979,7 +2040,7 @@ export type enum_setup_notification = construct<{
 }, enumobject>
 
 export type enumitem_tick_notification = enumitem<enum_tick_notification>
-export type enum_tick_notification = construct<{
+export type enum_tick_notification = extend<{
     read Started: enumitem_tick_notification,
     read Stepped: enumitem_tick_notification,
     read Paused: enumitem_tick_notification,
@@ -1988,7 +2049,7 @@ export type enum_tick_notification = construct<{
 }, enumobject>
 
 export type enumitem_round_state = enumitem<enum_round_state>
-export type enum_round_state = construct<{
+export type enum_round_state = extend<{
     read Preparing: enumitem_round_state,
     read Begining: enumitem_round_state,
     read AtWork: enumitem_round_state,
@@ -1998,20 +2059,20 @@ export type enum_round_state = construct<{
 
 
 export type enumitem_asset_type_variant = enumitem<enum_asset_type_variant>
-export type enum_asset_type_variant = construct<{
+export type enum_asset_type_variant = extend<{
 	read Model: enumitem_asset_type_variant,
 	read Sound: enumitem_asset_type_variant,
 	read Image: enumitem_asset_type_variant,
 }, enumobject>
 
 export type enumitem_faction_notification = enumitem<enum_faction_notification>
-export type enum_faction_notification = construct<{
+export type enum_faction_notification = extend<{
 	read MemberJoined: enumitem_faction_notification,
     read MemberRemoved: enumitem_faction_notification
 }, enumobject>
 
 export type enumitem_user_data_require = enumitem<enum_user_data_require>
-export type enum_user_data_require = construct<{
+export type enum_user_data_require = extend<{
 	read UserProfile: enumitem_user_data_require,
 
 	read UserLastDataSave: enumitem_user_data_require,
@@ -2023,7 +2084,7 @@ export type enum_user_data_require = construct<{
 }, enumobject>
 
 export type enumitem_user_notification = enumitem<enum_user_notification>
-export type enum_user_notification = construct<{
+export type enum_user_notification = extend<{
 	read ServerJoin: enumitem_user_notification,
 	read ServerExit: enumitem_user_notification,
 	read ServerBan: enumitem_user_notification,
@@ -2032,7 +2093,7 @@ export type enum_user_notification = construct<{
 }, enumobject>
 
 export type enumitem_action_map_variant = enumitem<enum_action_map_variant>
-export type enum_action_map_variant = construct<{
+export type enum_action_map_variant = extend<{
 	read MoveForward: enumitem_action_map_variant,
 	read MoveBackward: enumitem_action_map_variant,
 	read MoveLeft: enumitem_action_map_variant,
@@ -2045,7 +2106,7 @@ export type enum_action_map_variant = construct<{
 }, enumobject>
 
 export type enumitem_statemachine_notification = enumitem<enum_statemachine_notification>
-export type enum_statemachine_notification = construct<{
+export type enum_statemachine_notification = extend<{
     read ChangedState: enumitem_statemachine_notification,
     read NewState: enumitem_statemachine_notification,
 
@@ -2054,7 +2115,7 @@ export type enum_statemachine_notification = construct<{
 }, enumobject>
 
 export type enumitem_connection_variant = enumitem<enum_connection_variant>
-export type enum_connection_variant = construct<
+export type enum_connection_variant = extend<
 	{
 		read Ever: enumitem_connection_variant,
 		read Once: enumitem_connection_variant,
@@ -2066,24 +2127,24 @@ export type enum_connection_variant = construct<
 >
 
 export type enumitem_internal_channel_variant = enumitem<enum_internal_channel_variant>
-export type enum_internal_channel_variant = construct<{
+export type enum_internal_channel_variant = extend<{
 	read UserData: enumitem_internal_channel_variant,
 }, enumobject>
 
 export type enumitem_physx_mode_variant = enumitem<enum_physx_mode_variant>
-export type enum_physx_mode_variant = construct<{
+export type enum_physx_mode_variant = extend<{
 	read Local: enumitem_physx_mode_variant,
 	read Global: enumitem_physx_mode_variant,
 }, enumobject>
 
 export type enumitem_disposable_notification = enumitem<enum_disposable_notification>
-export type enum_disposable_notification = construct<{
+export type enum_disposable_notification = extend<{
 	read OnRelease: enumitem_disposable_notification,
 	read Released: enumitem_disposable_notification,
 }, enumobject>
 
 export type enumitem_direction_variant = enumitem<enum_direction_variant>
-export type enum_direction_variant = construct<{
+export type enum_direction_variant = extend<{
     read Up: enumitem_direction_variant,
     read Bottom: enumitem_direction_variant,
     read Left: enumitem_direction_variant,
@@ -2094,7 +2155,7 @@ export type enum_direction_variant = construct<{
 
 
 export type enumitem_collision_variant = enumitem<enum_collision_variant>
-export type enum_collision_variant = construct<{
+export type enum_collision_variant = extend<{
     read DefaultGroup: enumitem_collision_variant,
     read ItemGroup: enumitem_collision_variant,
     read CharacterGroup: enumitem_collision_variant,

@@ -39,7 +39,10 @@ const class : ikr6limb = Disposable:new {
     end, declare.boolean, "ikr6limb"),
 
     is_orientation_finished = ftype:write(function (self: ikr6limb) : boolean
-        const fake_leg = self:get_fake():get_instance()
+        const fake = self:get_fake()
+        if not fake:is_instance_exists() then return false end
+
+        const fake_leg = fake:get_instance()
         const current_up = worldspace.to_vector(fake_leg.CFrame.UpVector)
         const target_up = self.target.rotation.up
         const up_dot = math.clamp(vector.dot(current_up, target_up), -1, 1)
@@ -48,7 +51,10 @@ const class : ikr6limb = Disposable:new {
     end, declare.boolean, "ikr6limb"),
 
     is_moving_finished = ftype:write (function (self: ikr6limb) : boolean
-        const fake_leg = self:get_fake():get_instance()
+        const fake = self:get_fake()
+        if not fake:is_instance_exists() then return false end
+
+        const fake_leg = fake:get_instance()
         const position_delta = self.target.position - worldspace.to_vector(fake_leg.Position)
         if vector.magnitude(position_delta) > 0.05 then return false end
 
@@ -65,8 +71,9 @@ const class : ikr6limb = Disposable:new {
     set_visible = ftype:write(function (self: ikr6limb, to: boolean)  : ()
         self:set(private.visible_key, to)
 
-        if private.maybe_fake_leg:exist(self) then
+        if private.maybe_fake:exist(self) then
             const fake_leg_reference = self:get_fake()
+            if not fake_leg_reference:is_instance_exists() then return end
             const instance_of_fake_leg = fake_leg_reference:get_instance()
 
             if engine.is_server then
@@ -82,11 +89,14 @@ const class : ikr6limb = Disposable:new {
     end, StateMachine.type, "ikr6limb"),
 
     is_initiated = ftype:write(function (self: ikr6limb) : boolean
-        return private.maybe_fake_leg:exist(self)
+        return private.maybe_fake:exist(self)
     end, declare.boolean, "ikr6limb"),
 
     get_limb_target = ftype:write(function (self: ikr6limb) : basis
-        const fake_leg = self:get_fake():get_instance()
+        const fake = self:get_fake()
+        if not fake:is_instance_exists() then return self.current_basis end
+
+        const fake_leg = fake:get_instance()
         const half_height = self:get_info().limb_size.y * 0.5
         const contact = self.hit_position
         const out_point = self.lateral_position
@@ -220,10 +230,22 @@ const class : ikr6limb = Disposable:new {
     end, Reference.type, "ikr6limb"),
 
     get_fake = ftype:write(function (self: ikr6limb) : reference<BasePart>
-        return private.maybe_fake_leg:extract(self, function ()
-            return private.create_new_reference(self)
+        return private.maybe_fake:extract(self, function ()
+            return private.create_new_fake_reference(self)
         end)
-    end, Reference.type, "ikr6limb")
+    end, Reference.type, "ikr6limb"),
+
+    rebuild_fake = ftype:write(function (self: ikr6limb) : ()
+        if private.maybe_fake:exist(self) then
+            const fake = self:get_fake()
+            if fake:is_instance_exists() then
+                fake:get_instance():Destroy()
+            end
+
+            private.maybe_fake:erase(self)
+            self:get_fake()
+        end
+    end, declare["nil"], "ikr6limnb")
 }
 
 class:host(function(new: ikr6limb): ()
@@ -237,14 +259,17 @@ do
     private.visible_key = SecurityRNG:get_hash_blake3("r6foot_visible_key")
     private.default_info = IKR6LimbInfo:new()
     private.maybe_origin = Maybe:new() :: maybe<reference<BasePart>, ikr6limb>
-    private.maybe_fake_leg = Maybe:new() :: maybe<reference<BasePart>, ikr6limb>
+    private.maybe_fake = Maybe:new() :: maybe<reference<BasePart>, ikr6limb>
 
     private.free_fake = function (related: disposable)
         const self = related:as <<ikr6limb>>(class.type)
 
-		if private.maybe_fake_leg:exist(self) then
-			const reference = self:get_fake()
-			reference:get_instance():Destroy()
+		if private.maybe_fake:exist(self) then
+			const fake = self:get_fake()
+            
+            if fake:is_instance_exists() then
+                fake:get_instance():Destroy()
+            end
 		end
     end
 
@@ -252,7 +277,7 @@ do
         return self:get <<boolean>> (private.visible_key) or false
     end
 
-    private.create_new_reference = function (self: ikr6limb) : reference<BasePart>
+    private.create_new_fake_reference = function (self: ikr6limb) : reference<BasePart>
         const reference = ReferenceBasePart:new()
         const info = self:get_info()
         const reference_of_origin = self:get_reference()
@@ -263,6 +288,10 @@ do
             if reference_of_origin:is_instance_exists() then
                 new = reference_of_origin:get_instance():Clone()
             else
+                if project.debug.state then
+                    project.console_out_error("cannot create clone of origin, because origin does not exists. Fallback to default part")
+                end
+
                 new = Instance.new "Part"
                 new.Size = worldspace.to_vector3(info.limb_size)
             end
@@ -270,8 +299,6 @@ do
             new = Instance.new "Part"
             new.Size = worldspace.to_vector3(info.limb_size)
         end
-
-        new.CFrame = reference_of_origin:get_instance().CFrame
 
         const prepare_fake_elements: {Instance} = table.freeze {new, unpack(new:GetDescendants())}
         const baseparts_list: {BasePart} = {}
@@ -381,16 +408,25 @@ do
             end
         end)
 
-        const origin_instance = reference_of_origin:get_instance()
-        const origin_basis = Basis:to_basis(origin_instance.CFrame)
-        const position, up = worldspace.to_vector(origin_instance.Position, origin_instance.CFrame.UpVector)
+        if reference_of_origin:is_instance_exists() then
+            const origin_instance = reference_of_origin:get_instance()
+            const origin_basis = Basis:to_basis(origin_instance.CFrame)
+            const position, up = worldspace.to_vector(origin_instance.Position, origin_instance.CFrame.UpVector)
 
-        self.hit_position = position - up * (info.limb_size.y * 0.5)
-        self.target = origin_basis
-        self.fallback_basis = origin_basis
-        self.current_basis = origin_basis
+            self.hit_position = position - up * (info.limb_size.y * 0.5)
+            self.target = origin_basis
+            self.fallback_basis = origin_basis
+            self.current_basis = origin_basis
 
-        new.Parent = origin_instance
+            new.CFrame = origin_instance.CFrame
+            new.Parent = origin_instance
+        else
+            if project.debug.state then
+                project.console_out("origin does not exists, fallback to workspace")
+            end
+
+            new.Parent = workspace
+        end
 
         return reference :: reference<BasePart>
     end

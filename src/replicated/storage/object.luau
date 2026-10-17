@@ -3,7 +3,6 @@
 
 const ctags = require("@game/ReplicatedStorage/static/ctags")
 const ctype = require("@game/ReplicatedStorage/static/ctype")
-const gall = require("@game/ReplicatedStorage/static/gall")
 const project = require("./static/project")
 const declare = require("./static/declare")
 const ftype = require("./static/ftype")
@@ -100,7 +99,7 @@ const class: object = {
 		return self.is(that, "object") and that or nil
 	end, ftype:opt("object"), "object", declare.anyt),
 
-	iden = ftype:write(function(self: object) : unknown
+	iden = ftype:write(function(self: object) : any
 		return private.identity[self] or nil
 	end, ftype:or_opt(declare.number, declare.string), "object")
 }
@@ -238,7 +237,7 @@ do --private_region
 	end
 
 	function private.generator (new: object)
-		private.counter += 1
+		private.counter += 1 + tick()
 		return private.counter
 	end
 
@@ -255,26 +254,15 @@ do --private_region
 
 	private.bootload_new(class)
 
+	--#if DEBUG
 	if project.debug then
-		gall.object_require = ftype:write(function (identity: unknown, assertion: string?) : any
-			const required = private.identity[identity]
-			
-			if assertion then
-				const state, cached = private.get_cached(required :: any)
-				
-				assert(state, "cannot get necessary object, cache empty")
-				assert(cached.__type == assertion, "retrieved object isn't an assertion")
-			end
-			
-			return required
-		end, ftype:opt("object"), declare.string, ftype:opt(declare.string))
-
 		if project.debug.show_created_objects then
 			class:host(function(new: object)
 				project.console_out(string.format("new %s", new.type))
 			end)
 		end
 	end
+	--#endif
 
 	ctype:write(class, ctype:generate_metainfo(class, {
 		ctags.core,

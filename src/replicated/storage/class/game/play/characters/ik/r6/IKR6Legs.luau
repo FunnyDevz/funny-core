@@ -3,6 +3,7 @@ const Maybe = require("@game/ReplicatedStorage/class/common/gc/Maybe")
 const IKR6Foot = require("@game/ReplicatedStorage/class/game/play/characters/ik/r6/IKR6Foot")
 const IKR6Solver = require("@game/ReplicatedStorage/class/game/play/characters/ik/r6/IKR6Solver")
 const IKR6Info = require("@game/ReplicatedStorage/class/struct/game/IKR6Info")
+const IKR6LegInfo = require("@game/ReplicatedStorage/class/struct/game/ik/IKR6LegInfo")
 const Basis = require("@game/ReplicatedStorage/class/struct/geometry/Basis")
 const ConnectionVariant = require("@game/ReplicatedStorage/enums/descriptor/ConnectionVariant")
 const ReferenceNotification = require("@game/ReplicatedStorage/enums/notification/ReferenceNotification")
@@ -24,11 +25,11 @@ const class : ikr6legs = IKR6Solver:new {
     last_work_time = 0,
 
     get_left_leg = ftype:write(function (self: ikr6legs) : ikr6foot
-        return private.maybe_left_legs:enactment(self, IKR6Foot)
+        return private.maybe_left_legs:extract(self, private.create_left_ikr6foot)
     end, IKR6Foot.type, "ikr6legs"),
 
     get_right_leg = ftype:write(function (self: ikr6legs) : ikr6foot
-        return private.maybe_right_legs:enactment(self, IKR6Foot)
+        return private.maybe_right_legs:extract(self, private.create_right_ikr6foot)
     end, IKR6Foot.type, "ikr6legs"),
 
     get_active_cycle_leg_pair = ftype:write(function (self: ikr6legs) : (ikr6foot, ikr6foot)
@@ -74,6 +75,21 @@ do
     private.rayparams.ExcludeInstances = {}
 
     private.default_ikr6info = IKR6Info:new()
+    private.default_ikr6leginfo_left = IKR6LegInfo:new({limb_diff = -IKR6LegInfo.limb_diff})
+    private.default_ikr6leginfo_right = IKR6LegInfo:new({limb_diff = IKR6LegInfo.limb_diff})
+
+    private.create_left_ikr6foot = function ()
+        const new = IKR6Foot:new()
+        new:set_info(private.default_ikr6leginfo_left)
+        return new
+    end
+
+    private.create_right_ikr6foot = function ()
+        const new = IKR6Foot:new()
+        new:set_info(private.default_ikr6leginfo_right)
+        return new
+    end
+
     private.list = setmetatable({} :: {ikr6legs}, declare.tables.__mode_vs)
     private.active = setmetatable({} :: {[ikr6legs]: boolean?}, declare.tables.__mode_ks)
     private.maybe_left_legs = Maybe:new() :: maybe<ikr6foot, ikr6legs>
@@ -90,20 +106,31 @@ do
                 if not new:get_info().prebuild_fake then return end
 
                 const left_leg = new:get_left_leg()
-                if not left_leg:is_initiated() then
-                    const limb_part = instance.humanoid.get_limb_of(humanoid, Enum.Limb.LeftLeg)
-                    left_leg:get_reference():set_instance(limb_part)
+                const left_limb_part = instance.humanoid.get_limb_of(humanoid, Enum.Limb.LeftLeg)
+                left_leg:get_reference():set_instance(left_limb_part)
+                
+
+                if left_leg:is_initiated() then
+                    left_leg:rebuild_fake()
                 end
+
+                
         
                 const right_leg = new:get_right_leg()
-                if not right_leg:is_initiated() then
-                    const limb_part = instance.humanoid.get_limb_of(humanoid, Enum.Limb.RightLeg)
-                    right_leg:get_reference():set_instance(limb_part)
+                const right_limb_part = instance.humanoid.get_limb_of(humanoid, Enum.Limb.RightLeg)
+                right_leg:get_reference():set_instance(right_limb_part)
+
+                if right_leg:is_initiated() then
+                    right_leg:rebuild_fake()
                 end
 
                 if project.debug.state then
-                    if right_leg:is_initiated() or left_leg:is_initiated() then
-                        project.console_out("the humanoid changes for the already initialized ikr6legs, the limbs will not change")
+                    if right_leg:is_initiated() then
+                        right_leg:rebuild_fake()
+                    end
+
+                    if left_leg:is_initiated() then
+                        left_leg:rebuild_fake()
                     end
 
                     if project.debug.show_ikr6legs_solver_path then
@@ -227,16 +254,48 @@ do
     end
 
     do -- leg utility layer
+        private.is_valid = function (ikr6foot: ikr6foot): boolean
+            const reference_to_origin = ikr6foot:get_reference()
+            if not reference_to_origin:is_instance_exists() then
+                if project.debug.state then
+                    project.console_out_error("cannot process leg fallback, because origin does not exists")
+                end
+
+                return false
+            end
+
+            const reference_to_fake = ikr6foot:get_fake()
+            if not reference_to_fake:is_instance_exists() then
+                if project.debug.state then
+                    project.console_out_error("cannot process leg fallback, because fake does not exists")
+                end
+
+                return false
+            end
+
+            return true
+        end
+
         private.foot_update = function (raw: raw, foot: ikr6foot, info: ikr6leginfo, raycast_result: RaycastResult)
             foot.hit_normal, foot.hit_position = worldspace.to_vector(raycast_result.Normal, raycast_result.Position)
             foot.up_direction = raw.torso.rotation.up
-            foot.fallback_basis = Basis:to_basis(foot:get_reference():get_instance().CFrame)
+
+            const fake = foot:get_reference()
+            if fake:is_instance_exists() then
+                const fake_leg = fake:get_instance()
+                foot.fallback_basis = Basis:to_basis(fake_leg.CFrame)
+            else
+                if project.debug.state then
+                    project.console_out_error("fake_leg does not exists, cannot create fallback basis, nothing to do")
+                end
+            end
+
         end
 
         private.update_foot_anchor = function(raw: raw,foot: ikr6foot, info: ikr6leginfo)
             const previous_lateral_position = foot.lateral_position
             foot.from = raw.torso.position
-            foot.lateral_position = raw.torso.position + vector.create(0, -raw.size.y / 2, 0) + raw.torso.rotation.right * info.limb_diff
+            foot.lateral_position = raw.torso.position - raw.torso.rotation.up * (raw.size.y / 2) + raw.torso.rotation.right * info.limb_diff            
             
             const delta = foot.lateral_position - previous_lateral_position
             const up = raw.torso.rotation.up
@@ -346,7 +405,13 @@ do
         private.solver_begin_leg_fallback = function (ikr6foot: ikr6foot) : ()
             ikr6foot.fallback = true
 
-            const origin = ikr6foot:get_reference():get_instance()
+            const reference_to_origin = ikr6foot:get_reference()
+            const reference_to_fake = ikr6foot:get_fake()
+            if not private.is_valid(ikr6foot) then return end
+
+            const origin: BasePart = reference_to_origin:get_instance()
+            const fake_leg = reference_to_fake:get_instance()
+
             const fallback = origin.CFrame
             const fallback_basis = Basis:to_basis(fallback)
 
@@ -357,7 +422,7 @@ do
             ikr6foot.hit_position = ikr6foot:get_limb_contact()
             ikr6foot.hit_normal = fallback_basis.rotation.up
 
-            ikr6foot:get_fake():get_instance().CFrame = fallback
+            fake_leg.CFrame = fallback
 
             state_machine:set_state(false, IKLegsState.Settling, IKLegsState.Stepping)
             state_machine:set_state(true, IKLegsState.Planted)
@@ -384,12 +449,16 @@ do
         end
 
         private.solver_leg_fallback = function (ikr6foot: ikr6foot, info: ikr6leginfo, delta: number) : ()
-            const origin: BasePart = ikr6foot:get_reference():get_instance()
+            const reference_to_origin = ikr6foot:get_reference()
+            const reference_to_fake = ikr6foot:get_fake()
+            if not private.is_valid(ikr6foot) then return end
+
+            const origin: BasePart = reference_to_origin:get_instance()
+            const fake_leg = reference_to_fake:get_instance()
+
             const fallback = origin.CFrame
             const fallback_basis = Basis:to_basis(fallback)
-
             const state_machine = ikr6foot:get_states()
-            const fake_leg = ikr6foot:get_fake():get_instance()
 
             state_machine:set_state(false, IKLegsState.Settling, IKLegsState.Stepping)
             state_machine:set_state(true, IKLegsState.Planted)
@@ -447,7 +516,17 @@ do
 
                 const info = ikr6foot:get_info()
                 const state_machine = ikr6foot:get_states()
-                const fake_leg = ikr6foot:get_fake():get_instance()
+                const fake = ikr6foot:get_fake()
+
+                if not fake:is_instance_exists() then
+                    if project.debug.state then
+                        project.console_out_error("cannot process null-reference fake-leg")
+                    end
+
+                    continue
+                end
+
+                const fake_leg = fake:get_instance()
 
                 private.update_foot_anchor(raw, ikr6foot, info)
 
@@ -557,8 +636,9 @@ do
         end
 
         const reference_to_humanoid = ik:get_humanoid()
-        const humanoid = reference_to_humanoid:get_instance()
-        if humanoid == nil then 
+        const reference_to_torso = ik:get_torso()
+
+        if not reference_to_humanoid:is_instance_exists() then 
             private.mark_unactive(ik)
 
             if project.debug.state then
@@ -568,8 +648,7 @@ do
             return
         end
 
-        const torso = ik:get_torso():get_instance()
-        if torso == nil then
+        if not reference_to_torso:is_instance_exists() then
             private.mark_unactive(ik) 
 
             if project.debug.state then
@@ -578,6 +657,10 @@ do
 
             return
         end
+
+        const humanoid = reference_to_humanoid:get_instance() :: Humanoid
+        const torso = reference_to_torso:get_instance() :: BasePart
+
 
         private.active[ik] = true
         private.modify_params(torso.Parent or torso)

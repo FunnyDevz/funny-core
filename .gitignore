@@ -4,13 +4,16 @@
 /Packages
 /ServerPackages
 /wally.lock
+/build/target
 
 /*.rbxlx.lock
 /*.rbxl.lock
 /.jest-roblox
 /sourcemap.json
-*.7z
-*.blend
-*.png
-*.jpg
-*.luau_
+
+*.secure
+*.7z*
+*.blend*
+*.png*
+*.jpg*
+*.luau_*

@@ -1,6 +1,9 @@
 --!strict
 
-const controller = {}
+--[==[
+	Это специальный решатель для строковых операторов.
+]==]
+const fspec = {}
 
 export type Context = {
 	self: unknown,
@@ -108,15 +111,15 @@ const function find_controller(value: string): ControllerMatch?
 	}
 end
 
-function controller.has_controller(value: string): boolean
+function fspec.has_controller(value: string): boolean
 	return string.find(value, CONTROLLER_PATTERN) ~= nil
 end
 
-function controller.is_controller(value: string): boolean
+function fspec.is_controller(value: string): boolean
 	return string.match(value, CONTROLLER_PATTERN) ~= nil
 end
 
-function controller.is_resolveable(value: string): boolean
+function fspec.is_resolveable(value: string): boolean
 	const match = find_controller(value)
 
 	if not match then
@@ -126,7 +129,7 @@ function controller.is_resolveable(value: string): boolean
 	return RESOLVERS[match.name] ~= nil
 end
 
-function controller.get(value: string, context: Context): (boolean, string?)
+function fspec.get(value: string, context: Context): (boolean, string?)
 	const match = find_controller(value)
 
 	if not match then
@@ -146,7 +149,7 @@ function controller.get(value: string, context: Context): (boolean, string?)
 	return true, tostring(resolved)
 end
 
-function controller.resolve(value: string, context: Context): string
+function fspec.resolve(value: string, context: Context): string
 	const out = string.gsub(value, CONTROLLER_PATTERN, function(capture: string): string
 		local name, path = string.match(capture, "^([%w_]+)([%w_%.]*)$")
 
@@ -174,7 +177,7 @@ function controller.resolve(value: string, context: Context): string
     return out
 end
 
-function controller.register(name: string, resolver: Resolver)
+function fspec.register(name: string, resolver: Resolver)
 	assert(
 		RESOLVERS[name] == nil,
 		string.format("Controller '%s' already exists", name)
@@ -183,4 +186,4 @@ function controller.register(name: string, resolver: Resolver)
 	RESOLVERS[name] = resolver
 end
 
-return table.freeze(controller)
+return table.freeze(fspec)
