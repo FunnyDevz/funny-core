@@ -29,11 +29,43 @@ const datamodel = {
         end
     end,
 
+    get_tagged = function (tag: string) : {Instance}
+        return CollectionService:GetTagged(tag)
+    end,
+
+    on_tag_added = function (tag: string, f: (instance: Instance) -> ()) : RBXScriptConnection
+        return CollectionService:GetInstanceAddedSignal(tag):Connect(f)
+    end,
+
+    on_tag_removed = function (tag: string, f: (instance: Instance) -> ()) : RBXScriptConnection
+        return CollectionService:GetInstanceRemovedSignal(tag):Connect(f)
+    end,
+
+    on_ancestry_changed = function (of: Instance, f: () -> ()) : RBXScriptConnection
+        return of.AncestryChanged:Connect(function()
+            f()
+        end)
+    end,
+
+    is_inside = function (of: Instance, ancestors: {Instance}?) : boolean
+        if (not of:IsDescendantOf(game)) then
+            return false
+        end
+
+        for k, v in ancestors or {workspace} do
+            if (of:IsDescendantOf(v)) then
+                return true
+            end
+        end
+
+        return false
+    end,
+
     virtual = function (of: object) : Configuration?
         const identity = tostring(of:iden())
         const node = Instance.new("Configuration")
         node.Name = of.type .. identity
-        
+
         const metadata = ctype:read(of)
 
         --#if DEBUG
