@@ -281,6 +281,37 @@ export type signal<T... = ...unknown> = extend<{
     read get_signal_event: (self: signal<T...>) -> event<enumitem_tick_notification, T...>
 }, reference<RBXScriptSignal<T...>>>
 
+--[==[
+    Объект, привязывающий класс к каждому инстансу с тегом `tag`
+
+    Объект создается через `maker`, когда тег появился на инстансе внутри `ancestors`
+    (по умолчанию workspace), и освобождается, когда тег сняли, инстанс удалили или
+    он ушел из `ancestors`. `maker` - функция `(instance) -> T` или класс: тогда
+    вызывается `maker:new()`, а инстанс передается в `set_instance`, если он есть
+
+    О привязке и отвязке сообщает через `BinderNotification.Bound` / `Unbound`
+    с аргументами `(instance, object)`
+
+    ```luau
+    const doors = Binder:new({ tag = "Door", maker = Reference }) :: binder<reference>
+    doors:subscribe(BinderNotification.Bound, ConnectionVariant.Ever, function(instance, door) end)
+    doors:start()
+    ```
+]==]
+export type binder<T = unknown> = extend<{
+    tag: string,
+    maker: binder_maker<T>?,
+    ancestors: { Instance }?,
+
+    read start: (self: binder<T>) -> (),
+    read stop: (self: binder<T>) -> (),
+    read is_started: (self: binder<T>) -> boolean,
+    read get_object: (self: binder<T>, instance: Instance) -> T?,
+    read get_objects: (self: binder<T>) -> { [Instance]: T },
+}, observer<enumitem_binder_notification>>
+
+export type binder_maker<T = unknown> = ((instance: Instance) -> T) | { read new: (self: any) -> T }
+
 export type controller = extend<{
     state: enumitem_controller_state
 } & operatable<controller>, observer<enumitem_controller_state>>
@@ -2009,6 +2040,12 @@ export type enum_reference_notification = extend<{
 	read ChangedInstance: enumitem_reference_notification,
 	read DestroyedInstance: enumitem_reference_notification,
 	read NullifiedInstance: enumitem_reference_notification,
+}, enumobject>
+
+export type enumitem_binder_notification = enumitem<enum_binder_notification>
+export type enum_binder_notification = extend<{
+	read Bound: enumitem_binder_notification,
+	read Unbound: enumitem_binder_notification,
 }, enumobject>
 
 export type enumitem_executor_notification = enumitem<enum_executor_notification>
