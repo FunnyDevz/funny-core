@@ -26,6 +26,11 @@ export type ttable = {
     read fix: <T> (t0: {T?}) -> {T & negation_of_nil<>},
 
     --[==[
+        Проходится по всему массиву в поисках этого значения. Если оно есть, то удаляет его, иначе вставляет
+    ]==]
+    read toggle: <T> (t0: {T}, that: T?) -> (),
+
+    --[==[
         Проходится по массиву и убирает любую дыру в нем, тем самым делая его однородным.
 
         Это вернет копию
@@ -121,6 +126,21 @@ const ttable: ttable = {
         end
         
         return t0 :: {any & negation_of_nil<>}
+    end,
+
+    toggle = function (t0: t, that)
+        for i, v in t0 do
+            if (type(i) == "number") then
+                if (v == that) then
+                    table.remove(t0, i)
+                    return
+                end
+            end
+        end
+
+        if (that ~= nil) then
+    		table.insert(t0, that)
+        end
     end,
 
     fixed = function (t0: t)

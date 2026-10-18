@@ -14,7 +14,7 @@ const class: object = {
 
 	new = ftype:write(function <T,U> (self: T, that: U?): any
 		const child = ttable.combine(self, that)
-        private.call_host(self)
+        private.call_host(child)
 		return child
 	end, "object", ftype:uor(declare.table, "object"), ftype:opt(declare.table)),
 
@@ -58,10 +58,9 @@ const class: object = {
         return nil -- silenced variant
 	end, ftype:opt("object"), "object", ftype:opt(declare.string)),
 
-	host = ftype:write(function <T> (self: T & object, f: (any) -> (), last: boolean?) : ()
-        const host = private.get_host(self) or private.new_host(self:base())
-
-	end, declare["nil"], "object", declare["function"], ftype:opt(declare.boolean)),
+	host = ftype:write(function <T> (self: T & object, f: (any) -> ()) : ()
+        ttable.toggle(private.get_host_or_create(self) :: any, f)
+	end, declare["nil"], "object", declare["function"]),
 
 	as = ftype:write(function <T> (self: unknown, as: string) : T
 		const cast, _ = project.assert((self :: object):is(as), "cannot convert this object to required type", true)
@@ -84,27 +83,30 @@ const class: object = {
 
 do
     type host <T = object> = {
-        read last: (T) -> ()?,
-        parent: host?,
         [number]: (T) -> ()
     }
 
     private.host_list = setmetatable({} :: {[object]: host?}, declare.tables.__mode_ks)
-    private.new_host = function <T> (parent: object?) : host<T>
+    private.new_host = function (parent: object?) : host
         const new: host = {
-            last = nil,
-            parent = nil
+
         }
-        
-        if (parent ~= nil) then
-            new.parent = private.get_host(parent)
-        end
         
         return new
     end
 
     private.get_host = function (of: object?) : host?
         return of and private.host_list[of] or nil
+    end
+
+    private.get_host_or_create = function (of: object?): host?
+        if (of ~= nil) then
+            const host: host = private.host_list[of] or private.new_host(of:base())
+            private.host_list[of] = host
+            return host
+        end
+
+        return nil
     end
 
     private.get_host_chain_list = function (of: object) : {host}
@@ -117,6 +119,8 @@ do
             if (host ~= nil) then
 				table.insert(list, host)
             end
+
+            current = current:base()
         end
 
         return list
@@ -144,6 +148,10 @@ do
 			class:host(function(new: object)
 				project.console_out(string.format("new %s", new.type))
 			end)
+
+            class:host(function(new)
+                
+            end)
 		end
 	end
 	--#endif
