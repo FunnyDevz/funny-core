@@ -11,6 +11,8 @@ export type library = {
 
 const mt = {
     __index = function (t)
+        
+    end
 }
 
 const library: library = {}

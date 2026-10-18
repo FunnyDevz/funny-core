@@ -9,6 +9,8 @@ const ctags = require("@game/ReplicatedStorage/static/ctags")
 const ctype = require("@game/ReplicatedStorage/static/ctype")
 const ftype = require("@game/ReplicatedStorage/static/ftype")
 
+type indexed = enumobject & {[unknown]: unknown}
+
 const private = {}
 const class: enumobject = object:new({
 	type = "enumobject",
@@ -58,7 +60,7 @@ const class: enumobject = object:new({
 	end, declare.table, "enumobject"),
 
 	get_enum_by_name = ftype:write(function(self: enumobject, name: string): enumitem?
-		const var: unknown = self[name]
+		const var: unknown = (self :: indexed)[name]
 
 		if self:that(var, EnumItem.type) then
 			return var :: enumitem
@@ -81,10 +83,10 @@ const class: enumobject = object:new({
 		if self:that(that, EnumItem.type) then
 			const var = that :: enumitem
 
-			return self[var.name] ~= nil and var.enum == self
+			return (self :: indexed)[var.name] ~= nil and var.enum == self
 		elseif type(that) == declare.string then
 			const var = that :: string
-			const item: unknown = self[var]
+			const item: unknown = (self :: indexed)[var]
 
 			if item == nil then
 				return false
@@ -134,7 +136,7 @@ class:host(function(new: enumobject)
 			end
 		end
 
-		new[name] = item_var
+		(new :: indexed)[name] = item_var
 		private.item_builded[v.hashlink] = v
 
 		if project.enums.enumobject_freeze then

@@ -14,7 +14,7 @@ const class: object = {
 
 	new = ftype:write(function <T,U> (self: T, that: U?): any
 		const child = ttable.combine(self, that)
-
+        private.call_host(self)
 		return child
 	end, "object", ftype:uor(declare.table, "object"), ftype:opt(declare.table)),
 
@@ -59,12 +59,7 @@ const class: object = {
 	end, ftype:opt("object"), "object", ftype:opt(declare.string)),
 
 	host = ftype:write(function <T> (self: T & object, f: (any) -> (), last: boolean?) : ()
-		const related = private.host[self] or private.new_host()
-        private.host[self] = related
-
-        for i = 1, -1 do
-            
-        end
+        const host = private.get_host(self) or private.new_host(self:base())
 
 	end, declare["nil"], "object", declare["function"], ftype:opt(declare.boolean)),
 
@@ -72,7 +67,7 @@ const class: object = {
 		const cast, _ = project.assert((self :: object):is(as), "cannot convert this object to required type", true)
 		
         if (not cast) then
-            return declare.tables.__null
+            return declare.tables.__null :: any
         else
             return self :: T
         end
@@ -94,7 +89,7 @@ do
         [number]: (T) -> ()
     }
 
-    private.host = setmetatable({} :: {[object]: host?}, declare.tables.__mode_ks)
+    private.host_list = setmetatable({} :: {[object]: host?}, declare.tables.__mode_ks)
     private.new_host = function <T> (parent: object?) : host<T>
         const new: host = {
             last = nil,
@@ -108,39 +103,39 @@ do
         return new
     end
 
-    private.get_host = function (of: object) : host?
-        const related_host = private.host[of]
-        
-        if (not related_host) then
-            const base = of:base()
+    private.get_host = function (of: object?) : host?
+        return of and private.host_list[of] or nil
+    end
 
-            if (base ~= nil) then
-                return private.get_host(base)
-            else
-                return nil
+    private.get_host_chain_list = function (of: object) : {host}
+        const list: {host} = {}
+        local current: object? = of
+
+        while (current ~= nil) do
+            const host = private.get_host(current)
+
+            if (host ~= nil) then
+				table.insert(list, host)
             end
-        else
-            return related_host
         end
+
+        return list
     end
 
     private.call_host = function (of: setmetatable<object, object>|object) : ()
-        local first = private.get_host(of)
-        local last: host? = declare.tables.dummy :: host
-        local prev: host? = first
+        const chains = private.get_host_chain_list(of)
+        
+        for i = #chains, 1, -1 do
+            const host = chains[i]
 
-        repeat
-            last = last.parent
-            prev = last
-        until (last ~= nil)
+            for i, v in host do
+                const state, err = pcall(v, of)
 
-        local current: host? = first
-
-        while (current ~= nil) do
-            
+                if (not state) then
+                    project.console_out_error(of.type, ttable.find(private.host_list, host) or "*missed-object*", err)
+                end
+            end
         end
-
-        return
     end
 
 	--#if DEBUG

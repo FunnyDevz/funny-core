@@ -4,15 +4,19 @@
 
 --[==[
     В этом проекте механика наследования построена на интерсекции типов. 
+
+    `luau-lang/luau` **#3059** (v0.743)
+
+    `setmetatable <T, U>` не поддерживает intersection|union типы на метатаблицу,
+    поведение проекта сейчас не полное. Для `extend` после фикса ожидается:
+
+    ```luau
+        export type extend<extension = {}, base = {}> = setmetatable<extension & base, base>
+    ```
+
+    Однако сейчас `base` для `U` специально деградирован до `object`. Это не мешает наследованию
 ]==]
-export type extend<extension = {}, base = {}> = setmetatable<extension & base, base>
-
-type mt__vs = { read __mode: "vs"}
-type mt__ks = { read __mode: "ks"}
-type mt__kvs = { read __mode: "kvs" }
-
-type object_identity = number
-type object_type = string
+export type extend<extension = {}, base = object> =  setmetatable<extension & base, object>
 
 --[==[
     Base object interface for the runtime object system
@@ -23,17 +27,17 @@ type object_type = string
     Types derived from object inherit these operations
 ]==]
 export type object = {
-	read type: object_type,
+	read type: string,
 
 	read new: <T, U>(self: T, that: U?) -> extend<T, U>,
-	read it: (self: object, otype: object_type) -> boolean,
-	read is: (self: object, otype: object_type) -> boolean,
-    read as: <T>(self: object, otype: object_type) -> object & T,
+	read it: (self: object, otype: string) -> boolean,
+	read is: (self: object, otype: string) -> boolean,
+    read as: <T>(self: object, otype: string) -> object & T,
     read eq: (self: object, to: object) -> boolean,
     read base: <T>(self: object, expected: string | nil) -> (object & T)?,
 	read host: <T>(self: object, f: (new: T) -> ()) -> (),
-    read that: <T>(self: object, that: unknown, otype: object_type) -> (object & T)?,
-    read iden: (self: object) -> object_identity,
+    read that: <T>(self: object, that: unknown, otype: string) -> (object & T)?,
+    read iden: (self: object) -> number,
 
     --[string]: unknown?
 }

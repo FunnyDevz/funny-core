@@ -9,7 +9,7 @@ const ftype = require("@game/ReplicatedStorage/static/ftype")
 const project = require("@game/ReplicatedStorage/static/project")
 
 const private = {}
-const class : signal = Reference:new <<reference<RBXScriptSignal>>> {
+const class : signal = Reference:new {
     type = "signal",
 
     get_signal_event = ftype:write(function (self: signal) : event<enumitem_tick_notification, ...unknown>

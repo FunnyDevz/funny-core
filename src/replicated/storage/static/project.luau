@@ -148,7 +148,7 @@ function project.console_out_error(...: unknown): console_out_type
 	return nil :: console_out_type
 end
 
-function project.assert <T> (var: T, out: string?, error: boolean?) : (T, boolean)
+function project.assert <T> (var: T, out: string?, error: boolean?)
 	if error then
 		if not var then
 			project.console_out_error(out or "project assert failure")

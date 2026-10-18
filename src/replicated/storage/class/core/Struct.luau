@@ -7,13 +7,15 @@ const declare = require("@game/ReplicatedStorage/static/declare")
 const ftype = require("@game/ReplicatedStorage/static/ftype")
 const project = require("@game/ReplicatedStorage/static/project")
 
+type indexed = struct & {[unknown]: unknown}
+
 const private = {}
 const class: struct = object:new({
     type = "struct",
 
     clone = ftype:write(function (self: struct, change: {[unknown]: unknown}?) : any
         const base = self:base <<struct>>("struct")
-        const reconv = table.clone(self)
+        const reconv = table.clone(self) :: indexed
 
         if change then
 

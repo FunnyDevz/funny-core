@@ -249,11 +249,13 @@ do
 		if T == declare["function"] then
 			const var_func = v :: (...any) -> any
 			const out, msg = pcall(var_func, ...)
-			return project.assert(out, `{tostring(msg)}`)
+			const res = project.assert(out, `{tostring(msg)}`)
+			return res
 		elseif T == declare.thread then
 			const var_thread = v :: thread
 			const out, msg = coroutine.resume(var_thread, ...)
-			return project.assert(out, `{tostring(msg)}`)
+			const res = project.assert(out, `{tostring(msg)}`)
+			return res
 		elseif class:that(v, class.type) then
 			const var_observer = v :: observer
 			var_observer:notificate(related.notification_of, ...)
