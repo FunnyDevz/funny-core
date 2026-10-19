@@ -16,7 +16,7 @@
 
     Однако сейчас `base` для `U` специально деградирован до `luaobject`. Это не мешает наследованию
 ]==]
-export type extend<extension = {}, base = luaobject> =  setmetatable<extension & base, luaobject>
+export type extend<extension = {}, base = luaobject> = setmetatable<extension & base, luaobject>
 
 --[==[
     Базовый объект проекта.
@@ -199,13 +199,16 @@ export type enumobject = extend<{
 }, luaobject>
 
 --[==[
-    Represents a single named value belonging to an EnumObject.
+    Представляет собой единственное именованное значение, принадлежащее объекту EnumObject.
 
-    An EnumItem is an immutable enumeration value identified by its parent enumeration and item name. It can be used as a stable descriptor in comparisons, dispatch, subscriptions, and other APIs that operate on enumeration values.
+    EnumItem - это неизменяемое значение перечисления, идентифицируемое по его родительскому перечислению и имени элемента.
+    Его можно использовать в качестве стабильного дескриптора в сравнениях, отправке, подписках и других API,
+    которые работают со значениями перечисления.
 
-    EnumItem does not represent an arbitrary runtime value. Each item belongs to an EnumObject and is uniquely identified within that enumeration.
+    EnumItem не представляет собой произвольное значение во время выполнения.
+    Каждый элемент принадлежит EnumObject и однозначно идентифицируется в рамках этого перечисления.
 
-    Typical usage:
+    Типичное использование:
 
     ```luau
 
@@ -222,10 +225,18 @@ export type enumobject = extend<{
     ```
 ]==]
 export type enumitem<T = enumobject?> = extend<{
-	read name: string,
+    --[==[
+        Уникальная строка, которая генерируется из `.name` и `.enum.name`.
+        
+        Используйте ее для проверки валидности.
+    ]==]
 	read hashlink: string,
+
+    --[==[
+        Ссылка на `enumobject`, который держит этот объект.
+    ]==]
 	read enum: T,
-}, luaobject>
+} & nameable, luaobject>
 
 --[==[
     Базовый структурный тип
@@ -359,7 +370,13 @@ export type observer<T = enumitem | enumobject> = extend<
 	luaobject
 >
 
+--[==[
+    Alias-тип для поддерживаемых видов уведомлений
+]==]
 type observer_on <T = enumitem> = T | {T} | enumobject | {enumobject} | {T|enumobject}
+--[==[
+    Alias-тип для поддерживаемых работников
+]==]
 type observer_var <T = unknown> = ((...any)->())|thread|observer<T>
 
 --[==[
@@ -497,39 +514,132 @@ export type scheduler = extend<{
 
 -- Common
 
+--[==[
+    Универсальный объект-ивент, который используется в ситуациях когда требуется поддержка полноценной системы
+    доставки уведомлений и управления соединениями.
+
+    Стандартный `observer` покрывает практически любую ситуацию связанную с подписчиками и уведомлениями, но
+    этот класс специально разбит на несколько элементов и частей, которые почти не зависят друг от друга и 
+    предоставляют более явные инструменты управления.
+]==]
 export type event<T = enumitem, U... = ...unknown> = extend<{
+
+    --[==[
+        Подключиться к ивенту на указанное уведомление.
+    ]==]
     read connect: <T0> (self: event<T,U...>, on: T, f: ((U...) -> ())|thread|observer<T>) -> connection<T,U...>,
+    
+    --[==[
+        Подключиться к ивенту на указанное уведомление одноразово.
+    ]==]
     read once: <T0> (self: event<T,U...>, on: T, f: ((U...) -> ())|thread|observer<T>) -> connection<T,U...>,
+    
+    --[==[
+        Подождать, пока не произойдет указанное уведомление.
+    ]==]
     read wait: (self: event<T,U...>, on: T) -> U...,
+
+    --[==[
+        Вызывает ивент с указанным уведомлением и аргументами, которые попадают релевантным соединениям в работу.
+    ]==]
     read invoke: (self: event<T,U...>, on: T, U...) -> (),
 } & expected_calltype<T?>, observer<T>> 
 
+--[==[
+    Универсальный объект-соединение, который используется в ситуациях когда требуется поддержка полноценной системы
+    доставки уведомлений и управления соединениями.
+    
+    Стандартный `observer` покрывает практически любую ситуацию связанную с подписчиками и уведомлениями, но
+    этот класс специально разбит на несколько элементов и частей, которые почти не зависят друг от друга и 
+    предоставляют более явные инструменты управления.
+]==]
 export type connection<T = enumitem, U... = ()> = extend<{
+    --[==[
+        В данном случае это сколько раз вызывать работника, которого представляет это соединение
+    ]==]
     count: number,
 
+    --[==[
+        Возвращает режим работы соединения.
+    ]==]
     read get_mode: (self: connection<T, U...>) -> enumitem_connection_variant,
+    --[==[
+        Устанавливает режим работы соединения.
+    ]==]
     read set_mode: (self: connection<T, U...>, mode: enumitem_connection_variant) -> (),
     
+    --[==[
+        Подключено ли соединение?
+    ]==]
     read is_connected: (self: connection<T,U...>) -> boolean,
+
+    --[==[
+        Если это возможно, отключит соединение.
+    ]==]
     read disconnect: (self: connection<T,U...>) -> (),
 } & invokeable<connection<T,U...>,U...> & expected_calltype<T?>,
 observer<enumitem_setup_notification>>
 
+--[==[
+    Аналог `variable`. Не имеет истории, однако уведомляет об операциях с ним.
+]==]
 export type value<T = unknown> = extend<{
+    --[==[
+        Получить хранимое значение.
+    ]==]
     read get_value: (self: value<T>) -> T?,                    
+
+    --[==[
+        Установить хранимое значение.
+
+        Если указан `default`, то при `nil` будет возвращаться значение, с которым был `default`. Это можно
+        перезаписать.
+    ]==]
     read set_value: (self: value<T>, new: T?, default: boolean?) -> (),
 }, observer<enumitem_operation_variant>>
 
+--[==[
+    Объект, представляющий собой таймер. Он работает через планировщик.
+]==]
 export type timer = extend<{
+    --[==[
+        Получает пройденное время с начала работы таймера.
+    ]==]
     read get_elapsed: (self: timer) -> number,
+
+    --[==[
+        Получает оставшееся время с начала работы таймера.
+    ]==]
     read get_remaining: (self: timer) -> number,
+
+    --[==[
+        Получает время которое таймеру нужно работать.
+    ]==]
     read get_duration: (self: timer) -> number,
+
+    --[==[
+        Получает шаг, с которым таймер записывает пройденное время.
+    ]==]
     read get_step: (self: timer) -> number,
 
+    --[==[
+        Указать время, которое нужно отработать таймеру.
+    ]==]
     read set_duration: (self: timer, to: number) -> (),
+
+    --[==[
+        Указать шаг, с которым таймер записывает пройденное время.
+    ]==]
     read set_step: (self: timer, to: number) -> (),
 
+    --[==[
+        Работает ли сейчас таймер?
+    ]==]
     read is_running: (self: timer) -> boolean,
+
+    --[==[
+        Завершился ли таймер?
+    ]==]
     read is_finished: (self: timer) -> boolean,
 }  & iterations<number> & modifier<number> & controllable<timer>, observer<enumitem_tick_notification>>
 
@@ -540,10 +650,25 @@ export type timer = extend<{
     остального. Он контроллируется внешними управляющими механизмами
 ]==]
 export type reference<T = Instance> = extend<{
+    --[==[
+        В этом случае специально очищает референс от хранимого экземпляра.
+    ]==]
     read clear: (self: reference<T>) -> ()
 } & instanceable<reference<T>, T>, observer<enumitem_reference_notification>>
 
+--[==[
+    Объект, представляющий динамический доступ к `RBXScriptSignal`.
+
+    Он не гаранитуер наличия сигнала, но гарантирует, что все подключенные к этому объекту на специальный
+    ивент соединения будут работать с сигналом, на который он ссылается.
+]==]
 export type signal<T... = ...unknown> = extend<{
+
+    --[==[
+        Универсальный ивент, который изнутри ребиндится на каждый новый сигнал на который ссылается
+        этот референс. Потребителям не потребуется никогда перенастраиваться на новый сигнал, за них
+        это делает этот объект.
+    ]==]
     read get_signal_event: (self: signal<T...>) -> event<enumitem_tick_notification, T...>
 }, reference<RBXScriptSignal<T...>>>
 
@@ -565,36 +690,119 @@ export type signal<T... = ...unknown> = extend<{
     ```
 ]==]
 export type binder<T = unknown> = extend<{
+    --[==[
+        То, к чему выполняется привязка
+    ]==]
     tag: string,
+
+    --[==[
+        Функция вида `(instance) -> T` или класс. Если это класс, то тогда
+        вызывается `maker:new()`, а инстанс передается в `set_instance`, если он есть.
+    ]==]
     maker: binder_maker<T>?,
+
+    --[==[
+        Объект создается через `maker`, когда тег появился на инстансе внутри `ancestors`
+        (по умолчанию workspace), и освобождается, когда тег сняли, инстанс удалили или
+        он ушел из `ancestors`. 
+    ]==]
     ancestors: { Instance }?,
 
+    --[==[
+        Начать отслеживание.
+    ]==]
     read start: (self: binder<T>) -> (),
+    
+    --[==[
+        Остановить отслеживание.
+    ]==]
     read stop: (self: binder<T>) -> (),
+
+    --[==[
+        Работает ли биндер сейчас?
+    ]==]
     read is_started: (self: binder<T>) -> boolean,
+
+    --[==[
+        Попробует вытащить `luaobject` привязанный к роблосовскому экземпляру.
+    ]==]
     read get_object: (self: binder<T>, instance: Instance) -> T?,
+
+    --[==[
+        Возвращает словарь в котором описана вся цепь привязей `luaobject` к роблоксовскому экземпляру.
+    ]==]
     read get_objects: (self: binder<T>) -> { [Instance]: T },
 }, observer<enumitem_binder_notification>>
 
 export type binder_maker<T = unknown> = ((instance: Instance) -> T) | { read new: (self: any) -> T }
 
+--[==[
+    Объект, представляющий небольшой самостоятельный контроллер.
+
+    Классы побольше могут иметь его в качестве небольшого управляющего элемента.
+]==]
 export type controller = extend<{
+    --[==[
+        Это текущее состояние контроллера.
+    ]==]
     state: enumitem_controller_state
 } & operatable<controller>, observer<enumitem_controller_state>>
 
+--[==[
+    Объект, представляющий типичнейший stack.
+]==]
 export type stack<T = unknown> = extend<{
+    --[==[
+        Максимальная глубина.
+    ]==]
 	max: number,
 
+    --[==[
+        Забрать сверху стопки.
+    ]==]
 	read pick: (self: stack<T>) -> T?,
+
+    --[==[
+        Положить на верх стопки.
+    ]==]
 	read put: (self: stack<T>, value: T) -> (),
+
+    --[==[
+        Выдать количество элементов в стопке.
+    ]==]
 	read count: (self: stack<T>) -> number,
 }, luaobject>
 
+--[==[
+    Объект, представляющий аналог `Janitor`/`Maid`. Он используется в качестве очищающего объекта, хотя
+    и не так полезен по сути.
+]==]
 export type maid = extend< {
+    --[==[
+        Добавить объект который нужно будет очистить когда потребуется.
+
+        Сильная ссылка будет держать объект даже если на него не останется референсов, либо они все будут слабые.
+    ]==]
 	read add_object: (self: maid, that: any, strong: boolean?) -> (),
+
+    --[==[
+        Добавит таблицу и ключ, который нужно в ней очистить.
+    ]==]
 	read add_key: <T>(self: maid, of: { [T]: unknown }, key: T) -> (),
+
+    --[==[
+        Удаляет объект из отслеживаемых.
+    ]==]
 	read remove_object: (self: maid, that: any) -> (),
+
+    --[==[
+        Удаляет ключ таблицы из отслеживаемых.
+    ]==]
 	read remove_key: <T>(self: maid, of: { [T]: unknown }, key: T) -> (),
+
+    --[==[
+        Не все данные фактически поддерживаются `maid`, поэтому объект сам может сказать что он будет есть, а что нет.
+    ]==]
 	read is_supported: (self: maid, that: unknown) -> boolean,
 }, disposable>
 
@@ -626,10 +834,33 @@ export type maybe <T = unknown, U = unknown> = extend<{
     read exist: (self: maybe<T,U>, it: U) -> boolean,
 }, observer<enumitem_operation_variant>>
 
+--[==[
+    Объект, представляющий машину состояний.
+
+    Это не конечный автомат, потому что она может сводиться не только к одному лишь состоянию в моменте. По сути
+    этот объект представляет из себя реестр состояний, которые могут быть активны в данный момент. Это не мешает
+    превратить его в конечный автомат.
+]==]
 export type statemachine <T = enumitem> = extend<{
+
+    --[==[
+        Получает текущее состояние для указанных элементов. Если хотя бы один отсутствует, то вернется ложь.
+
+        Элементы которые никогда не были в машине, то есть `nil` в ней, - учитываются как `false` состояния.
+    ]==]
     read get_state: (self: statemachine<T>, ...T) -> boolean,
+
+    --[==[
+        Поставить состояние на указанные элементы. Можно даже удалить их из объекта.
+    ]==]
     read set_state: (self: statemachine<T>, to: boolean?, ...T) -> (),
     
+    --[==[
+        Черный список состояний, элементы в котором никогда не будут становиться тем, что указали
+        через `statemachine:set_state(to, ...)`. Объект будет игнорировать эти операции.
+
+        Работает как `toggle`. Добавляет если не было, удаляет если был.
+    ]==]
     read blacklist: (self: statemachine<T>, ...T) -> (),
 }, observer<enumitem_statemachine_notification>>
 
@@ -939,42 +1170,132 @@ export type character = extend<{
     read get_humanoid_reference: (self: character) -> reference<Humanoid?>
 } & informable<character, characterinfo>, observer>
 
+--[==[
+    Объект инвентаря, хранящий в себе `ItemStack` элементы.
+
+    Данные внутри этого объекта хранятся как попало, поэтому никакого порядка через него нельзя добиться.
+]==]
 export type inventory = extend<{
     --[==[
-        Текущее количество элементов внутри инвентаря
+        Это размер инвентаря. Сюда влезет только столько элементов, сколько указано в этом поле.
+
+        Если внезапно размер поменяется и старые предметы уже не смогут влезть, то инвентарь лишь
+        уведомит об этом событии.
     ]==]
-    read count: (self: inventory) -> number,
+    max: number,
 
     --[==[
-        Максимальный размер инвентаря, то есть сколько `ItemStack` влезет в этот `Inventory`
+        Возвращает все стаки которые есть в этом инвентаре.
     ]==]
-    read lenght: (self: inventory) -> number,
-}, observer>
+    read get_stacks: (self: inventory) -> ...iteminstance,
+} & list_checks<inventory> & list_operations<inventory, itemstack>, observer>
 
-export type itemstack = extend<{
+--[==[
+    Это базовое представление объекта предмета. Оно происходит из того что существует некий "кто-то" и само описание предмета.
+
+    Поведение предмета здесь не реализуется, и в принципе класс не следует использовать в игровой логике. Он предназначен
+    для типизации и для "базы" его дочерних элементов, которые уже может переварить `ItemBehavior`.
+]==]
+export type iteminstance = extend<{
     --[==[
-        Идентификация `ItemStack`
+        Возвращает описание предмета на который ссылается этот объект.
     ]==]
-    read item: item, write item: item
+    read get_item: (self: itemstack) -> variable<item?>
 }, observer>
 
+--[==[
+    Это уникальное представление какого-либо объекта. В принципе проект поддерживает создание как экземпляров майкнрафтовского
+    вида: когда есть `ItemStack` и никакой индивидуальности вне синглтона предмета, так и уникальность экземпляра.
+
+    Для данного класса дочерние пользователи реализуют свои поля.
+]==]
+export type itemobject = extend<{}, iteminstance>
+
+--[==[
+    Объект стопки для хранения неуникального `Item`. По сути это эстетика майкнрафт-подобного вида предметов.
+]==]
+export type itemstack = extend<list_checks<itemstack> & list_operations<itemstack, itemstack>, iteminstance>
+
+--[==[
+    Контекст вызова предмета в текущий момент времени. Для `ItemBehavior`.
+]==]
 export type itemcontext = extend<{
-    read item: item,
+    --[==[
+        Экземпляр на который ссылается контекст - с чем работать.
+    ]==]
+    read related: iteminstance,
+    --[==[
+        Пользователь который вызвал эту операцию - с кем работать.
+    ]==]
     read user: luaobject?,
+
+    --[==[
+        Контекст вызова, описывающий подробности о типе вызова - как работать.
+    ]==]
     read context: enumitem_item_context
 }, struct>
 
+--[==[
+    Поведение для предметов. Оно независимое. Можно написать поведение под конкретный предмет.
+]==]
 export type itembehavior = extend<{
+    --[==[
+        Какую операцию делать когда пользователь экипирует предмет.
+    ]==]
     read on_equip: (self: itembehavior, context: itemcontext) -> (),
+    
+    --[==[
+        Какую операцию делать когда пользователь убирает предмет из рук в инвентарь.
+    ]==]
     read on_unequip: (self: itembehavior, context: itemcontext) -> (),
-    read action: (self: itembehavior, context: itemcontext, delta: number) -> ()
-}, luaobject>
 
+    --[==[
+        Какую операцию делать когда пользователь поднимает предмет с пола.
+    ]==]
+    read on_take: (self: itembehavior, context: itemcontext) -> (),
+
+    --[==[
+        Какую операцию делать когда пользователь выбрасывает предмет с инвентаря или рук.
+    ]==]
+    read on_drop: (self: itembehavior, context: itemcontext) -> (),
+
+    --[==[
+        Это главное действие предмета. Оно выполняет что-то в зависимости от полученного контекста.
+    ]==]
+    read action: (self: itembehavior, context: itemcontext, delta: number) -> ()
+}, struct>
+
+--[==[
+    Описание предмета в программе. Это синглтон, который указывает стандартные параметры предмета.
+]==]
 export type item = extend<{
-    read name: string,
+    --[==[
+        Максимальное количество которое предмет может иметь в `ItemStack` или в инвентаре для
+        объектов вида `ItemObject`.
+    ]==]
+    read max: number,
+
+    --[==[
+        Количество которое выдается пользователю когда он поднимает предмет с пола. Это может использоваться
+        для дюпов, поэтому проверяйте поведение отдельно.
+    ]==]
+    read count: number,
+
+    --[==[
+        Описание предмета для интерфейса.
+    ]==]
     read description: string,
-    read behavior: itembehavior
-}, luaobject>
+
+    --[==[
+        Стандартное поведение для всех `ItemInstance` этого предмета.
+    ]==]
+    read behavior: itembehavior,
+
+    --[==[
+        Сразу создает `ItemStack` этого предмета с указанным количеством.
+    ]==]
+    read get_stack: (self: item, count: number) -> itemstack,
+} & nameable, struct>
 
 --[==[
     Объект, представляющий собой игровую способность с возможностью определения
@@ -1823,9 +2144,9 @@ export type result<T = unknown, U... = ...unknown> = extend<{
 
 --[==[
     Объект, представляющий кубическую, неповорачиваемую и при этом
-    проверяемую область в пространстве
+    проверяемую область в пространстве.
 
-    Специфичный случай `cubevolume`
+    Специфичный случай `cubevolume`.
 ]==]
 export type aabbvolume = extend<{
     --[==[
@@ -1850,9 +2171,9 @@ cubevolume<aabbvolume>>
 
 --[==[
     Объект, представляющий кубическую поворачиваемую и проверяемую
-    область в пространстве
+    область в пространстве.
 
-    Специфичный случай `cubevolume`
+    Специфичный случай `cubevolume`.
 ]==]
 export type obbvolume = extend<geometry_rotatable &
     geometry_convertation<obbvolume, geometry_supported> &
@@ -1861,7 +2182,7 @@ export type obbvolume = extend<geometry_rotatable &
     geometry_check<obbvolume>,
 cubevolume<obbvolume>>
 
---[===[
+--[===[ TODO
 
 --[==[
     Объект, представляющий собой сферическую область в пространстве
@@ -1966,7 +2287,7 @@ export type triangle = extend<{
 geovolume<triangle>>
 
 --[==[
-    Объект, представляющий собой полигон из 2 треугольников
+    Объект, представляющий собой полигон из двух треугольников.
 ]==]
 export type quad = extend<{
     --[==[
@@ -1984,25 +2305,48 @@ export type quad = extend<{
 struct>
 
 --[==[
-    Объект, использующийся для определения осей пространства
+    Объект, использующийся для определения осей пространства.
+
+    Просто предоставляет порядок в котором идут оси.
 ]==]
 export type directions = extend<vector_operations<directions, directions> & axisable<vector>, geovolume<directions>>
 
 --[==[
-    Объект, представляющий собой геометрический аналог координаты
+    Объект, представляющий собой геометрический аналог координаты `CFrame`.
 
-    Хранит в себе информацию о повороте и положении в пространстве
+    Хранит в себе информацию о повороте и положении в пространстве.
+
+    Причина его существования - `over-engineering`. Он мог бы быть спокойно заменен на `CFrame`,
+    однако в таком виде он не только обеспечивает удобство работы с данными Luau, но и модифицируемый.
+    Если бы потребовалось, то его можно было бы и никогда не создавать, но поскольку проект однажды застрял
+    в трясине в виде "code recode", то это вполне естественное решение.
 ]==]
 export type basis = extend<{
+    --[==[
+        Нормализует `basis`
+    ]==]
     read orthonormalize: (self: basis) -> basis,
+
+    --[==[
+        Возвращает углы Эйлера.
+
+        (*) Дополнить какой порядок возвращает реализация.
+    ]==]
     read euler_angles: (self: basis) -> ...number,
 
+    --[==[
+        Разбивает этот `basis` на компоненты, которые может переварить `CFrame`.
+    ]==]
     read get_components: (self: basis)
     -> (number, number, number,
         number, number, number,
         number, number, number,
         number, number, number),
 
+    --[==[
+        Собирает `basis` из компонентов. Они соответствуют компонентам `CFrame`, поэтому
+        собрать этот тип можно прямо из `CFrame`.
+    ]==]
     read from_components: (self: basis,
         position_x: number?, position_y: number?, position_z: number?,
         rotation_right_x: number?, rotation_right_y: number?, rotation_right_z: number?,
@@ -2010,6 +2354,9 @@ export type basis = extend<{
         rotation_front_x: number?, rotation_front_y: number?, rotation_front_z: number?)
     -> basis,
 
+    --[==[
+        Собирает `basis` из отдельных компонентов.
+    ]==]
     read from_matrix: (self: basis,
         position: vector?,
         rotation_right: vector?, rotation_up: vector?, rotation_front: vector?)
@@ -2028,7 +2375,14 @@ export type basis = extend<{
     read substract_basis: (self: basis, ...basis) -> basis,
     read slerp: (self: basis, to: basis, alpha: number) -> basis,
 
+    --[==[
+        Трансформирует полученные `CFrame` в `basis`.
+    ]==]
     read to_basis: (self: basis, ...CFrame) -> ...basis,
+
+    --[==[
+        Трансформирует полученные `basis` в `CFrame`.
+    ]==]
     read to_cframe: (self: basis, ...basis) -> ...CFrame,
 
     --[==[
@@ -2098,7 +2452,7 @@ export type cubevolume <T = cubevolume> = extend<{
         основании вершин куба
     ]==]
     read get_quad: (self: cubevolume<T>, direction: enumitem_direction_variant) -> quad,
-} & centerable<cubevolume<T>>& 
+} & centerable<cubevolume<T>> & 
     vector_operations<cubevolume<T>, T>, 
 geovolume<cubevolume<T>>>
 
@@ -2138,17 +2492,8 @@ export type geovolume<T = any> = extend<math_operations<T, T>, struct>
 
 -- Service
 
-
-export type securityrng = extend<{
-	read seed: number,
-
-	read get_hash_sha256: (self: securityrng, element: string) -> string,
-	read get_hash_blake3: (self: securityrng, element: string) -> string,
-	read get_uid: (self: securityrng) -> string,
-}, service>
-
 --[==[
-    Сервис для удаленного запуска функционала на другой машине
+    Сервис для удаленного запуска функционала на другой машине.
 ]==]
 export type remotecall = extend<{
 
@@ -2217,17 +2562,40 @@ export type remotecall = extend<{
 
 ]]
 
+--[==[
+    Стандартный и наиболее универсальный `enumitem`, который можно пихать на замену неизвестности.
+]==]
 export type enumitem_default_variant = enumitem<enum_default_variant>
+--[==[
+    Объект енамов, содержащий `enumitem_default_variant`.
+]==]
 export type enum_default_variant = extend<{
+    --[==[
+        Это неизвестный енам. Он представляет собой енам который не удалось определить, либо отсутствие
+        енама в общем смысле. Обычно программа полностью игнорирует его, потому что он по сути ничего
+        не представляет и на него нет callback-ов. Это потому что части проекта реализуют собственные енамы,
+        на которые ссылаются.
+    ]==]
 	read Unknown: enumitem_default_variant,
+
+    --[==[
+        Это универсальный енам. Он представляет собой енам который отвечает на любой вид енамов. Обычно код не реализует
+        его и специально ведет поведение как и с `.Unknown`. Но если все таки поведение реализовано, то оно может привести
+        к вообще любым последствиям. Контракт объявляет сам объект.
+    ]==]
 	read Any: enumitem_default_variant,
 }, enumobject>
 
-export type enumitem_tasky_variant = enumitem<enum_tasky_outcode_variant>
-export type enum_tasky_outcode_variant = extend<{
-	read Reenter: enumitem_tasky_variant,
-	read Goto: enumitem_tasky_variant,
-	read Error: enumitem_tasky_variant,
+
+
+
+export type enumitem_list_notification = enumitem<enum_list_notification>
+export type enum_list_notification = extend<{
+	read AddedElement: enumitem_list_notification,
+	read RemovedElement: enumitem_list_notification,
+	read ListFull: enumitem_list_notification,
+    read ListEmpty: enumitem_list_notification,
+    read ListHalf: enumitem_list_notification
 }, enumobject>
 
 export type enumitem_input_notification = enumitem<enum_input_notification>
@@ -2421,17 +2789,42 @@ export type enum_statemachine_notification = extend<{
     read BlacklistRemoved: enumitem_statemachine_notification,
 }, enumobject>
 
+--[==[
+    Экземпляры енамов на соединения и подписки. Описывает режимы работы.
+]==]
 export type enumitem_connection_variant = enumitem<enum_connection_variant>
-export type enum_connection_variant = extend<
-	{
-		read Ever: enumitem_connection_variant,
-		read Once: enumitem_connection_variant,
-		read Hold: enumitem_connection_variant, -- reserved
-		read Skip: enumitem_connection_variant, -- -> Once
-		read Next: enumitem_connection_variant, -- -> Ever
-	},
-	enumobject
->
+--[==[
+    Объект енамов, который содержит `enumitem_connection_variant`.
+]==]
+export type enum_connection_variant = extend<{
+    --[==[
+        Обычная постоянная подписка. Срабатывает на те уведомления, которые она отслеживает.
+    ]==]
+    read Ever: enumitem_connection_variant,
+
+    --[==[
+        Одноразовая подписка. Сработает один раз и удалится, либо перестанет далее работать, если получит
+        уведомление по тому типу который она отслеживает.
+    ]==]
+    read Once: enumitem_connection_variant,
+
+    --[==[
+        `Attention`, зарезервированный режим. Возможно может быть удален в будущих патчах.
+    ]==]
+    read Hold: enumitem_connection_variant, -- reserved
+
+    --[==[
+        Переключает режим работы подписки. Пропускается первое уведомление на которое реагирует подписка,
+        на следующее уведомление подписка сработает один раз и дальше удалится.
+    ]==]
+    read Skip: enumitem_connection_variant, -- -> Once
+
+    --[==[
+        Переключает режим работы подписки. Пропускается первое уведомление на которое реагирует подписка,
+        на следующее уведомление подписка уже будет постоянно работать.
+    ]==]
+    read Next: enumitem_connection_variant, -- -> Ever
+}, enumobject>
 
 export type enumitem_internal_channel_variant = enumitem<enum_internal_channel_variant>
 export type enum_internal_channel_variant = extend<{
@@ -2444,19 +2837,63 @@ export type enum_physx_mode_variant = extend<{
 	read Global: enumitem_physx_mode_variant,
 }, enumobject>
 
+--[==[
+    Экземпляры енамов на уведомление по поводу освобождения объекта.
+]==]
 export type enumitem_disposable_notification = enumitem<enum_disposable_notification>
+--[==[
+    Объект енамов, содержащий `enumitem_disposable_notification`.
+]==]
 export type enum_disposable_notification = extend<{
+    --[==[
+        Это предрелизное уведомление о том, что объект освобождается. В этот момент еще ничего не
+        произошло с объектом.
+    ]==]
 	read OnRelease: enumitem_disposable_notification,
+
+    --[==[
+        Это пострелизное уведомление о том, что объект освобожден. Поведение объекта не гарантированно,
+        и то что он вообще будет или не будет работать тоже.
+    ]==]
 	read Released: enumitem_disposable_notification,
 }, enumobject>
 
+--[==[
+    Экземпляры енамов на вариант направления.
+]==]
 export type enumitem_direction_variant = enumitem<enum_direction_variant>
+--[==[
+    Объект енамов, содержащий `enumitem_direction_variant`.
+]==]
 export type enum_direction_variant = extend<{
+    --[==[
+        Это направление вверх. Оно соответствует `+Y`.
+    ]==]
     read Up: enumitem_direction_variant,
+
+    --[==[
+        Это направление вниз. Оно соответствует `-Y`.
+    ]==]
     read Bottom: enumitem_direction_variant,
+    
+    --[==[
+        Это направление влево. Оно соответствует `-X`.
+    ]==]
     read Left: enumitem_direction_variant,
+    
+    --[==[
+        Это направление вправо. Оно соответствует `+X`.
+    ]==]
     read Right: enumitem_direction_variant,
+    
+    --[==[
+        Это направление вперед. Оно соответствует `-Z`.
+    ]==]
     read Front: enumitem_direction_variant,
+    
+    --[==[
+        Это направление назад. Оно соответствует `+Z`.
+    ]==]
     read Back: enumitem_direction_variant,
 }, enumobject>
 
@@ -2494,41 +2931,96 @@ export type enum_collision_variant = extend<{
 
 -- Interface
 
-
+--[==[
+    Объект реализует механизм, в котором он ссылается на существующий инстанс роблокса.
+]==]
 export type instanceable<T = {},U = Instance> = {
     read set_instance: (self: T, to: U) -> (),                 
     read get_instance: (self: T) -> U,
     read is_instance_exists: (self: T) -> boolean                      
 }
+--[==[
+    Зависит от контекста.
+]==]
 export type expected_calltype <T=unknown> = {
+    --[==[
+        Ожидаемый вариант. Зависит от контекста.
+    ]==]
     on: T
 }
+--[==[
+    Объект имеет имя.
+]==]
 export type nameable <T=string> = {
     name: T|string
 }
+--[==[
+    Объектом можно хотя-бы как-то управлять
+]==]
 export type operatable<T = unknown> = {
     read continue: (self: T) -> (),
     read pause: (self: T) -> (),
     read reset: (self: T) -> ()
 }
+--[==[
+    У объекта есть контроллер
+]==]
 export type controllable<T = unknown> = {
+    --[==[
+        Возвращает контроллер, который управляет поведением объекта.
+    ]==]
     read get_control: (self: T) -> controller
 }
+--[==[
+    У объекта есть модификатор. Зависит от контекста.
+]==]
 export type modifier<T = unknown> = {
+    --[==[
+        Вариант модификатора для объекта. Зависит от контекста
+    ]==]
     modifier: T
 }
+--[==[
+    Зависит от контекста.
+]==]
 export type iterations<T = unknown> = {
+    --[==[
+        Зависит от контекста.
+    ]==]
     iterate: T
 }
+--[==[
+    У объекта есть какой-то цикл, в котором он работает.
+]==]
 export type loopable<T = unknown> = {
+    --[==[
+        Возвращает рабочий цикл объекта, в котором он работает.
+    ]==]
     read get_loop: (self: T) -> timer
 }
+--[==[
+    Объект ссылается через `reference` на какой-либо роблокс экземпляр.
+]==]
 export type referenceable<T = unknown, U = unknown> = {
+    --[==[
+        Получить референсную ссылку, которая прикреплена к этому объекту. Зависит от контекста.
+    ]==]
     read get_reference: (self: T) -> reference<U>,
 }
+--[==[
+    Объект реализует перезарядку. Зависит от контекста
+]==]
 export type reloadable<T = unknown, U... = ()> = {
+
+    --[==[
+        Перезаряжает объект указанными данными. Зависит от контекста
+    ]==]
     read reload: (self: T, U...) -> ()
 }
+--[==[
+    Объект реализует механизм приватного хранилища, в котором хранит метаданные того или иного
+    рода и вида.
+]==]
 export type private_storage <T = unknown> = {
 
         --[==[
@@ -2542,21 +3034,58 @@ export type private_storage <T = unknown> = {
 		read set: <Y>(self: T, label: any, to: Y) -> (),
 }
 
+--[==[
+    Объект реализует состояние вкл/выкл
+]==]
 export type switchable = {
+    --[==[
+        Включает или выключает работу объекта
+    ]==]
     enabled: boolean
 }
 
+--[==[
+    Объект можно вызывать
+]==]
 export type invokeable<T = unknown, U... = (), E... = ()> = {
+    --[==[
+        Вызывает в объекте какую-либо операцию с переданными данными. Зависит от контекста.
+    ]==]
     read invoke: (self: T, U...) -> E...
 }
+--[==[
+    Объект реализует немного параметров для асинхронных операций и попыток. Зависит от контекста. Не очень очевидный
+    интерфейс.
+]==]
 export type asyncable = {
+    --[==[
+        Время на ожидание перед началом новой попытки
+    ]==]
     time_to_hold: number,
+    
+    --[==[
+        Время на ожидание ответа от опрашиваемой части. Обычно это касается только сетевых объектов и
+        всего что с этим связано.
+    ]==]
     time_to_response: number,
+
+    --[==[
+        Количество попыток, которые необходимо выполнить объекту перед получением конечного результата.
+    ]==]
     attempts: number,
 }
 
+--[==[
+    Все виды геометрического объема.
+]==]
 export type geometry_volume = aabbvolume  | obbvolume | cubevolume -- TODO | spherevolume | trianglevolume | capsulevolume
+--[==[
+    Геометрический приметив, - минимальная фигура которая используется для описаний той или иной части геометрии
+]==]
 export type geometry_primetive = triangle | quad | vector | cubevolume
+--[==[
+    Общее доступное и поддерживаемое пространство для транскрипции. То, что переваривает геометрия, грубо говоря.
+]==]
 export type geometry_supported = geometry_volume | Model | BasePart | PVInstance
 
 --[==[
@@ -2688,11 +3217,27 @@ export type informable<T = unknown, U = unknown> = {
     read set_info: (self: T, info: U) -> ()
 }
 
-
+--[==[
+    Объект реализует некоторые математические операции с собой.
+]==]
 export type math_operations<T=unknown,U... = ()> = {
+    --[==[
+        Операция умножения на указанное число.
+    ]==]
     read multiple: (self: T, to: number) -> U...,
+    --[==[
+        Операция деления на указанное число.
+    ]==]
     read divide: (self: T, to: number) -> U...,
+
+    --[==[
+        Операция прибавления на указанное число.
+    ]==]
     read append: (self: T, to: number) -> U...,
+
+    --[==[
+        Операция вычисления на указанное число.
+    ]==]
     read substract: (self: T, to: number) -> U...,
 
     --[==[
@@ -2737,10 +3282,22 @@ export type math_operations<T=unknown,U... = ()> = {
     ]==]
     read infinity: (self: T) -> U...,
 }
+
+--[==[
+    Объект гарантирует преобразование в некоторые геометрические примитивы
+]==]
 export type vector_operations<T=unknown,U... = ()> = {
+    --[==[
+        Трансформирует объект в `basis`.
+    ]==]
     read to_basis: (self: T) -> basis,
+
+    --[==[
+        Трансформирует объект в `vector`.
+    ]==]
     read to_vector: (self: T) -> vector
 }
+
 --[==[
     Интерфейс гарантирует наличие позиции как поля
 ]==]
@@ -2818,6 +3375,9 @@ export type collidable<T = unknown> = {
     read rem_collision: (self: T, ...collision) -> ()
 }
 
+--[==[
+    Этот объект может преобразовывать данные в нормали
+]==]
 export type normals<T=unknown, U=vector> = {
     --[==[
         Возвращает геометрическую нормаль
@@ -2855,6 +3415,9 @@ export type initiable<T = unknown> = {
     read is_initiated: (self: T) -> boolean
 }
 
+--[==[
+    У этого объекта есть автомат состояний.
+]==]
 export type stateable<T = unknown, U = enumitem> = {
     --[==[
         Возвращает автомат состояний у этого объекта, с которым он неразрывно связан
@@ -2862,4 +3425,71 @@ export type stateable<T = unknown, U = enumitem> = {
         Используется для внутренней логики через декомпозицию, в основном
     ]==]
     read get_states: (self: T) -> statemachine<U>
+}
+
+--[==[
+    Участники интерфейса реализуют базовые листовые проверки
+]==]
+export type list_checks <T = unknown> = {
+    --[==[
+        Является ли этот объект полностью заполненным?
+    ]==]
+    read is_full: (self: T) -> boolean,
+
+    --[==[
+        Является ли этот объект полностью пустым?
+    ]==]
+    read is_empty: (self: T) -> boolean,
+
+    --[==[
+        Превышает ли количество элементов в этом объекте половину
+        или около?
+    ]==]
+    read is_half: (self: T) -> boolean,
+}
+
+--[==[
+    Участники интерфейса реализуют базовые листовые операции
+]==]
+export type list_operations <T = unknown, U... = ...unknown> = {
+    --[==[
+        Очищает объект, делая его пустым
+    ]==]
+    read clear: (self: T) -> (),
+
+    --[==[
+        Возвращает количество элементов в объекте по факту.
+    ]==]
+    read count: (self: T) -> number,
+
+    --[==[
+        Возвращает общий размер всего объекта. Это нужно, чтобы узнать точное количество элементов
+        в объекте, даже если там могут быть дыры.
+    ]==]
+    read length: (self: T) -> number,
+
+    --[==[
+        Изменяет количество элементов в объекте с учетом переданного значения.
+    ]==]
+    read adjust: (self: T, count: number) -> (),
+    
+    --[==[
+        Вставляет в объект указанные элементы, если их никогда не было
+    ]==]
+    read insert: (self: T, U...) -> (),
+
+    --[==[
+        Удаляет из объекта указанные элементы, если они были
+    ]==]
+    read remove: (self: T, U...) -> (),
+
+    --[==[
+        Объект ищет и возвращает из себя объекты с указанным типом.
+    ]==]
+    read collect: <T, E> (self: T, utype: string) -> ...E,
+
+    --[==[
+        Ищет в объекте указанные элементы, возвращает были ли они или нет?
+    ]==]
+    read find: (self: T, U...) -> ...boolean
 }
