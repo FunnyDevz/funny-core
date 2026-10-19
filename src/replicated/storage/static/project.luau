@@ -1,5 +1,5 @@
 --!nolint
---gpp!
+--#include <project.gpp>
 
 const declare = require("@game/ReplicatedStorage/static/declare")
 const project = {}
@@ -31,9 +31,18 @@ do --data
         изменится, поэтому эта информация полностью безопасна
     ]]
 	project.parallel = pcall(function(): ()
-		if type(task) ~= declare.table then error "project.parallel unsupported env" return end
-		if type(task.desynchronize) ~= declare["function"] then error "project.parallel unsupported env" return end
-		if type(task.synchronize) ~= declare["function"] then error "project.parallel unsupported env" return end
+		if type(task) ~= declare.table then
+			error("project.parallel unsupported env")
+			return
+		end
+		if type(task.desynchronize) ~= declare["function"] then
+			error("project.parallel unsupported env")
+			return
+		end
+		if type(task.synchronize) ~= declare["function"] then
+			error("project.parallel unsupported env")
+			return
+		end
 
 		task.desynchronize()
 		task.synchronize()
@@ -49,31 +58,38 @@ do -- debug
 		Это позволяет некоторым частям кода выполнять более сложные и дорогие операции
 		для поиска ошибок, более строгих проверок и для работы тяжелых циклов
 	]==]
-	project.debug.state = true
+	project.debug.state = --#if !DEBUG not --#endif
+		true
 
 	--#if DEBUG
 
 	--[==[
-		Для обычных `project.console.out()` будет трассировка стэка
+		Для обычных `project.console.out()` будет трассировка
 	]==]
 	project.debug.trace_messages = true
 
-	project.debug.show_created_objects = if not project.debug.state then false else false
-	project.debug.show_notifications_path = if not project.debug.state then false else false
-	project.debug.show_channel_send_actions = if not project.debug.state then false else false
-	project.debug.show_maids_releasing = if not project.debug.state then false else false
-	project.debug.show_channel_internal = if not project.debug.state then false else false
-	project.debug.show_pickup_internal = if not project.debug.state then false else false
-	project.debug.show_signal_internal = if not project.debug.state then false else false
-	project.debug.show_ikr6legs_solver_path = if not project.debug.state then false else false
-	project.debug.show_reference_internal = if not project.debug.state then false else false
+	--[==[
+		На `Object` вешается host функция, которая выводит информацию об этом объекте
+	]==]
+	project.debug.show_created_objects = false
+
+	--[==[
+		На `Observer` функция поиска пути будет трассировать весь путь 
+	]==]
+	project.debug.show_notifications_path = false
+	project.debug.show_channel_send_actions = false
+	project.debug.show_maids_releasing = false
+	project.debug.show_channel_internal = false
+	project.debug.show_pickup_internal = false
+	project.debug.show_signal_internal = false
+	project.debug.show_ikr6legs_solver_path = false
+	project.debug.show_reference_internal = false
 
 	--#endif
 end
 
-do -- object
-
-	project.object = {}
+do -- LuaObject
+	project.LuaObject = {}
 
 	--[==[
 		Объекты будут получать метаметод `__index` и будут ссылаться на родителя, даже
@@ -81,14 +97,14 @@ do -- object
 
 		Включает "Прототипное ООП" вместо обычного "ООП"
 	]==]
-	project.object.prototypes = false
+	project.LuaObject.prototypes = false
 
 	--[==[
 		Объекты класса `struct` и его наследники будут создаваться всегда замороженными,
 		вне зависимости от того что с ними было. Только `struct:host()` функции и переданый
 		в `struct:new(arg)` `arg` будут способны менять эти объекты, прежде чем они зафиксируются
 	]==]
-	project.object.struct_freeze = true
+	project.LuaObject.struct_freeze = true
 end
 
 do -- enums
@@ -119,7 +135,6 @@ do -- geometry
 end
 
 do --game
-
 	project.game = {}
 
 	--[==[
@@ -139,25 +154,33 @@ type console_out_type = never
 ]=]
 function project.console_out_error(...: unknown): console_out_type
 	if project.debug.state then
-		warn("error :", ...)
-		error("emergency closure")
+		project.console_out("error :", ...)
+		error("emergency closure", 1)
 	else
-		warn("error :", debug.traceback())
+		print("error :", debug.traceback())
 	end
 
 	return nil :: console_out_type
 end
 
-function project.assert <T> (var: T, out: string?, error: boolean?)
+type function neg_of_nil () return types.negationof(types.singleton(nil)) end
+
+--[==[
+	Обыкновенный `assert()`, который использует проектные способы вывода ошибок и сообщений.
+
+	В мягкой ветке поведения он не прекращает выполнение кода, поэтому требуется дополнительно правильно
+	обрабатывать поведение при провале проверки.
+]==]
+function project.assert<T>(var: T, out: string?, error: boolean?): (T & neg_of_nil<>, boolean)
 	if error then
 		if not var then
 			project.console_out_error(out or "project assert failure")
-			return var, false
+			return var :: T, false
 		end
 	else
 		if not var then
 			project.console_out(out or "project soft-assert failure")
-			return var, false
+			return var :: T, false
 		end
 	end
 
@@ -169,12 +192,12 @@ end
 
 	В разработке появление сообщений такого рода нежелательно, хотя и не критично
 ]=]
-function project.console_out (...): console_out_type
+function project.console_out(...): console_out_type
 	if project.debug.state then
 		print(...)
 
 		if project.debug.trace_messages then
-			warn(debug.traceback())
+			print("traceback :: ", debug.traceback())
 		end
 	end
 

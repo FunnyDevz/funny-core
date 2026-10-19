@@ -52,10 +52,11 @@ const class : timer = (Observer :: observer<enumitem_tick_notification>):new {
 
 }
 
-class:host(function(new: timer)
+class:host(function(new)
+	const new = new:as <<observer>> (class.type)
 	const internal = private.mk_internal()
+	
 	new:set(private.internal_item.hashlink, internal)
-
 	new:subscribe(private.internal_item, ConnectionVariant.Once, function (controller: controller)
 		controller:subscribe(ControllerState.Continue, ConnectionVariant.Ever, function ()
 			internal.yield = false

@@ -9,7 +9,8 @@ const class : ikr6foot = (IKR6Limb :: ikr6limb<enumitem_iklegs_state, ikr6leginf
     type = "ikr6foot"
 }
 
-class:host(function(new: ikr6foot)
+class:host(function(new)
+    const new = new:as <<ikr6foot>> (class.type)
     new:set_info(private.default_info)
 end)
 

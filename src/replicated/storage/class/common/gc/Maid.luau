@@ -68,7 +68,9 @@ const class: maid = Disposable:new({
 	end, declare.boolean, "maid", declare.anyt),
 })
 
-class:host(function(new: maid)
+class:host(function(new)
+	const new = new:as <<maid>> (class.type)
+
 	private.objects[new] = setmetatable({}, private.meta)
 	private.s_objects[new] = {}
 	private.pairs[new] = setmetatable({}, private.meta)
@@ -132,7 +134,7 @@ do
 				const instance = v :: Instance
 				instance:Destroy()
 			else
-				project.console_out("unknown object, skip")
+				project.console_out("unknown LuaObject, skip")
 			end
 		end
 	end

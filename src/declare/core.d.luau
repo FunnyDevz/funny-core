@@ -14,45 +14,167 @@
         export type extend<extension = {}, base = {}> = setmetatable<extension & base, base>
     ```
 
-    Однако сейчас `base` для `U` специально деградирован до `object`. Это не мешает наследованию
+    Однако сейчас `base` для `U` специально деградирован до `luaobject`. Это не мешает наследованию
 ]==]
-export type extend<extension = {}, base = object> =  setmetatable<extension & base, object>
+export type extend<extension = {}, base = luaobject> =  setmetatable<extension & base, luaobject>
 
 --[==[
-    Base object interface for the runtime object system
+    Базовый объект проекта.
 
-    Object provides runtime type information, object identity, construction, inheritance inspection, type assertions,
-    and access to the object's host context
+    Это самый низкоуровневый объект для участия в иерархии проекта. Содержит в себе RTTI и в принципе все что необходимо,
+    чтобы превратить обычную таблицу в используемые классы.
 
-    Types derived from object inherit these operations
+    В проекте такой объект не является классом или экземпляром в - все вдохновляется семантикой `SmallTalk`, в котором
+    классы это такие-же объекты как и экземпляры этих классов. Поэтому здесь разрешено изменять, наследовать, и в
+    принципе следовать логике того, что каждый объект сам решает что ему лучше и как делать.
+
+    Однако классы и объекты никуда не делись. Классами считается тот объект, который первым реализует эту логику, а
+    все кто наследуются от него - объекты этого класса. И также работает и для них. Обычный экземпляр, по сути, просто
+    то что переиспользует уже придуманное и ничего не добавляет.
 ]==]
-export type object = {
-	read type: string,
+export type luaobject = {
+    --[==[
+        Узнать какой перед вами объект и какого класса можно при помощи этого поля
+    ]==]
+    read type: string,
 
+    --[==[
+        Конструирует объект: левая часть считается за основание, а правая за расширение. Расширение перезаписывает
+        данные из основания. За инициализацию отвечают `luaobject.host(self, f)` и `luaobject.finally(self, f)`.
+
+        Наследоваться, то бишь создавать объект из любого другого объекта можно, но имейте ввиду что поведение зависит
+        от контекста наследования.
+
+        Если создаете экземпляр класса, то это одно дело, другое если это экземпляр объекта класса.
+    ]==]
 	read new: <T, U>(self: T, that: U?) -> extend<T, U>,
-	read it: (self: object, otype: string) -> boolean,
-	read is: (self: object, otype: string) -> boolean,
-    read as: <T>(self: object, otype: string) -> object & T,
-    read eq: (self: object, to: object) -> boolean,
-    read base: <T>(self: object, expected: string | nil) -> (object & T)?,
-	read host: <T>(self: object, f: (new: T) -> ()) -> (),
-    read that: <T>(self: object, that: unknown, otype: string) -> (object & T)?,
-    read iden: (self: object) -> number,
 
-    --[string]: unknown?
+    --[==[
+        Это прямая проверка, что тип объекта является этим типом. Можно проверять и через `luaobject.type == "type"`,
+        однако это унифицированная проверка и она предпочтительней.
+    ]==]
+	read it: (self: luaobject, otype: string) -> boolean,
+	
+    --[==[
+        Проверка что объект наследует или является этим типом.
+    ]==]
+    read is: (self: luaobject, otype: string) -> boolean,
+    
+    --[==[
+        Каст объекта в другой тип. Если объект не соответствует этому типу, то будет ошибка.
+
+        При отсутствии `debug` метки, или если рантайм разрешит выполняться бракованному коду, будет вернут
+        объект `null`, который просто умалчивает любые прорехи. Даже если рантайм падет, мы попытаемся сделать так, чтобы
+        это было выполнено.
+    ]==]
+    read as: <T>(self: luaobject, otype: string) -> luaobject & T,
+
+    --[==[
+        Это проверка на то, что переданные объекты либо эквивалентны этому объекту, либо наследуют
+        тот же класс что и этот объект, то есть наследуют его.
+    ]==]
+    read same: (self: luaobject, ...luaobject) -> boolean,
+
+    --[==[
+        Эквивалитет объекта к другому объекту как по его сравнению через `TableValue` самой LVM, так и через
+        типы каждого экземпляра
+    ]==]
+    read eq: (self: luaobject, ...luaobject) -> ...boolean,
+
+    --[==[
+        Возвращает суперкласс этого класса, то есть его базу, то есть его родителя из которого
+        этот объект вообще произошел. 
+
+        Состояние родителя не влияет на ребенка, и даже если родитель уже невалиден и освобожден, то
+        ребенок будет продолжать всегда ссылаться на него. Это все конечно зависит от контекста.
+    ]==]
+    read base: (<T>(self: luaobject & T) -> getmetatable<T>),
+    
+    --[==[
+        Host представляет функцию для инициализации нового объекта. По сути это замена функции конструктора,
+        поскольку предоставленная лямбда получает доступ к новосозданному неинициализированному объекту. Обычно именно
+        host функция занимается его инициализацией, чтобы объект полностью функционировал.
+
+        Если вызвать `luaobject:host(f)` на `f` который уже существовал, то он будет удален из `host` списка, иначе
+        будет вставлен обратно. То есть работает как toggle.
+
+        В текущей версии лямбда принимает нетипизированный `luaobject` только потому что generic `T` не подхватывает
+        `self`
+    ]==]
+	read host: <T>(self: luaobject, f: (new: luaobject) -> ()) -> (),
+
+    --[==[
+        Это аналог `luaobject.as(self, type)`, но мягкий и для каста других объектов. Он не вернет ошибку,
+        вместо этого вернется `nil`. Через него можно кастовать сам объект `self` в другой объект.
+    ]==]
+    read that: <T>(self: luaobject, that: unknown, otype: string) -> (luaobject & T)?,
+    
+    --[==[
+        Возвращает идентификатор объекта. Это уникальный идентификатор только на 1 экземпляр виртуальной машины,
+        для параллельности этот идентификатор лучше никогда не использовать.
+    ]==]
+    read iden: (self: luaobject) -> number,
+
+    --[==[
+        Эта функция запускается в конце создания любого экземпляра, который наследуется от этого объекта.
+        Она используется, в основном, в качестве финализатора для инициализации того или иного объекта и архетипа.
+
+        Например, для `struct` она может использоваться для заморозки.
+
+        Его можно перезаписать, а все предыдущие финализаторы можно вызвать из финализатора. При этом вызван будет
+        самый верхний финализатор
+    ]==]
+    read finally: <T> (self: luaobject, f: object_finally_type?) -> (),
+
+    --[==[
+        Typeless getter. Используется когда информации о типе объекта недостаточно, и недостаточно информации
+        в общем о том что может быть у объекта.
+
+        Геттер проверяет метаданные классы, прежде чем получить данные по этому ключу.
+    ]==]
+    read tget: (self: luaobject, name: string) -> any?,
+
+    --[==[
+        Typeless setter. Используется когда информации о типе объекта недостаточно, и недостаточно информации в
+        в общем о том что может быть у объекта. Конкретно в этом случае это предназначено для назначения объекту
+        каких-либо данных.
+
+        Сеттер проверяет метаданные класса и метаданные функции, если потребуется. Поэтому пустышки он не принимает,
+        и некорректные данные выбрасывает в мусорку и умолчит.
+    ]==]
+    read tset: (self: luaobject, name: string, value: any?) -> (),
+
+    --[==[
+        Typeless caller. Используется когда информации о типе объекта недостаточно, и недостаточно информации в
+        в общем о том что может быть у объекта. Конкретно в этом случае это предназначено для вызова у объекта 
+        каких-либо функций.
+
+        Каллер проверяет метаданные классы и метаданные функции. Некорректные данные он просто отбросит и умолчит.
+    ]==]
+    read tcall: (self: luaobject, name: string, ...any) -> ...any?,
+
+    --[==[
+        Это способ получить тип у объекта, либо узнать, что это вообще не объект.
+    ]==]
+    read ttype: (self: luaobject | unknown) -> string?
 }
 
+--[==[
+    Функция финализации генерации объекта.
+]==]
+export type object_finally_type = (self: luaobject, base: object_finally_type?) -> ()
+
 
 --[==[
-   Represents an enumeration and contains its EnumItem values
+    Представляет собой перечисление и содержит его значения EnumItem
 
-    An EnumObject defines a named set of related enumeration items
-    It provides access to individual EnumItem values and can be used wherever an enumeration as a whole is required
+    EnumObject определяет именованный набор связанных элементов перечисления.
+    Он предоставляет доступ к отдельным значениям EnumItem и может использоваться везде, где требуется перечисление в целом.
 
-    Each EnumItem exposed by an EnumObject belongs to that enumeration
-    EnumObject therefore acts as both the namespace and the owner of its enumeration values.
+    Каждый элемент ENUM, предоставляемый EnumObject, принадлежит этому перечислению.
+    Таким образом, EnumObject действует как пространство имен и как владелец своих значений перечисления.
 
-    Typical usage:
+    Типичное использование:
     
     ```luau
     local value = ExampleEnumObject.SomeValue
@@ -60,7 +182,10 @@ export type object = {
     ```
 ]==]
 export type enumobject = extend<{
-	read name: string,
+	--[==[
+        Имя в объекте енамов используется для идентификации.
+    ]==]
+    read name: string,
 
 	read get_enums_list: (self: enumobject) -> { [unknown]: enumitem },
 	read get_enums_count: (self: enumobject) -> number,
@@ -71,7 +196,7 @@ export type enumobject = extend<{
     read get_enum_by_hashlink: (self: enumobject, hashlink: string) -> enumitem?,
 
 	read is_my_enumitem: (self: enumobject, that: enumitem|string) -> boolean,
-}, object>
+}, luaobject>
 
 --[==[
     Represents a single named value belonging to an EnumObject.
@@ -100,20 +225,26 @@ export type enumitem<T = enumobject?> = extend<{
 	read name: string,
 	read hashlink: string,
 	read enum: T,
-}, object>
+}, luaobject>
 
 --[==[
-    Base structural type
+    Базовый структурный тип
 
-    A struct provides common operations for working with structured runtime objects
-    It can be copied while preserving the concrete object type and can iterate over values of a specified field type
+    Struct предоставляет общие операции для работы со структурированными объектами среды выполнения.
+    Он может быть скопирован с сохранением конкретного типа luaobject и может выполнять итерацию по
+    значениям указанного типа.
 
-    Every struct-type object is unchangeable and freezed, create a new structure if you need to change something
+    Разница между всеми другими классами ядра в том, что этот объект `никогда` не имеет скрытого состояния,
+    которое можно изменить. Все что у него есть - доступно читателю. Он не представляет работу, он является
+    именно данными для работы.
+
+    Каждый luaobject структурного типа неизменяем, создайте новую структуру через `base.new()`,
+    если вам нужно что-то изменить и при этом этот `base` является именно классом, а не экземпляром класса.
 ]==]
 export type struct = extend<{
 	read clone: <T>(self: T, change: unknown?) -> T,
 	read each: <T>(self: struct, type: string, f: (value: T) -> T) -> {[unknown]: T},
-}, object>
+}, luaobject>
 
 --[==[
     Represents a typed runtime variable containing a value and the time at which the variable was created
@@ -125,68 +256,128 @@ export type variable<T = unknown> = extend<{
     read get_value: (self: variable<T>) -> T,
     read set_value: (self: variable<T>, to: T) -> (),
     read history: (self: variable<T>) -> {[number]: T}
-}, object>
+}, luaobject>
 
 --[==[
-    Represents a reference to a value of type T
+    Представляет собой ссылку на значение.
 
-    A pointer may point to an existing value or represent an unresolved reference
-    It supports reading the pointed value, changing the target, and 
-    inspecting whether the target currently exists or is held as a hard reference
+    Указатель может указывать на существующее значение или представлять неразрешенную ссылку.
+    Он поддерживает считывание указанного значения, изменение целевого объекта и
+    проверку того, существует ли целевой объект в настоящее время или хранится в качестве жесткой ссылки.
 ]==]
 export type pointer<T = unknown> = extend<{
 	read get_pointed: (self: pointer<T>) -> T,
+
+    --[==[
+        `Attention`, в будущих патчах это будет изменено.
+
+        Это одноразовая операция установки объекта, на который указывает указатель. Дальше будут ошибки.
+    ]==]
 	read set_point: (self: pointer<T>, to: T, hard: boolean?) -> (),
+    --[==[
+        `Deprecated`, в будущих патчах это будет удалено.
+
+        Указатель может иметь жесткую ссылку на объекты на которые указывает.
+    ]==]
 	read is_pointed_hard: (self: pointer<T>) -> boolean,
+
 	read is_pointed_exists: (self: pointer<T>) -> boolean,
-}, object>
+
+    --[==[
+        Для указанных вариантов режимов работы указателя можно установить специфичное состояние.
+
+        По умолчанию они все выключены.
+    ]==]
+    -- read set_mode: (self: pointer<T>, to: boolean, ...enumitem_pointer_mode) -> (),
+
+    --[==[
+        Возвращает режимы работы всех полученных состояний для этого указателя.
+    ]==]
+    -- read get_mode: (self: pointer<T>, ...enumitem_pointer_mode) -> ...boolean
+}, luaobject>
 
 --[==[
-    Represents a typed notification observer that manages subscriptions to enumitem and enumobject notifications
+    Представляет типизированный наблюдатель уведомлений, который управляет подписками на уведомления enumitem и enumobject.
 
-    T specifies the notification source type accepted by the observer. By default, T is enumitem | enumobject
-    An observer manages subscriptions through pointer objects
-    Each subscription may have its own connection mode and additional parameters
+    Наблюдатель управляет подписками с помощью объектов-указателей.
+    Каждая подписка может иметь свой собственный режим подключения и дополнительные параметры.
 ]==]
 export type observer<T = enumitem | enumobject> = extend<
 	{
+        --[==[
+            Отложенный вызов откладывает выполнение вызова каждого следующего соединения на конец работы планировщика
+            в этом такте. Его можно включить из соединения, или выключить, и это будет применяться к любому соединению
+            дальше.
+        ]==]
 		deffered_call: boolean,
-		deffered_mode: boolean,
+		
+        --[==[
+            Отложенный режим откладывает выполнение начала вызова всех соединений на конец работы планировщика в этом
+            такте. То есть сам факт уведомления и вызова всех соединений отложен.
+        ]==]
+        deffered_mode: boolean,
+
+        --[==[
+            Новые соединения будут просто выбрасываться, вместо этого будут возвращаться пустые указатели на ничего,
+            объект спокойно проигнорирует если передать их в него.
+        ]==]
 		allow_new_connections: boolean,
 
+        --[==[
+            Подписаться на какое-либо уведомление в каком-либо режиме с какими-либо обработчиками, которые
+            поддерживает этот объект. Вернет столько же указателей, сколько передано обработчиков.
+
+            Может вернуть пустые указатели. Они будут проигнорированы, если попадут обратно в объект.
+        ]==]
 		read subscribe: (
 			self: observer<T>,
 			on: observer_on<T>,
 			mode: enumitem_connection_variant,
 			...observer_var<T>
 		) -> ...pointer,
+
+        --[==[
+            По указателю можно отписать тот или иной обработчик. Если такого нет, то этот указатель проигнорируется.
+        ]==]
 		read unsubscribe: (self: observer<T>, ...pointer) -> (),
+
+        --[==[
+            Перезаписать режим работы подписки на другой через указатель.
+        ]==]
 		read subscription_set_mode: (self: observer<T>, to: enumitem_connection_variant, ...pointer) -> (),
+
+        --[==[
+            Получить режим работы подписки через указатель.
+        ]==]
 		read subscription_get_mode: (self: observer<T>, ...pointer) -> ...enumitem_connection_variant,
+
+        --[==[
+            Вызвать все подписки указанного уведомления с такими-то аргументами.
+        ]==]
 		read notificate: (self: observer<T>, notification: observer_on<T>, ...unknown) -> (),
 	} & private_storage<observer<T>>,
-	object
+	luaobject
 >
 
 type observer_on <T = enumitem> = T | {T} | enumobject | {enumobject} | {T|enumobject}
 type observer_var <T = unknown> = ((...any)->())|thread|observer<T>
 
 --[==[
-    Represents an object that performs a single role in the system as a singleton
+    Represents an luaobject that performs a single role in the system as a singleton
 ]==]
 export type service = extend<{
     
-} & nameable & switchable, object>
+} & nameable & switchable, luaobject>
 
 --[==[
-    Represents an object with an explicit resource-release lifecycle
+    Represents an luaobject with an explicit resource-release lifecycle
 
-    A disposable provides a free operation that releases resources owned by the object
+    A disposable provides a free operation that releases resources owned by the luaobject
     The operation may be performed immediately or deferred
 ]==]
 export type disposable = extend<{
     --[==[
-    Releases the resources associated with the disposable object.
+    Releases the resources associated with the disposable luaobject.
 
     deffered determines whether the release is deferred. When omitted, the implementation uses its default behavior.
 
@@ -198,7 +389,7 @@ export type disposable = extend<{
     read free: (self: disposable, deffered: boolean?) -> (),
 
     --[==[
-        Returns the state of the object at the current time of the request
+        Returns the state of the luaobject at the current time of the request
     ]==]
     read released: (self: disposable) -> boolean,
 
@@ -206,9 +397,84 @@ export type disposable = extend<{
         Connects an outside observer to the moment of release
     ]==]
     read watch: <T> (self: disposable, ...(self: disposable) -> ()) -> ()
-} & private_storage<disposable>, object>
+} & private_storage<disposable>, luaobject>
+
+export type scheduler_teta<T... = ...any> = thread | (T...) -> ()
 
 
+
+--[==[
+    Объект для управления задачами внутри самого Luau вне зависимости от Host приложения.
+
+    По сути это универсальная task библиотека в виде объекта, вынесенная за рамки обычного роблокса.
+]==]
+export type scheduler = extend<{
+	--[==[
+        Возвращает новый планировщик. Планировщик наследует
+    ]==]
+	read new: ((self: scheduler) -> scheduler) & () -> scheduler,
+
+	--[==[
+        Планирует коррутину в любое удобное время для планировщика. Коррутина будет вызвана
+        в следующем `scheduler:process()` либо в этом же цикле, если уже запланированная
+        коррутина подала запрос. 
+    ]==]
+	read plan: <T...>(self: scheduler, t: scheduler_teta<T...>, T...) -> thread,
+
+	--[==[
+        Отменяет коррутину из планировщика. Функция безопасна для вызова, она тихо проигнорирует
+        если эта коррутина не была запланирована.
+    ]==]
+	read cancel: (self: scheduler, c: thread) -> (),
+
+	--[==[
+        Проверяет, является ли эта коррутина запланированной для выполнения
+    ]==]
+	read is_planned: ((self: scheduler, c: thread) -> boolean) & ((self: scheduler) -> boolean),
+
+	--[==[
+        Проверяет, является ли эта коррутина в процессе ожидания или холда.
+    ]==]
+	read is_waiting: ((self: scheduler, c: thread) -> boolean) & ((self: scheduler) -> boolean),
+
+	--[==[
+        Ставит текущую выполняемую коррутину на паузу до момента, когда не будет достигнуто указанное время
+        в реальном `os.clock()` времени. После истечения времени ожидания в течении какого-то периода вызовет
+        ожидавшую коррутину обратно.
+        
+        Функционал ожидания для кадрового (тикового) времени смотрите в 
+        других функциях, либо он может быть не реализован.
+    ]==]
+	read wait: (self: scheduler, time: number?) -> (),
+
+	--[==[
+        Коррутина будет запланирована на ожидание, но на сам факт не будет поставлена. Это должен будет
+        сделать пользовательский код.
+    ]==]
+	read hold: (self: scheduler, time: number?) -> (),
+
+	--[==[
+        Планирует на конец `scheduler:process()` еще одну коррутину.
+
+        Доступно только из коррутины, которая сейчас выполняется планировщиком.
+    ]==]
+	read last: <T...>(self: scheduler, t: scheduler_teta<T...>, T...) -> (),
+
+	--[==[
+        Планирует на следующий планировочный этап еще одну коррутину. Эта коррутина будет выполняться
+        сразу после текущей коррутины.
+
+        Доступно только из коррутины, которая сейчас выполняется планировщиком.
+    ]==]
+	read next: <T...>(self: scheduler, t: scheduler_teta<T...>, T...) -> (),
+
+	--[==[
+        Планировщик выполняет плановые задачи согласно циклу приложения. То, как именно будет работать
+        вызов и когда - контроллируется управляющим кодом над планировщиком. Обычно эта работа выделяется
+        Host приложению, но в случае с этим объектом эта работа доступна Luau коду.
+    ]==]
+	read process: (self: scheduler) -> (),
+}, luaobject>
 
 
 
@@ -290,7 +556,7 @@ export type signal<T... = ...unknown> = extend<{
     вызывается `maker:new()`, а инстанс передается в `set_instance`, если он есть
 
     О привязке и отвязке сообщает через `BinderNotification.Bound` / `Unbound`
-    с аргументами `(instance, object)`
+    с аргументами `(instance, luaobject)`
 
     ```luau
     const doors = Binder:new({ tag = "Door", maker = Reference }) :: binder<reference>
@@ -322,7 +588,7 @@ export type stack<T = unknown> = extend<{
 	read pick: (self: stack<T>) -> T?,
 	read put: (self: stack<T>, value: T) -> (),
 	read count: (self: stack<T>) -> number,
-}, object>
+}, luaobject>
 
 export type maid = extend< {
 	read add_object: (self: maid, that: any, strong: boolean?) -> (),
@@ -347,7 +613,7 @@ export type maybe <T = unknown, U = unknown> = extend<{
         Создает наследника переданного объекта, а затем возвращает его как кэшированный
         результат работы
     ]==]
-    read enactment: (self: maybe<T,U>, it: U, of: object) -> T,
+    read enactment: (self: maybe<T,U>, it: U, of: luaobject) -> T,
 
     --[==[
         Для указанного `it` удаляет значение
@@ -430,7 +696,7 @@ export type localuser = extend<{
     read require_save_configuration: (self: localuser, of: enumitem, ...unknown) -> (),
 
     read get_user: (self: localuser) -> profile,
-}, object>
+}, luaobject>
 
 
 
@@ -694,7 +960,7 @@ export type itemstack = extend<{
 
 export type itemcontext = extend<{
     read item: item,
-    read user: object?,
+    read user: luaobject?,
     read context: enumitem_item_context
 }, struct>
 
@@ -702,13 +968,13 @@ export type itembehavior = extend<{
     read on_equip: (self: itembehavior, context: itemcontext) -> (),
     read on_unequip: (self: itembehavior, context: itemcontext) -> (),
     read action: (self: itembehavior, context: itemcontext, delta: number) -> ()
-}, object>
+}, luaobject>
 
 export type item = extend<{
     read name: string,
     read description: string,
     read behavior: itembehavior
-}, object>
+}, luaobject>
 
 --[==[
     Объект, представляющий собой игровую способность с возможностью определения

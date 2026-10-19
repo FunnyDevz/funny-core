@@ -1,43 +1,49 @@
 const declare = require("@game/ReplicatedStorage/static/declare")
+const project = require("@game/ReplicatedStorage/static/project")
 
-type t = {[any]: any}
-type function negation_of_nil () return types.negationof(types.singleton(nil)) end
+type t = { [any]: any }
+type function negation_of_nil()
+	return types.negationof(types.singleton(nil))
+end
 
 --[==[
     Расширение стандартной библиотеки `table`
 
     Для всех массивов считается, что их каноническая форма это `i >= abs(1) ... +inf` ,
-    все что не подходит под эту форму не будет учитываться в функциях
+    все что не подходит под эту форму не будет учитываться в функциях.
+
+    Все операции с дырами идут только для тех дыр, что считаются внутренними. Внешние и хвостовые дыры
+    игнорируются.
 ]==]
 export type ttable = {
-    --[==[
+	--[==[
         Соединяет две независимые таблицы. Левое - основание, правое перезапишет данные из левой части на свои,
         если у него есть конфликтующие поля.
 
-        Возвращает независимую таблицу.
+        Возвращает независимую таблицу, которая является поверхностной копией.
     ]==]
-    read combine: <T,U> (t0: T, t1: U) -> T & U,
+	read combine: <T, U>(t0: T, t1: U) -> T & U,
 
-    --[==[
+	--[==[
         Проходится по массиву и убирает любую дыру в нем, тем самым делая его однородным.
 
         Это модифицирует оригинальный массив
     ]==]
-    read fix: <T> (t0: {T?}) -> {T & negation_of_nil<>},
+	read fix: <T>(t0: { T? }) -> { T & negation_of_nil<> },
 
-    --[==[
+	--[==[
         Проходится по всему массиву в поисках этого значения. Если оно есть, то удаляет его, иначе вставляет
     ]==]
-    read toggle: <T> (t0: {T}, that: T?) -> (),
+	read toggle: <T>(t0: { T }, that: T?) -> (),
 
-    --[==[
+	--[==[
         Проходится по массиву и убирает любую дыру в нем, тем самым делая его однородным.
 
         Это вернет копию
     ]==]
-    read fixed: <T> (t0: {T?}) -> {T & negation_of_nil<>},
+	read fixed: <T>(t0: { T? }) -> { T & negation_of_nil<> },
 
-    --[==[
+	--[==[
         Вручную считает все поля полным обходом через цикл. Это гораздо медленней чем использование `#table`,
         но гарантирует количество именно что существующих внутри таблицы объектов.
 
@@ -45,275 +51,435 @@ export type ttable = {
         смотреть ближайшие элементы за и после подсказки на +1 или -1, либо искать бинарным поиском. В общем случае,
         возврат границы оператором точно не гарантирован при дырах.
     ]==]
-    read count: (t0: t) -> number,
+	read count: (t0: t) -> number,
 
-    --[==[
+	--[==[
         При помощи цикла проходит по всей таблице и считает именно что длинну всей таблицы, даже если элементов внутри
         по факту меньше из-за дыр. Вернется самый большой индекс массива.
 
         Медленней чем оператор `#`, но гарантированно вернет длинну.
     ]==]
-    read lenght: (t0: t) -> number,
+	read length: (t0: t) -> number,
 
-    --[==[
-        Вернет точное количество дырок в таблице. По скорости наравне с `ttable.count()` и `ttable.lenght()`
+	--[==[
+        Вернет точное количество дырок в таблице. По скорости наравне с `ttable.count()` и `ttable.length()`.
     ]==]
-    read holes: (t0: t) -> number,
+	read holes: (t0: t) -> number,
 
-    --[==[
+	--[==[
         Вернет точные места где в массиве находятся дыры.
     ]==]
-    read dump: (t0: t) -> {number},
+	read dump: (t0: t) -> { number },
 
-    read find: (t0: t, ...any) -> ...boolean,
+	--[==[
+        Более универсальный аналог `table.find(table, value)`, который ищет уже и среди словарей. 
+    ]==]
+	read find: (t0: t, ...t) -> ...boolean,
 
-    --[==[
+	--[==[
         Проверяет именно наличие ключей из правой части в левом основании. Наличие ключа - потенциальный конфликт.
         Факт нормального соединения проверяется через метод `equals(t0, ...)`.
     ]==]
-    read conflictable: (t0: t, ...any) -> boolean,
+	read conflictable: (t0: t, ...t) -> boolean,
 
-    --[==[
+	--[==[
         Проверяет совпадение типов в правой части с данными левого основания. Если они отличаются, то
         эквивалент будет отрицательным. Отсутствие данных из основания в правой части не считается поводом для
         отказа в эквиваленте.
     ]==]
-    read equals: (t0: t, ...any) -> boolean,
+	read equals: (t0: t, ...t) -> boolean,
 
-    --[==[
-        Рекурсивная копия.
+	--[==[
+        Все данные из правой части обязаны иметь только то, что есть в левом основании. Если отсутствует какой-то ключ,
+        то это игнорируется и не считается ошибкой. Только лишние ключи являются поводом отклониться.
     ]==]
-    read copy: <T> (t0: T) -> T,
+	read same: (t0: t, ...t) -> boolean,
+
+	--[==[
+        Рекурсивная копия. Без метатаблицы.
+    ]==]
+	read copy: <T>(t0: T, root: T?) -> T,
+
+	--[==[
+        Рекурсивная копия. С метатаблицой.
+    ]==]
+	read scan: <T>(t0: T, root: T?) -> T,
 }
 
-local FCALL_COPY : (t0: any) -> any
---[==[
-    Метка для очистки кэша, если return попадает на нее
-]==]
-local FCALL_COPY_TAR : unknown?
---[==[
-    Кэш для сопрокидываний рекурсивных ссылок и циклов
-]==]
-const FCALL_COPY_CACHE = {}
-const ASSERT_TABLE = function (t) assert(type(t) == declare.table, "t0 not a table") end
+type work = {
+	root: t?,
+	[t]: t?,
+}
+
+-- В моменте всегда существует только 1 экземпляр. Второй это упавшая версия. Это затирает table.clear() в конце
+-- работы живой версии. Либо, если они все помрут, никто этим не займется. Но это нереально, либо просто кусок мыла
+-- вместо нормального кода
+--
+-- Для этих списков никогда в моменте не может быть параллельных и асинхронных работ, это просто невозможно через
+-- lua_stack, даже если оборвать его таймаутами и закидать асинками
+
+const FCALL_COPY_WORK: work = {}
+const FCALL_SCAN_WORK: work = {}
+
+local FTTABLE: ttable
 
 const ttable: ttable = {
-    combine = function (t0: any, t1: any): any
-        ASSERT_TABLE(t0)
-        ASSERT_TABLE(t1)
+	combine = function(t0: any, t1: any): any
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return declare.tables.__null
+		end
+		if not project.assert(type(t1) == declare.table, "t1 is not a table", true) then
+			return declare.tables.__null
+		end
 
-        const r0: any = table.clone(t0)
-        for i, v in t1 do
-            r0[i] = v
-        end
-        
-        return r0
-    end,
+		const r0: any = table.clone(t0)
+		for i, v in t1 do
+			r0[i] = v
+		end
 
-    fix = function (t0)
-    	ASSERT_TABLE(t0)
-        local j = 0
-        
-        for i, _ in t0 do
-            if (type(i) == declare.number) then
-                j = i
+		return r0
+	end,
 
-                while (t0[j] == nil) do
-                    table.remove(t0, j)
-    				j += 1
-                end
-            end
-        end
-        
-        return t0 :: {any & negation_of_nil<>}
-    end,
+	fix = function(t0)
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return t0 :: { any }
+		end
 
-    toggle = function (t0: t, that)
-        for i, v in t0 do
-            if (type(i) == "number") then
-                if (v == that) then
-                    table.remove(t0, i)
-                    return
-                end
-            end
-        end
+		local keys: { number } = {}
+		for i, _ in t0 do
+			if type(i) == declare.number and i >= 1 and i % 1 == 0 then
+				table.insert(keys, i)
+			end
+		end
 
-        if (that ~= nil) then
-    		table.insert(t0, that)
-        end
-    end,
+		if #keys == 0 then
+			return t0 :: { any & negation_of_nil<> }
+		end
 
-    fixed = function (t0: t)
-    	ASSERT_TABLE(t0)
-        const clone = {}
+		table.sort(keys)
 
-        --[[
+		local max_key = keys[#keys]
+		local write = 1
+
+		if max_key <= #keys * 2 then
+			for i = 1, max_key do
+				if t0[i] ~= nil then
+					if write ~= i then
+						t0[write] = t0[i]
+						t0[i] = nil
+					end
+					write += 1
+				end
+			end
+		else
+			for _, i in keys do
+				if write ~= i then
+					t0[write] = t0[i]
+					t0[i] = nil
+				end
+				write += 1
+			end
+		end
+
+		return t0 :: { any & negation_of_nil<> }
+	end,
+
+	toggle = function(t0: t, that): ()
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return
+		end
+
+		for i, v in t0 do
+			if type(i) == declare.number and i >= 1 and i % 1 == 0 then
+				if v == that then
+					table.remove(t0, i)
+					return
+				end
+			end
+		end
+
+		if that ~= nil then
+			t0[FTTABLE.length(t0) + 1] = that
+		end
+	end,
+
+	fixed = function(t0: t)
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return declare.tables.__null
+		end
+
+		const clone = {}
+
+		--[[
             Обобщенный итератор это по сути `pairs()`, но он всегда первым проходит array-part, и лишь при дыре или
             при при выходе в hash часть начинает выдавать случайные позиции
 
             Он также пропускает nil, поэтому мы просто вручную перетащим все что не nil и упакуем это
         ]]
-        for i,v in t0 do
-            if (type(i) == declare.number) then
-                table.insert(clone, v)
-            else
-                clone[i] = v
-            end
-        end
+		for i, v in t0 do
+			if type(i) == declare.number and i >= 1 and i % 1 == 0 then
+				table.insert(clone, v)
+			else
+				clone[i] = v
+			end
+		end
 
-        return clone
-    end,
+		return clone
+	end,
 
-    dump = function (t0: t)
-    	ASSERT_TABLE(t0)
-        const list: {number} = {}
-        local j = 0
+	dump = function(t0: t): { number }
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return declare.tables.__null :: { any }
+		end
 
-        for i, _ in t0 do
-            if type(i) == declare.number then
-                j = i - 1
+		const list: { number } = {}
+		local j = 0
 
-                while (t0[j] == nil) do
-                    table.insert(list, j)
-                    j -= 1
+		for i, _ in t0 do
+			if type(i) == declare.number and i >= 1 and i % 1 == 0 then
+				j = i - 1
 
-                    if (j <= 0) then
-                        break
-                    end
-                end
-            end
-        end
+				while j >= 1 and t0[j] == nil do
+					table.insert(list, j)
+					j -= 1
+				end
+			end
+		end
 
-        return list
-    end,
+		table.sort(list)
 
-    holes = function (t0)
-    	ASSERT_TABLE(t0)
+		return list
+	end,
 
-        local max = 0
-        local count = 0
+	holes = function(t0: t): number
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return 0
+		end
 
-        for i, _ in t0 do
-            if (type(i) == declare.number) then
-                max = i
-                count += 1
-            end
-        end
+		local max = 0
+		local count = 0
 
-        return max - count
-    end,
-    
-    lenght = function (t0)
-    	ASSERT_TABLE(t0)
+		for i, _ in t0 do
+			if type(i) == declare.number and i >= 1 and i % 1 == 0 then
+				max = math.max(max, i)
+				count += 1
+			end
+		end
 
-        local max = 0
+		return max - count
+	end,
 
-        for i, _ in t0 do
-            if (type(i) == declare.number) then
-                max = i
-            end
-        end
+	length = function(t0: t): number
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return 0
+		end
+		local max = 0
 
-        return max
-    end,
+		for i, _ in t0 do
+			if type(i) == declare.number and i >= 1 and i % 1 == 0 then
+				max = math.max(max, i)
+			end
+		end
 
-    count = function (t0: t) : number
-    	ASSERT_TABLE(t0)
+		return max
+	end,
 
-        local count = 0
+	count = function(t0: t): number
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return 0
+		end
 
-        for i, _ in t0 do 
-            if (type(i) == declare.number) then
-			    count += 1
-            end
-        end
+		local count = 0
 
-        return count
-    end,
+		for i, _ in t0 do
+			if type(i) == declare.number and i >= 1 and i % 1 == 0 then
+				count += 1
+			end
+		end
 
-    conflictable = function (t0: any, ...: any) : boolean
-        assert(type(t0) == declare.table, "t0 is not a table")
+		return count
+	end,
 
-        for _, v in {...} do
-            assert(type(v) == declare.table, "received non-table type")
-            
-            for i, _ in v do
-                if (t0[i] ~= nil) then
-                    return true
-                end
-            end
-        end
+	conflictable = function(t0: any, ...: any): boolean
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return false
+		end
 
-        return false
-    end,
+		for _, v in { ... } do
+			if not project.assert(type(v) == declare.table, "value is not a table", true) then
+				return false
+			end
 
-    find = function (t0, ...)
-    	ASSERT_TABLE(t0)
+			for i, _ in v do
+				if t0[i] ~= nil then
+					return true
+				end
+			end
+		end
 
-        const list: {boolean} = {}
+		return false
+	end,
 
-        for _, v in {...} do
-            local mark = false
+	find = function(t0: t, ...: any): ...boolean
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return table.unpack(table.create(select("#", ...), false))
+		end
 
-            for i, d in t0 do
-                if (d == v) then
-                    mark = true                    
-                    break
-                end
-            end
+		const n = select("#", ...)
+		const list: { boolean } = table.create(n, false)
 
-            table.insert(list, mark)
-        end
+		for k = 1, n do
+			const v = select(k, ...)
+			local mark = false
 
-        return unpack(list)
-    end,
+			for _, d in t0 do
+				if d == v then
+					mark = true
+					break
+				end
+			end
 
-    copy = function (t0: any): any
-        assert(type(t0) == declare.table, "t0 is not a table")
+			list[k] = mark
+		end
 
-        const cached = FCALL_COPY_CACHE[t0]
-        if cached ~= nil then return cached end
+		return table.unpack(list)
+	end,
 
-        const clone = table.clone(t0)
-        FCALL_COPY_CACHE[t0] = clone
-        if FCALL_COPY_TAR == nil then
-            FCALL_COPY_TAR = clone
-        end
+	copy = function(t0: t, root: t?): any
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return t0
+		end
 
-        for i,v in clone do
-            if type(v) == declare.table then
-			    clone[i] = FCALL_COPY(v)
-            end
-        end
+		const point: any = root or t0
 
-        if FCALL_COPY_TAR == clone then
-            table.clear(FCALL_COPY_CACHE)
-            FCALL_COPY_TAR = nil
-        end
+		if t0 == point then
+			table.clear(FCALL_COPY_WORK)
+		end
 
-        return clone
-    end,
+		const work = FCALL_COPY_WORK[point] or { root = point }
+		FCALL_COPY_WORK[point] = work
 
-    equals = function (t0: any, ...: any): boolean
-        assert(type(t0) == declare.table, "t0 is not a table")
-        
-        for i, v in {...} do
-            assert(type(v) == declare.table, "received non-table type")
+		const clone: t = work[t0] or table.clone(t0)
+		work[t0] = clone
 
-            for j, d in t0 do
-                const T = typeof(v[j])
+		for i, v in next, t0 do
+			const i1 = if type(i) == declare.table then FTTABLE.copy(i, point) else i
+			const v1 = if type(v) == declare.table then FTTABLE.copy(v, point) else v
 
-                if (T ~= typeof(d) and T ~= declare["nil"]) then
-                    return false
-                end
-            end
-        end
+			if i1 ~= i then
+				clone[i] = nil
+			end
+			clone[i1] = v1
+		end
 
-        return true
-    end
+		if t0 == point then
+			table.clear(FCALL_COPY_WORK)
+		end
+
+		return clone
+	end,
+
+	scan = function(t0: t, root: t?): any
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return t0
+		end
+
+		const point: any = root or t0
+		if point == t0 then
+			table.clear(FCALL_SCAN_WORK)
+		end
+
+		const work = FCALL_SCAN_WORK[point] or { root = point }
+		FCALL_SCAN_WORK[point] = work
+
+		const clone: t = work[t0] or table.clone(t0)
+		const mt = getmetatable(t0) :: unknown
+
+		work[t0] = clone
+
+		for i, v in next, t0 :: { [unknown]: unknown } do
+			local i1: any = i
+			local v1: any = v
+
+			if type(i) == declare.table then
+				const mi: unknown = getmetatable(i :: t)
+				i1 = FTTABLE.scan(i, point)
+
+				if type(mi) == declare.table then
+					setmetatable(i1, FTTABLE.scan(mi, point))
+				end
+			end
+
+			if type(v) == declare.table then
+				const mi: unknown = getmetatable(v :: t)
+				v1 = FTTABLE.scan(v, point)
+
+				if type(mi) == declare.table then
+					setmetatable(v1, FTTABLE.scan(mi, point))
+				end
+			end
+
+			if i1 ~= i then
+				clone[i] = nil
+			end
+			clone[i1] = v1
+		end
+
+		if type(mt) == declare.table then
+			setmetatable(clone, FTTABLE.scan(mt, point))
+		end
+
+		if t0 == point then
+			table.clear(FCALL_SCAN_WORK)
+		end
+
+		return clone
+	end,
+
+	equals = function(t0: any, ...: any): boolean
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return false
+		end
+
+		for i, v in { ... } do
+			if not project.assert(type(v) == declare.table, "value is not a table", true) then
+				return false
+			end
+
+			for j, d in t0 do
+				const T = typeof(v[j])
+
+				if T ~= typeof(d) and T ~= declare["nil"] then
+					return false
+				end
+			end
+		end
+
+		return true
+	end,
+
+	same = function(t0: t, ...: t): boolean
+		if not project.assert(type(t0) == declare.table, "t0 is not a table", true) then
+			return false
+		end
+
+		for _, v in { ... } do
+			if not project.assert(type(v) == declare.table, "value is not a table", true) then
+				return false
+			end
+
+			for i, _ in v do
+				if t0[i] == nil then
+					return false
+				end
+			end
+		end
+
+		return true
+	end,
 }
 
-FCALL_COPY = ttable.copy
+FTTABLE = ttable
 table.freeze(ttable)
 
 return ttable

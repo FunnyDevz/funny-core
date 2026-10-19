@@ -1,6 +1,6 @@
 --!strict
 
-const object = require("@game/ReplicatedStorage/object")
+const LuaObject = require("@game/ReplicatedStorage/class/core/LuaObject")
 const ctags = require("@game/ReplicatedStorage/static/ctags")
 const ctype = require("@game/ReplicatedStorage/static/ctype")
 const declare = require("@game/ReplicatedStorage/static/declare")
@@ -10,11 +10,11 @@ const project = require("@game/ReplicatedStorage/static/project")
 type indexed = struct & {[unknown]: unknown}
 
 const private = {}
-const class: struct = object:new({
+const class: struct = LuaObject:new({
     type = "struct",
 
     clone = ftype:write(function (self: struct, change: {[unknown]: unknown}?) : any
-        const base = self:base <<struct>>("struct")
+        const base = self:base():as <<struct>> ("struct")
         const reconv = table.clone(self) :: indexed
 
         if change then
@@ -57,15 +57,19 @@ do
         const result: {[unknown]: unknown} = {}
 
         for i, v in self :: {[any]: any} do
-            result[ class:that(class.base(i), "struct") and class.clone(i) or
+            result[ class:that(class.base(i :: any), "struct") and class.clone(i) or
                 type(i) == "table" and private.recursive_convertion(i :: {[unknown]: unknown} or
-                i) ] = class:that(class.base(v), "struct") and class.clone(v) or
+                i) ] = class:that(class.base(v :: any), "struct") and class.clone(v) or
                 type(v) == "table" and private.recursive_convertion(v :: {[unknown]: unknown} or
                 v)
         end
 
         return result
     end
+
+    class:finally(function(self: luaobject, base)
+        table.freeze(self)
+    end)
 end
 
 ctype:read(class):write_tag(ctags.struct, ctags.core)

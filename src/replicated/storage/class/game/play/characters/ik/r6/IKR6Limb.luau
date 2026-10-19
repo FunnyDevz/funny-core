@@ -248,7 +248,8 @@ const class : ikr6limb = Disposable:new {
     end, declare["nil"], "ikr6limnb")
 }
 
-class:host(function(new: ikr6limb): ()
+class:host(function(new): ()
+    const new = new:as <<ikr6limb>> (class.type)
     new:set_info(private.default_info)
     new:watch(private.free_fake)
 end)

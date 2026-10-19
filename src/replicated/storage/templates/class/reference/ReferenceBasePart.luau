@@ -7,27 +7,34 @@ const ctype = require("@game/ReplicatedStorage/static/ctype")
 const project = require("@game/ReplicatedStorage/static/project")
 
 const private = {}
-const class : reference<BasePart?> = (Reference :: reference<BasePart?> ):new()
+const class: reference<BasePart?> = (Reference :: reference<BasePart?>):new()
 
 do
-    private.register = function (new: reference<BasePart?>)
-		new:subscribe({ ReferenceNotification.NewInstance, ReferenceNotification.ChangedInstance }, ConnectionVariant.Ever, function()
-            const var = new:get_instance() :: Instance
+	private.register = function(new: luaobject)
+		const new = new:as <<reference<BasePart?>>> (class.type)
+		new:subscribe(
+			{ ReferenceNotification.NewInstance, ReferenceNotification.ChangedInstance },
+			ConnectionVariant.Ever,
+			function()
+				const var = new:get_instance() :: Instance
 
-            if var ~= nil and not var:IsA("BasePart") then
-                new:set_instance(nil)
-                project.console_out("an unsuitable instance of the object was passed, cancellation of the assignment")
-                return
-            elseif var == nil then
-                return
-            end
-		end)
-    end
+				if var ~= nil and not var:IsA("BasePart") then
+					new:set_instance(nil)
+					project.console_out(
+						"an unsuitable instance of the RbxOjbect was passed, cancellation of the assignment"
+					)
+					return
+				elseif var == nil then
+					return
+				end
+			end
+		)
+	end
 
 	class:host(private.register)
-    if project.game.smalltalk_like then
-        private.register(class)
-    end
+	if project.game.smalltalk_like then
+		private.register(class)
+	end
 
 	ctype:read(class):write_tag(ctags.class, ctags.common, ctags.template)
 end

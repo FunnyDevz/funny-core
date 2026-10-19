@@ -6,7 +6,7 @@ const class : char6 = Character:new {
     -- TODO
 }
 
-class:host(function(new: char6)
+class:host(function(new)
     
 end)
 

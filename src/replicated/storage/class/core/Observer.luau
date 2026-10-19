@@ -4,7 +4,7 @@ const EnumObject = require("@game/ReplicatedStorage/class/core/EnumObject")
 const Pointer = require("@game/ReplicatedStorage/class/core/Pointer")
 const SecurityRNG = require("@game/ReplicatedStorage/class/service/SecurityRNG")
 const ConnectionVariant = require("@game/ReplicatedStorage/enums/descriptor/ConnectionVariant")
-const object = require("@game/ReplicatedStorage/object")
+const LuaObject = require("@game/ReplicatedStorage/class/core/LuaObject")
 const ctags = require("@game/ReplicatedStorage/static/ctags")
 const ctype = require("@game/ReplicatedStorage/static/ctype")
 const declare = require("@game/ReplicatedStorage/static/declare")
@@ -15,7 +15,7 @@ type observer_on<T = enumitem> = T | { T } | enumobject | { enumobject } | { T |
 type observer_var<T = unknown> = ((...any) -> ()) | thread | observer<T>
 
 const private = {}
-const class: observer = object:new({
+const class: observer = LuaObject:new({
 	type = "observer",
 	deffered_call = true,
 	deffered_mode = false,
@@ -24,11 +24,15 @@ const class: observer = object:new({
 	subscribe = ftype:write(
 		function(self: observer, on: observer_on, mode: enumitem_connection_variant, ...: observer_var): ...pointer
 			if not self.allow_new_connections then
-				return
+				const empty_pointers: {pointer} = {}
+
+				for i = 1, #{...} do
+					empty_pointers[i] = Pointer:new()
+				end
+
+				return table.unpack(empty_pointers)
 			end
-			if
-				not project.assert(private.relevant_actions[mode], `subscription option of {mode.name} does not exists`)
-			then
+			if not project.assert(private.relevant_actions[mode], `subscription option of {mode.name} does not exists`) then
 				return
 			end
 
@@ -87,23 +91,17 @@ const class: observer = object:new({
 		end
 
 		for _, enumitem in private.create_flatted_on(on) do
-			const dispatch_layer = items[enumitem]
-
-			if dispatch_layer then
+			if const dispatch_layer = items[enumitem] then
 				for i, observer_connections_list in table.clone(dispatch_layer) do
 					const delta_list = observer_connections_list
-					const result =
-						private.relevant_actions[i](private.generate_related(self, enumitem, delta_list), ...)
-					const count = #result
+					const related = private.generate_related(self, enumitem, delta_list)
+					const result = private.relevant_actions[i](related, ...)
 
-					if count == #delta_list then
+					if #result == #delta_list then
 						table.clear(delta_list)
 					else
 						for _, v in result do
-							const pos = table.find(delta_list, v)
-							if pos then
-								table.remove(delta_list, pos)
-							end
+							table.remove(delta_list, table.find(delta_list, v) or 0)
 						end
 					end
 				end
@@ -151,7 +149,9 @@ const class: observer = object:new({
     end 
 })
 
-class:host(function(new: observer)
+class:host(function(new)
+	const new = new:as <<observer>> (class.type)
+
     private.shadow_space[new] = {}
 
 	new:set(private.pointers, setmetatable({}, private.meta))
@@ -185,6 +185,7 @@ do
 
 		if class:that(on, EnumItem.type) then
 			const on_enumitem = on :: enumitem
+
 			table.insert(output_for_cycle, on_enumitem)
 		elseif class:that(on, EnumObject.type) then
 			const on_enumobject = on :: enumobject
@@ -331,18 +332,16 @@ do
 		const target_list = work.mode_list[mode] or {}
 
 		if work.work_list ~= target_list then
+			--#if DEBUG
 			if not pointer:is_pointed_exists() then
 				if project.debug then
 					project.console_out_error("pointer does not exists?")
 				end
 			end
+			--#endif
 
 			const pointed = pointer:get_pointed()
-			const pos = table.find(work.work_list, pointed)
-			if pos then
-				table.remove(work.work_list, pos)
-			end
-
+			table.remove(work.work_list, table.find(work.work_list, pointed) or 0)
 			table.insert(target_list, pointed)
 			work.work_list = target_list
 		end

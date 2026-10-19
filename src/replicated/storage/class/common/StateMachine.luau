@@ -57,7 +57,9 @@ const class: statemachine = (Observer :: observer<enumitem_statemachine_notifica
 	end,
 }
 
-class:host(function(new: statemachine)
+class:host(function(new)
+	const new = new:as <<statemachine>> (class.type)
+
 	new:set(private.key, setmetatable({}, declare.tables.__mode_ks))
 	new:set(private.key2, setmetatable({}, declare.tables.__mode_vs))
 end)

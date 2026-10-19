@@ -81,12 +81,12 @@ const class: dgame.item = (PickUp :: declare.pickup<dgame.enumitem_item_notifica
     get_owner = function (self: dgame.item)
         if not self.owner then return nil end
 
-        const object = self.require <<declare.object?>>(self.owner)
-        if object then
-            if self.is(object, "unit") or self.is(object, "inventory") then
-                return object
+        const LuaObject = self.require <<declare.LuaObject?>>(self.owner)
+        if LuaObject then
+            if self.is(LuaObject, "unit") or self.is(LuaObject, "inventory") then
+                return LuaObject
             else
-                project.console_out_error "owner of the item is being used incorrectly because the resulting object is not an authorized object, and the result has been reset"
+                project.console_out_error "owner of the item is being used incorrectly because the resulting LuaObject is not an authorized LuaObject, and the result has been reset"
             end
         end
 

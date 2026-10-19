@@ -63,7 +63,14 @@ const class: binder = (Observer :: observer<enumitem_binder_notification>):new({
 	end, declare.table, "binder"),
 })
 
-class:host(function(new: binder)
+class:host(function(new)
+	const new = new:as <<binder>> (class.type)
+
+	-- Наследники получают копии, а не ссылки
+	if (type(new.ancestors) == declare.table) then
+		new.ancestors = table.clone(new.ancestors)
+	end
+
 	private.bound[new] = {}
 	private.watching[new] = {}
 end)

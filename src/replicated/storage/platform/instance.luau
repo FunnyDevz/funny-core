@@ -4,10 +4,8 @@ const project = require("@game/ReplicatedStorage/static/project")
 
 const humanoid = table.freeze({
 	get_limb_of = function(humanoid: Humanoid, limb: Enum.Limb): BasePart
-		const parent = project.assert(humanoid.Parent, "cannot find parent of humanoid, crit", true) :: Instance
-
-		const model =
-			project.assert(parent:IsA("Model") and parent, "expected humanoid parent as a model, crit", true) :: Model
+		const parent = project.assert(humanoid.Parent, "cannot find parent of humanoid, crit", true)
+		const model = project.assert(parent:IsA("Model") and parent or nil, "expected humanoid parent as a model, crit", true)
 
 		for _, v in model:GetChildren() do
 			if v:IsA("BasePart") and humanoid:GetLimb(v) == limb then

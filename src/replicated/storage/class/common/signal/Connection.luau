@@ -64,10 +64,12 @@ const class: connection = (Observer :: observer<enumitem_setup_notification>):ne
 	end, declare["nil"], "connection", ftype:var(declare.anyt)),
 })
 
-class:host(function(new: connection)
+class:host(function(new)
+	const new = new:as <<connection>> (class.type)
 	local pointer: pointer
+	
 	pointer = new:subscribe(SetupNotification.Install, ConnectionVariant.Ever, function(mode: enumitem, func: any)
-		if not project.assert(class.is(mode, EnumItem.type), "unexpected object", true) then
+		if not project.assert(class.is(mode, EnumItem.type), "unexpected LuaObject", true) then
 			return
 		end
 		if not project.assert(ConnectionVariant:is_my_enumitem(mode), "unexpected move variant", true) then

@@ -72,7 +72,9 @@ const class : character = (Observer :: observer<>) :new {
     end, declare["nil"], "character", CharacterInfo.type)
 }
 
-class:host(function(new: character)
+class:host(function(new)
+    const new = new:as <<character>> (class.type)
+
     new:set_info(private.default_character_info)
     new:set_token(DefaultVariant.Unknown)
     new:set(private.maybe_key, Maybe:new())

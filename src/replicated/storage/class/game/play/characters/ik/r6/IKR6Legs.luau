@@ -96,7 +96,8 @@ do
     private.maybe_right_legs = Maybe:new() :: maybe<ikr6foot, ikr6legs>
     private.signal = engine.postphysic
 
-    private.register_new = function (new: ikr6legs)
+    private.register_new = function (new: luaobject)
+            const new = new:as <<ikr6legs>> (class.type)
             const humanoid_reference = new:get_humanoid()
 
             humanoid_reference:subscribe({ReferenceNotification.NewInstance, ReferenceNotification.ChangedInstance}, ConnectionVariant.Ever, function ()

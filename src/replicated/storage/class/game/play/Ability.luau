@@ -69,7 +69,9 @@ const class: ability = (Observer :: observer<enumitem_ability_notification>):new
     end
 }
 
-class:host(function(new: ability)
+class:host(function(new)
+    const new = new:as <<ability>> (class.type)
+
     new:set_info(private.default_ability_info)
     new:set(private.collision_key, setmetatable({}, declare.tables.__mode_vs))
 end)

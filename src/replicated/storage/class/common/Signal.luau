@@ -17,7 +17,8 @@ const class : signal = Reference:new {
     end, "event", "signal")
 }
 
-class:host(function(new: signal)
+class:host(function(new)
+    const new = new:as <<signal>> (class.type)
     new:subscribe({ReferenceNotification.ChangedInstance, ReferenceNotification.NewInstance}, ConnectionVariant.Ever, function ()
         const con = private.con[new]
         if con then

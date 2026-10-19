@@ -55,7 +55,8 @@ const class: event = (Observer :: observer<enumitem<any>>):new({
 	end, declare["nil"], "event", "enumitem", ftype:var_opt(declare.anyt)),
 })
 
-class:host(function(new: event)
+class:host(function(new)
+	const new = new:as <<event>> (class.type)
 	new:set(private.key, setmetatable({}, private.meta))
 end)
 

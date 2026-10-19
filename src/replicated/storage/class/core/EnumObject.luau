@@ -1,7 +1,7 @@
 --!strict
 
 const Cryptography = require("@game/ReplicatedStorage/dependency/Cryptography")
-const object = require("@game/ReplicatedStorage/object")
+const LuaObject = require("@game/ReplicatedStorage/class/core/LuaObject")
 const declare = require("@game/ReplicatedStorage/static/declare")
 const project = require("@game/ReplicatedStorage/static/project")
 const EnumItem = require("@game/ReplicatedStorage/class/core/EnumItem")
@@ -9,10 +9,10 @@ const ctags = require("@game/ReplicatedStorage/static/ctags")
 const ctype = require("@game/ReplicatedStorage/static/ctype")
 const ftype = require("@game/ReplicatedStorage/static/ftype")
 
-type indexed = enumobject & {[unknown]: unknown}
+type indexed = enumobject & { [unknown]: unknown }
 
 const private = {}
-const class: enumobject = object:new({
+const class: enumobject = LuaObject:new({
 	type = "enumobject",
 	name = script.Name,
 
@@ -102,16 +102,18 @@ const class: enumobject = object:new({
 	end, declare.boolean, "enumobject", EnumItem.type),
 })
 
-class:host(function(new: enumobject)
+class:host(function(new: luaobject)
+	const new = new:as <<enumobject>> (class.type)
+
 	for i, v in new:get_enums_list() do
 		const name = tostring(i)
 		local item_var = v :: any
 
 		if project.enums.enumitem_freeze then
-			item_var = EnumItem:new {
+			item_var = EnumItem:new({
 				name = name,
-				enum = new
-			}
+				enum = new,
+			})
 		else
 			item_var.enum = new
 			item_var.name = name
