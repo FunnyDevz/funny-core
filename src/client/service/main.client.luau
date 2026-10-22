@@ -2,6 +2,9 @@ const Players = game:GetService("Players")
 
 const IKR6Legs = require("@game/ReplicatedStorage/class/game/play/characters/ik/r6/IKR6Legs")
 const IKR6LegInfo = require("@game/ReplicatedStorage/class/struct/game/ik/IKR6LegInfo")
+const DataClient = require("@game/ReplicatedStorage/class/service/DataClient")
+
+DataClient:start()
 
 
 

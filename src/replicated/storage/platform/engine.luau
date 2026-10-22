@@ -1,11 +1,14 @@
 --!strict
 const RunService = game:GetService("RunService")
 
+const is_server = RunService:IsServer()
+
 return table.freeze {
-    is_server = RunService:IsServer(),
+    is_server = is_server,
     is_studio = RunService:IsStudio(),
-    is_private = game.PrivateServerId ~= "",
-    is_reserved = game.PrivateServerOwnerId == 0 and game.PrivateServerId ~= "",
+    is_private = is_server and game.PrivateServerId ~= "",
+    is_reserved = is_server and game.PrivateServerOwnerId == 0 and game.PrivateServerId ~= "",
+    job_id = game.JobId,
 
 	render = RunService.PreRender,
 	frame = RunService.Heartbeat,

@@ -105,6 +105,7 @@ do -- LuaObject
 		в `struct:new(arg)` `arg` будут способны менять эти объекты, прежде чем они зафиксируются
 	]==]
 	project.LuaObject.struct_freeze = true
+	project.max_send_packet = 64
 end
 
 do -- enums

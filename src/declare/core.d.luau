@@ -3,7 +3,7 @@
 --- CORE
 
 --[==[
-    В этом проекте механика наследования построена на интерсекции типов. 
+    В этом проекте механика наследования построена на интерсекции типов.
 
     `luau-lang/luau` **#3059** (v0.743)
 
@@ -259,7 +259,7 @@ export type struct = extend<{
 
 --[==[
     Represents a typed runtime variable containing a value and the time at which the variable was created
-    
+
     Variable is generic over the stored value type T
 ]==]
 export type variable<T = unknown> = extend<{
@@ -543,7 +543,7 @@ export type event<T = enumitem, U... = ...unknown> = extend<{
         Вызывает ивент с указанным уведомлением и аргументами, которые попадают релевантным соединениям в работу.
     ]==]
     read invoke: (self: event<T,U...>, on: T, U...) -> (),
-} & expected_calltype<T?>, observer<T>> 
+} & expected_calltype<T?>, observer<T>>
 
 --[==[
     Универсальный объект-соединение, который используется в ситуациях когда требуется поддержка полноценной системы
@@ -737,6 +737,107 @@ export type binder<T = unknown> = extend<{
 export type binder_maker<T = unknown> = ((instance: Instance) -> T) | { read new: (self: any) -> T }
 
 --[==[
+    Таблица, которая на самом деле уходит через remote
+]==]
+export type netpack_flat = {
+    loaded: { any },
+    count: number,
+    to: { number },
+    from: string,
+    sender: number?,
+    rpc: boolean,
+}
+
+--[==[
+    Сетевой пакет: полезная нагрузка, кому он отправлен и типо откуда пришел
+
+    `to` - UserId получателей на сервере он пустой, никому. На сервере `sender`
+    всегда выставляет SharedNet по настоящему отправителю а клиент его не подделает
+
+    ```luau
+    SharedNet:emit_event(event, NetPack:pack({ player }, "snapshot", data))
+    event:connect(NetNotification.Received, function(pack: netpack)
+        const action, value = pack:payload()
+    end)
+    ```
+]==]
+export type netpack = extend<{
+    read loaded: { any },
+    read count: number,
+    read to: { number },
+    read from: string,
+    read sender: number?,
+    read rpc: boolean,
+
+    read pack: (self: netpack, to: { Player | number }?, ...any) -> netpack,
+    read from_flat: (self: netpack, flat: unknown) -> netpack?,
+    read payload: (self: netpack) -> ...any,
+    read get_flat: (self: netpack) -> netpack_flat,
+    read get_players: (self: netpack) -> { Player },
+    read get_source: (self: netpack) -> enumitem_net_source?,
+    read is_me_sender: (self: netpack) -> boolean,
+}, struct>
+
+--[==[
+    Единственное место, где создаются remote. Канал (SharedNetLink, SharedNetVariant):
+
+    Safe: RemoteEvent,
+    Unsafe: UnreliableRemoteEvent,
+    Internal: BindableEvent
+
+    Сервер создает их в `ReplicatedStorage.sharednet`, клиент ждет их `timeout` секунд,
+    поэтому на клиенте `get_event` блокирует поток. Пакеты приходят через
+    `NetNotification.Received` Клиент приславший пакет с пометкой FromServer, кикается ez
+]==]
+export type sharednet = extend<{
+    timeout: number,
+    emitted: number,
+    errors: number,
+
+    read get_event: (self: sharednet, link: enumitem_shared_net_link, variant: enumitem_shared_net_variant?) -> event<enumitem_net_notification, netpack>,
+    read emit_event: (self: sharednet, event: event<enumitem_net_notification, netpack>, pack: netpack) -> (),
+}, service>
+
+--[==[
+    Путь внутри данных игрока: `"settings/music"` или `{ "settings", "music" }`
+]==]
+export type data_path = string | { string }
+export type data_snapshot = { [string]: any }
+
+--[==[
+    Серверная сторона данных игрока на ProfileStore, шаблон в `ServerStorage.prefs.data`
+
+    Клиенту уходят только ключи из `data.replicated`. Менять данные через `set_value` /
+    `update_value`, чтобы репликация не разошлась. События через `get_data_event()`:
+    `DataNotification.DataLoaded` / `DataReleased` (player, data), `DataStateChanged` (player, state),
+    `DataMessage` (player, message, processed)
+]==]
+export type dataserver = extend<{
+    read start: (self: dataserver) -> (),
+    read get_state: (self: dataserver, player: Player) -> enumitem_data_state,
+    read get_data: (self: dataserver, player: Player) -> data_snapshot?,
+    read wait_data: (self: dataserver, player: Player) -> data_snapshot?,
+    read get_value: <T>(self: dataserver, player: Player, path: data_path) -> T,
+    read set_value: (self: dataserver, player: Player, path: data_path, to: unknown) -> (),
+    read update_value: <T>(self: dataserver, player: Player, path: data_path, f: (current: T) -> T) -> T,
+    read reset: (self: dataserver, player: Player) -> boolean,
+    read send_message: (self: dataserver, user_id: number, message: { [string]: any }) -> boolean,
+    read get_data_event: (self: dataserver) -> event<enumitem_data_notification, ...any>,
+}, service>
+
+--[==[
+    Клиентская сторона данных игрока: копия реплицируемых ключей только для чтения.
+    События через `get_data_event()`: `DataNotification.DataLoaded`, `DataChanged` (path, value)
+]==]
+export type dataclient = extend<{
+    read start: (self: dataclient) -> (),
+    read get_state: (self: dataclient) -> enumitem_data_state,
+    read get_value: <T>(self: dataclient, path: data_path) -> T,
+    read wait_loaded: (self: dataclient) -> (),
+    read get_data_event: (self: dataclient) -> event<enumitem_data_notification, ...any>,
+}, service>
+
+--[==[
     Объект, представляющий небольшой самостоятельный контроллер.
 
     Классы побольше могут иметь его в качестве небольшого управляющего элемента.
@@ -827,7 +928,7 @@ export type maybe <T = unknown, U = unknown> = extend<{
         Для указанного `it` удаляет значение
     ]==]
     read erase: (self: maybe<T,U>, it: U) -> (),
-	
+
     --[==[
         Проверяет, существует ли значение для указанного `it`
     ]==]
@@ -893,7 +994,7 @@ export type statemachine <T = enumitem> = extend<{
 export type profile<T = enumitem> = extend<{
     read uid: number,
 
-    read get_inlined: (self: profile<T>, uid: number) -> profile<T>, 
+    read get_inlined: (self: profile<T>, uid: number) -> profile<T>,
     read get_player: (self: profile<T>) -> Player?,
     read get_reference: (self: profile<T>) -> reference<Player>,
     read get_configurated: <Y> (self: profile<T>, of: enumitem) -> variable<Y>,
@@ -972,7 +1073,7 @@ export type world = extend<{
 
     read insert_volume: (self: world, ...unknown) -> (),
     read remove_volume: (self: world, ...unknown) -> (),
-    
+
     read get_grid: (self: world) -> {[number]: {[number]: {[number]: geometry_check}}},
     read get_grid_size: (self: world) -> number,
     read set_grid_size: (self: world, to: number) -> (),
@@ -1324,7 +1425,7 @@ export type ability <T... = ...unknown> = extend<{
         Таймер, контроллирующий текущее состояние кулдауна способности
     ]==]
     read cooldown: (self: ability<T...>) -> timer,
-    
+
 
 } & informable<ability<T...>, abilityinfo> &
     collidable<ability<T...>> &
@@ -1344,7 +1445,7 @@ observer<enumitem_ability_notification>>
 
 
 
--- Game IK 
+-- Game IK
 
 
 --[==[
@@ -1415,12 +1516,12 @@ export type ikr6legs = extend<{
     сложности для пользователей
 ]==]
 export type ikr6arms = extend<{
-    
+
     --[==[
         Возвращает правую руку
     ]==]
     read get_right_arm: (self: ikr6arms) -> ikr6arm,
-    
+
     --[==[
         Возвращает левую руку
     ]==]
@@ -1449,14 +1550,14 @@ export type ikr6limb <T = enumitem, U = ikr6limbinfo> = extend<{
     ]==]
     from: vector,
 
-    -- position - RaycastResult.Position 
+    -- position - RaycastResult.Position
     -- normal - RaycastResult.Normal
 
     --[==[
         Позиция конечности, вычисленная на основании `from` с учетом `leginfo.leg_diff`
     ]==]
     lateral_position: vector,
-        
+
     --[==[
         Аккумулированное движение конечности
 
@@ -1479,7 +1580,7 @@ export type ikr6limb <T = enumitem, U = ikr6limbinfo> = extend<{
         объекту `ikr6limb`
     ]==]
     hit_position: vector,
-    
+
     --[==[
         Метка для решателя, обозначающая что сейчас обрабатывается шаг этой ноги
     ]==]
@@ -1620,7 +1721,7 @@ export type ikr6foot = extend<{}, ikr6limb<enumitem_iklegs_state, ikr6leginfo>>
     что ей доступны на момент вызова, то и применяется это всегда
 ]==]
 export type abilityinfo = extend<{
-    
+
     --[==[
         Имеет ли способность время перезарядки после вызова?
     ]==]
@@ -1695,7 +1796,7 @@ export type abilityinfo = extend<{
     read can_move_on_prepare_time: boolean,
     read can_move_on_action_time: boolean,
     read can_move_on_post_action_time: boolean,
-    
+
     read prepare_action_time: number,
     read work_action_time: number,
     read post_action_time: number
@@ -1928,7 +2029,7 @@ export type ikr6arminfo = extend<{
 ]==]
 export type ikr6leginfo = extend<{
     --[==[
-        Насколько выше предполагаемой точки положения ноги начать поиск поверхности? 
+        Насколько выше предполагаемой точки положения ноги начать поиск поверхности?
         Это позволяет не промахнуться, если персонаж находится над землёй, ступенькой или другой поверхностью
     ]==]
     read leg_raycast_up: number,
@@ -2011,7 +2112,7 @@ export type characterinfo = extend<{
     read has_health_runspeed_related_mod: boolean,
     read has_jump_cooldown: boolean,
     read has_run_cooldown: boolean,
-    
+
     read can_run: boolean,
     read can_jump: boolean,
     read can_move: boolean,
@@ -2037,7 +2138,7 @@ export type rayinfo = extend<{
         Первый попавшийся объект будет возвращен, и только он
     ]==]
     read only_one_output: boolean,
-    
+
     --[==[
         Рейкаст будет создаваться не только в локальном пространстве, но и в
         пространстве игры, в которой работает
@@ -2050,7 +2151,7 @@ export type rayinfo = extend<{
         свойство его игнорирует, - будут возвращены все кто попал в `world:volemucast()`
     ]==]
     read volume_hit: boolean,
-    
+
 }, struct>
 
 
@@ -2164,8 +2265,8 @@ export type aabbvolume = extend<{
     read max: vector
 } & geometry_half &
     geometry_control<aabbvolume> &
-    geometry_check<aabbvolume> & 
-    geometry_convertation<aabbvolume, geometry_supported>, 
+    geometry_check<aabbvolume> &
+    geometry_convertation<aabbvolume, geometry_supported>,
 cubevolume<aabbvolume>>
 
 
@@ -2189,8 +2290,8 @@ cubevolume<obbvolume>>
 ]==]
 export type spherevolume = extend<{
     radius: number,
-} & centerable<spherevolume> & 
-    math_operations<spherevolume, spherevolume>, 
+} & centerable<spherevolume> &
+    math_operations<spherevolume, spherevolume>,
 struct>
 
 --[==[
@@ -2209,7 +2310,7 @@ export type conevolume = extend<{
     ]==]
     read edge_point: (self: conevolume, to: vector, base: vector?) -> conevolume,
 
-} & centerable<conevolume> & 
+} & centerable<conevolume> &
     geometry_convertation<conevolume, geometry_supported> &
     geometry_rotatable &
     geometry_control<conevolume> &
@@ -2222,7 +2323,7 @@ geovolume<conevolume>>
 export type capsulevolume = extend<{
 
 }
-& centerable<capsulevolume> & 
+& centerable<capsulevolume> &
     geometry_convertation<capsulevolume, geometry_supported> &
     geometry_rotatable &
     geometry_control<capsulevolume> &
@@ -2254,7 +2355,7 @@ export type tetavolume = extend<{
     ]==]
     read rem_vertex: (self: tetavolume, ...vector) -> (),
 }
-& centerable<tetavolume> & 
+& centerable<tetavolume> &
     geometry_convertation<tetavolume, geometry_supported> &
     geometry_rotatable &
     geometry_control<tetavolume> &
@@ -2281,8 +2382,8 @@ export type triangle = extend<{
         ```
     ]==]
     read from_vector: (self: triangle, right: vector?, up: vector?, front: vector?) -> triangle
-} & centerable<triangle> & 
-    axisable<vector> & 
+} & centerable<triangle> &
+    axisable<vector> &
     normals<triangle>,
 geovolume<triangle>>
 
@@ -2299,9 +2400,9 @@ export type quad = extend<{
         Правый треугольник, часть полигона
     ]==]
     read right: triangle,
-} & centerable<quad> & 
-    normals<quad> & 
-    math_operations<quad, quad>, 
+} & centerable<quad> &
+    normals<quad> &
+    math_operations<quad, quad>,
 struct>
 
 --[==[
@@ -2682,6 +2783,51 @@ export type enum_binder_notification = extend<{
 	read Unbound: enumitem_binder_notification,
 }, enumobject>
 
+export type enumitem_net_notification = enumitem<enum_net_notification>
+export type enum_net_notification = extend<{
+	read Received: enumitem_net_notification,
+}, enumobject>
+
+export type enumitem_data_notification = enumitem<enum_data_notification>
+export type enum_data_notification = extend<{
+	read DataStateChanged: enumitem_data_notification,
+	read DataLoaded: enumitem_data_notification,
+	read DataReleased: enumitem_data_notification,
+	read DataChanged: enumitem_data_notification,
+	read DataMessage: enumitem_data_notification,
+}, enumobject>
+
+export type enumitem_data_state = enumitem<enum_data_state>
+export type enum_data_state = extend<{
+	read ProfileLoading: enumitem_data_state,
+	read ProfileLoaded: enumitem_data_state,
+	read ProfileReleased: enumitem_data_state,
+}, enumobject>
+
+export type enumitem_shared_net_link = enumitem<enum_shared_net_link>
+export type enum_shared_net_link = extend<{
+	read Data: enumitem_shared_net_link,
+}, enumobject>
+
+export type enumitem_shared_net_variant = enumitem<enum_shared_net_variant>
+export type enum_shared_net_variant = extend<{
+	read Unsafe: enumitem_shared_net_variant,
+	read Safe: enumitem_shared_net_variant,
+	read Internal: enumitem_shared_net_variant,
+
+	read get_variant: (self: enum_shared_net_variant, of: enumitem_shared_net_variant) -> string,
+}, enumobject>
+
+export type enumitem_net_source = enumitem<enum_net_source>
+export type enum_net_source = extend<{
+	read UnknownSource: enumitem_net_source,
+	read FromServer: enumitem_net_source,
+	read FromMe: enumitem_net_source,
+	read FromClient: enumitem_net_source,
+
+	read get_enum_by_current_machine: (self: enum_net_source) -> enumitem_net_source,
+}, enumobject>
+
 export type enumitem_executor_notification = enumitem<enum_executor_notification>
 export type enum_executor_notification = extend<{
 	read Process: enumitem_executor_notification,
@@ -2935,9 +3081,9 @@ export type enum_collision_variant = extend<{
     Объект реализует механизм, в котором он ссылается на существующий инстанс роблокса.
 ]==]
 export type instanceable<T = {},U = Instance> = {
-    read set_instance: (self: T, to: U) -> (),                 
+    read set_instance: (self: T, to: U) -> (),
     read get_instance: (self: T) -> U,
-    read is_instance_exists: (self: T) -> boolean                      
+    read is_instance_exists: (self: T) -> boolean
 }
 --[==[
     Зависит от контекста.
@@ -3188,7 +3334,7 @@ export type geometry_convertation <T = unknown, U... = ...unknown> = {
             end
 
             const result = volume:cover(BasePart, BasePart, Model, obbvolume, volume)
-            
+
             if result.size == 595 then -- OK
                 -- ...
             end
@@ -3407,7 +3553,7 @@ export type normals<T=unknown, U=vector> = {
     У объекта есть инициализация смотря по его контексту
 ]==]
 export type initiable<T = unknown> = {
-    
+
     --[==[
         Объект готов к работе и имеет все зависимости подключенными,
         либо нет
