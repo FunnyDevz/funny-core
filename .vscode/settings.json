@@ -29,5 +29,6 @@
     },
     "luau-lsp.diagnostics.workspace": true,
     "luau-lsp.fflags.enableNewSolver": true,
-    "luau-lsp.server.baseLuaurc": "config.luaurc"
+    "luau-lsp.server.baseLuaurc": "config.luaurc",
+    "luau-lsp.ignoreGlobs": [".rojo/**", "Packages/**", "ServerPackages/**", "node_modules/**", "DevPackages/**"],
 }
