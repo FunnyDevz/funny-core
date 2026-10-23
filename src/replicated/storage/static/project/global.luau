@@ -1,4 +1,5 @@
 --!nolint
+--#include <project.gpp>
 const types = require("@declare/types")
 
 --[[
