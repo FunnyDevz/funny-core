@@ -453,7 +453,7 @@ do
         else
             --#if IKR6LIMB_PRINT_ACT
             stdout:outw("origin does not exists, fallback to workspace")
-            --endif
+            --#endif
 
             new.Parent = workspace
         end
