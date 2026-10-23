@@ -1,14 +1,14 @@
---#define LUAOBJECT_PRINT_NEW false
---#define LUAOBJECT_SELF_REG true
+--#define LUAOBJECT_PRINT_NEW 0
+--#define LUAOBJECT_SELF_REG 1
 
---#define ENUMOBJECT_FREEZE_NEW true
---#define ENUMBOJECT_PRINT_ACT false
+--#define ENUMOBJECT_FREEZE_NEW 1
+--#define ENUMBOJECT_PRINT_ACT 0
 
---#define ENUMITEM_FREEZE_NEW true
+--#define ENUMITEM_FREEZE_NEW 1
 
---#define ABILITY_PRINT_ACT false
+--#define ABILITY_PRINT_ACT 0
 
---#define IKR6LEGS_PRINT_ACT false
---#define IKR6LIMB_PRINT_ACT false
+--#define IKR6LEGS_PRINT_ACT 0
+--#define IKR6LIMB_PRINT_ACT 0
 
---#define VALUE_PRINT_ACT false
+--#define VALUE_PRINT_ACT 0
