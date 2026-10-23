@@ -1,4 +1,4 @@
-name: Sync core-new → game-new
+name: Sync core-new: game-new
 
 on:
   push:
