@@ -1,7 +1,9 @@
 
 --\# gpp -M "--#" "\n" " " " " "\n" "(" ")" +cQ "--[[#" "]]" "$file" -o "$output"
 
---#define UNIQUE "$commit"
+--#ifndef UNIQUE
+--#define UNIQUE "NON_PRODUCTION_BUILD"
+--#endif
 
 --#define lua_NOT not
 --#define lua_OR or
