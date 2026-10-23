@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: sync-game-new
@@ -25,6 +26,8 @@ jobs:
 
       - name: Merge core-new into game-new
         id: merge
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898315+github-actions[bot]@users.noreply.github.com"
@@ -33,6 +36,8 @@ jobs:
           if git merge --no-ff origin/core-new -m "chore: sync core-new (${GITHUB_SHA::7}) into game-new"; then
             git push origin game-new
             echo "status=merged" >> "$GITHUB_OUTPUT"
+
+            gh workflow run game-build.yml --ref game-new
           else
             git merge --abort
             echo "status=conflict" >> "$GITHUB_OUTPUT"
