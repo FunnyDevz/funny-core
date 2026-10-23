@@ -19,6 +19,9 @@ SAT = "ifmnb/algorithm-sat@2609.7.0"
 ArrayBuffer = "ifmnb/array-buffer@2609.7.1"
 ECSB = "ifmnb/algorithm-ecsb@2609.7.0"
 
+[server-dependencies]
+ProfileStore = "lm-loleris/profilestore@1.0.3"
+Cmdr = "evaera/cmdr@1.13.1
 
 [dev-dependencies]
 Jest = "roblox/jest@=3.20.0"
