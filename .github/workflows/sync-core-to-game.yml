@@ -1,0 +1,53 @@
+name: Sync core-new → game-new
+
+on:
+  push:
+    branches: [core-new]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-game-new
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout game-new
+        uses: actions/checkout@v4
+        with:
+          ref: game-new
+          fetch-depth: 0
+
+      - name: Merge core-new into game-new
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898315+github-actions[bot]@users.noreply.github.com"
+          git fetch origin core-new
+
+          if git merge --no-ff origin/core-new -m "chore: sync core-new (${GITHUB_SHA::7}) into game-new"; then
+            git push origin game-new
+            echo "status=merged" >> "$GITHUB_OUTPUT"
+          else
+            git merge --abort
+            echo "status=conflict" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open PR if there are conflicts
+        if: steps.merge.outputs.status == 'conflict'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OPEN=$(gh pr list --base game-new --head core-new --state open --json number --jq 'length')
+          if [ "$OPEN" = "0" ]; then
+            gh pr create --base game-new --head core-new \
+              --title "Sync core-new: game-new" \
+              --body "Automatic merging failed due to some issues. Resolve them manually and merge the PR."
+          else
+            echo "PR is open"
+          fi
