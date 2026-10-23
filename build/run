@@ -1,4 +1,3 @@
-```fish
 #!/usr/bin/env fish
 
 if not command -q gpp
@@ -6,27 +5,61 @@ if not command -q gpp
     exit 1
 end
 
-set ROOT (dirname (status --current-filename))
+set BUILD (dirname (realpath (status --current-filename)))
+set ROOT (dirname "$BUILD")
 set SOURCE "$ROOT/src"
-set TARGET "$ROOT/target"
+set TARGET "$BUILD/target"
+
+set defines
+if test "$CI" = "true"; and test -n "$CORE_COMMIT"
+    set defines "-DUNIQUE=\"$CORE_COMMIT\""
+    echo "unique > $CORE_COMMIT"
+else
+    echo "unique > NON_PRODUCTION_BUILD (local build)"
+end
+
+set GPP_ARGS \
+    -U "" "" "(" "," ")" "(" ")" "#" "" \
+    -M "--#" "\n" " " " " "\n" "(" ")" \
+    +cQQQ "--[[#" "]]"
+
+set DEFINES (mktemp --suffix .gpp)
+cat "$SOURCE/project.gpp" "$SOURCE/build.gpp" > "$DEFINES"
 
 rm -rf "$TARGET"
 mkdir -p "$TARGET"
 
-for file in (find "$SOURCE" -type f -name '*.luau')
+for dir in (find "$SOURCE" -type d)
+    mkdir -p "$TARGET"(string replace "$SOURCE" '' "$dir")
+end
+
+for file in (find "$SOURCE" -type f)
     set relative (string replace "$SOURCE/" '' "$file")
     set output "$TARGET/$relative"
 
-    mkdir -p (dirname "$output")
+    switch "$file"
+        case '*.gpp'
+            continue
 
-    echo "building > $relative"
+        case '*.luau'
+            echo "building > $relative"
 
-    gpp -M "--#" "\n" " " " " "\n" "(" ")" +cQ "--[[#" "]]" "$file" -o "$output"
+            sed -E \
+                -e 's/^[[:space:]]+--#/--#/' \
+                -e 's/--\[\[#((if|ifdef|ifndef|elif) [^]]*|else|endif)\]\]/\n--#\1\n/g' \
+                "$file" \
+                | gpp $defines -I"$SOURCE" --include "$DEFINES" $GPP_ARGS -o "$output"
 
-    if test $status -ne 0
-        echo "Error: failed to preprocess $relative"
-        exit 1
+            if test $pipestatus[2] -ne 0
+                echo "Error: failed to preprocess $relative"
+                rm -f "$DEFINES"
+                exit 1
+            end
+
+        case '*'
+            cp "$file" "$output"
     end
 end
 
+rm -f "$DEFINES"
 echo "builded, exit"
