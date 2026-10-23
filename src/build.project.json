@@ -1,0 +1,56 @@
+{
+  "name": "ForgottenGrave",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+        "$path": "build/target/replicated/storage",
+
+        "dependency": {
+          "$path": "Packages"
+        },
+
+
+        "shared": {
+          "$path": "build/target/replicated/shared"
+        }
+    },
+
+    "ReplicatedFirst": {
+      "$path": "build/target/replicated/first"
+    },
+
+    "ServerScriptService": {
+        "$path": "build/target/server/service"
+
+    },
+
+    "ServerStorage": {
+      "$path": "build/target/server/storage",
+
+      "server_dependency": {
+          "$path": "ServerPackages"
+        }
+    },
+
+    "StarterPlayer": {
+      "$path": "build/target/client/stored",
+
+      "StarterPlayerScripts": {
+        "$path": "build/target/client/service"
+      },
+
+      "StarterCharacterScripts": {
+        "$path": "build/target/client/local"
+      }
+    },
+
+    "Workspace": {
+
+    },
+
+    "SoundService": {
+
+    }
+  }
+}
