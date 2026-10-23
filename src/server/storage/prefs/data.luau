@@ -1,4 +1,4 @@
-const engine = require("@game/ReplicatedStorage/platform/engine")
+const engine = require("@platform/roblox/engine")
 
 const template = {
     settings = {},

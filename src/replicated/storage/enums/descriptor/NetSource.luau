@@ -1,8 +1,8 @@
 --!strict
-const EnumItem = require("@game/ReplicatedStorage/class/core/EnumItem")
-const EnumObject = require("@game/ReplicatedStorage/class/core/EnumObject")
-const engine = require("@game/ReplicatedStorage/platform/engine")
-const players = require("@game/ReplicatedStorage/platform/players")
+const EnumItem = require("@class/core/EnumItem")
+const EnumObject = require("@class/core/EnumObject")
+const engine = require("@platform/roblox/engine")
+const players = require("@platform/roblox/players")
 
 const class: enum_net_source = EnumObject:new({
 	name = script.Name,

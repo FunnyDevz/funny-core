@@ -1,13 +1,13 @@
 --!strict
-
-const Cryptography = require("@game/ReplicatedStorage/dependency/Cryptography")
-const LuaObject = require("@game/ReplicatedStorage/class/core/LuaObject")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const project = require("@game/ReplicatedStorage/static/project")
-const EnumItem = require("@game/ReplicatedStorage/class/core/EnumItem")
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
+const EnumItem = require("@class/core/EnumItem")
+const LuaObject = require("@class/core/LuaObject")
+const mtypes = require("@declare/mtypes")
+const types = require("@declare/types")
+const stdout = require("@extension/stdout")
+const Cryptography = require("@import/Cryptography")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
+const ftype = require("@static/ftype")
 
 type indexed = enumobject & { [unknown]: unknown }
 
@@ -25,7 +25,7 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return result
-	end, declare.table, "enumobject"),
+	end, types.table, "enumobject"),
 
 	get_enums_count = ftype:write(function(self: enumobject): number
 		local count = 0
@@ -35,7 +35,7 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return count
-	end, declare.number, "enumobject"),
+	end, types.number, "enumobject"),
 
 	get_enums_name = ftype:write(function(self: enumobject, ...: enumitem): ...string
 		const result: { string } = {}
@@ -47,7 +47,7 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return unpack(result)
-	end, ftype:var(declare.string), "enumobject", ftype:var(EnumItem.type)),
+	end, ftype:var(types.string), "enumobject", ftype:var(EnumItem.type)),
 
 	get_hashlink_list = ftype:write(function(self: enumobject): { string }
 		const result = {}
@@ -57,7 +57,7 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return result
-	end, declare.table, "enumobject"),
+	end, types.table, "enumobject"),
 
 	get_enum_by_name = ftype:write(function(self: enumobject, name: string): enumitem?
 		const var: unknown = (self :: indexed)[name]
@@ -67,7 +67,7 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return nil
-	end, ftype:opt(EnumItem.type), "enumobject", declare.string),
+	end, ftype:opt(EnumItem.type), "enumobject", types.string),
 
 	get_enum_by_hashlink = ftype:write(function(self: enumobject, hashlink: string): enumitem?
 		for _, v in self:get_enums_list() do
@@ -77,85 +77,84 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return nil
-	end, EnumItem.type, "enumobject", declare.string),
+	end, EnumItem.type, "enumobject", types.string),
 
 	is_my_enumitem = ftype:write(function(self: enumobject, that: enumitem | string): boolean
 		if self:that(that, EnumItem.type) then
 			const var = that :: enumitem
 
 			return (self :: indexed)[var.name] ~= nil and var.enum == self
-		elseif type(that) == declare.string then
+		elseif type(that) == types.string then
 			const var = that :: string
 			const item: unknown = (self :: indexed)[var]
 
-			if item == nil then
-				return false
-			end
-			if self:that(item, EnumItem.type) then
-				return true
-			end
-		else
-			project.console_out_error("unexpected that for enumitem")
-		end
+			if item == nil then return false end
+			if self:that(item, EnumItem.type) then return true end
+
+		--#if !DEBUG
+        else
+			stdout:oute("unexpected that for enumitem")
+		--#endif
+        end
 
 		return false
-	end, declare.boolean, "enumobject", EnumItem.type),
+	end, types.boolean, "enumobject", EnumItem.type),
 })
 
-class:host(function(new: luaobject)
+class:host(function(new)
 	const new = new:as <<enumobject>> (class.type)
+    const tnew = new :: any
 
-	for i, v in new:get_enums_list() do
+	for i, v: enumitem in new:get_enums_list() do
 		const name = tostring(i)
-		local item_var = v :: any
+		local item_var: any = v
 
-		if project.enums.enumitem_freeze then
-			item_var = EnumItem:new({
-				name = name,
-				enum = new,
-			})
-		else
-			item_var.enum = new
-			item_var.name = name
-			item_var.hashlink = Cryptography.Hashing.Blake3.Digest(buffer.fromstring(name))
-		end
 
-		if project.debug then
-			const collision: any = private.item_builded[v.hashlink]
+        --#if ENUMOBJECT_FREEZE_NEW
 
-			if collision then
-				project.console_out_error(
-					string.format(
-						"enumitem hashlink collision with: \n\n %s (%s) \n %s (%s) \n\n parents: \n\n %s \n %s  ",
-						item_var.name,
-						item_var.hashlink,
-						collision.name,
-						collision.hashlink,
-						item_var.enum and item_var.enum.name or "null",
-						collision.enum and collision.enum.name or "null"
-					)
-				)
-			end
-		end
+        item_var = EnumItem:new({
+            name = name,
+            enum = new,
+        })
 
-		(new :: indexed)[name] = item_var
+        table.freeze(item_var)
+
+        --#else
+
+        item_var.enum = new
+        item_var.name = name
+        item_var.hashlink = Cryptography.Hashing.Blake3.Digest(buffer.fromstring(name))
+
+        --#endif
+
+
+        --#if DEBUG
+        if const collision: enumitem? = private.item_builded[v.hashlink] then
+            --#if ENUMBOJECT_PRINT_ACT
+            stdout:outm(
+                string.format(
+                    "enumitem hashlink collision with: \n\n %s (%s) \n %s (%s) \n\n parents: \n\n %s \n %s  ",
+                    item_var.name,
+                    item_var.hashlink,
+                    collision.name :: any,
+                    collision.hashlink :: any,
+                    item_var.enum and item_var.enum.name or mtypes.never,
+                    collision.enum and collision.enum.name or mtypes.never :: any
+                )
+            )
+            --#endif
+        end
+        --#endif
+
+		tnew[name] = item_var
 		private.item_builded[v.hashlink] = v
-
-		if project.enums.enumobject_freeze then
-			table.freeze(v)
-		end
 	end
 end)
 
 do
 	private.item_builded = setmetatable({} :: { [string]: enumitem }, table.freeze({ __mode = "vs" }))
-
-	if project.debug then
-		_G.fg_debug.enumobject_require = function(hashlink: any)
-			return private.item_builded[hashlink]
-		end
-	end
 end
+
 
 ctype:read(class):write_tag(ctags.core)
 

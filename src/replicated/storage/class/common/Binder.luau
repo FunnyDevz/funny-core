@@ -1,10 +1,13 @@
 --!strict
-const Observer = require("@game/ReplicatedStorage/class/core/Observer")
-const BinderNotification = require("@game/ReplicatedStorage/enums/notification/BinderNotification")
-const datamodel = require("@game/ReplicatedStorage/platform/datamodel")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
+const Observer = require("@class/core/Observer")
+const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
+const types = require("@declare/types")
+const BinderNotification = require("@enums/notification/BinderNotification")
+const stdout = require("@extension/stdout")
+const datamodel = require("@platform/roblox/datamodel")
+const rbxtypes = require("@platform/roblox/rbxtypes")
+const ftype = require("@static/ftype")
 
 const private = {}
 const class: binder = (Observer :: observer<enumitem_binder_notification>):new({
@@ -30,7 +33,7 @@ const class: binder = (Observer :: observer<enumitem_binder_notification>):new({
 		for k, v in datamodel.get_tagged(self.tag) do
 			private.watch(self, v)
 		end
-	end, declare["nil"], "binder"),
+	end, mtypes.never, "binder"),
 
 	stop = ftype:write(function(self: binder): ()
 		const connections = private.connections[self]
@@ -48,26 +51,26 @@ const class: binder = (Observer :: observer<enumitem_binder_notification>):new({
 		for k in table.clone(private.watching[self]) do
 			private.forget(self, k)
 		end
-	end, declare["nil"], "binder"),
+	end, mtypes.never, "binder"),
 
 	is_started = ftype:write(function(self: binder): boolean
 		return private.connections[self] ~= nil
-	end, declare.boolean, "binder"),
+	end, types.boolean, "binder"),
 
 	get_object = ftype:write(function(self: binder, instance: Instance): any
 		return private.bound[self][instance]
-	end, ftype:opt(declare.anyt), "binder", declare.roblox.Instance),
+	end, ftype:opt(mtypes.anyt), "binder", rbxtypes.Instance),
 
 	get_objects = ftype:write(function(self: binder): { [Instance]: any }
 		return table.clone(private.bound[self])
-	end, declare.table, "binder"),
+	end, types.table, "binder"),
 })
 
 class:host(function(new)
 	const new = new:as <<binder>> (class.type)
 
 	-- Наследники получают копии, а не ссылки
-	if (type(new.ancestors) == declare.table) then
+	if (type(new.ancestors) == types.table) then
 		new.ancestors = table.clone(new.ancestors)
 	end
 
@@ -76,7 +79,7 @@ class:host(function(new)
 end)
 
 do
-	private.frozen = declare.tables.__mode_ks
+	private.frozen = tables.__mode_ks
 	private.bound = setmetatable({} :: { [binder]: { [Instance]: any } }, private.frozen)
 	private.watching = setmetatable({} :: { [binder]: { [Instance]: RBXScriptConnection } }, private.frozen)
 	private.connections = setmetatable({} :: { [binder]: { RBXScriptConnection } }, private.frozen)
@@ -121,12 +124,12 @@ do
 	function private.make(that: binder, instance: Instance): any
 		const maker = that.maker :: any
 
-		if type(maker) == declare["function"] then
+		if type(maker) == types["function"] then
 			return maker(instance)
 		end
 
 		const made = maker:new()
-		if type(made) == declare.table and type(made.set_instance) == declare["function"] then
+		if type(made) == types.table and type(made.set_instance) == types["function"] then
 			made:set_instance(instance)
 		end
 
@@ -137,20 +140,13 @@ do
 		const succ, result = pcall(private.make, that, instance)
 
 		if not succ then
-			warn(`binder "{that.tag}" cannot bind {instance:GetFullName()}:`, result)
+			stdout:outw(`binder "{that.tag}" cannot bind {instance:GetFullName()}:`, result)
 			return
 		end
 
-		if result == nil then
-			return
-		end
+		if result == nil then return end
 
 		private.bound[that][instance] = result
-
-		if project.debug.state then
-			project.console_out("binder bound", that.tag, instance)
-		end
-
 		that:notificate(BinderNotification.Bound, instance, result)
 	end
 
@@ -163,15 +159,10 @@ do
 		end
 
 		bound[instance] = nil
-
-		if project.debug.state then
-			project.console_out("binder unbound", that.tag, instance)
-		end
-
 		that:notificate(BinderNotification.Unbound, instance, value)
 
 		const it = value :: any
-		if type(it) == declare.table and type(it.is) == declare["function"] and it:is("disposable") and not it:released() then
+		if type(it) == types.table and type(it.is) == types["function"] and it:is("disposable") and not it:released() then
 			it:free()
 		end
 	end

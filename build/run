@@ -21,7 +21,7 @@ for file in (find "$SOURCE" -type f -name '*.luau')
 
     echo "building > $relative"
 
-    gpp -M "--#" "\n" " " " " "\n" "(" ")" "$file" -o "$output"
+    gpp -M "--#" "\n" " " " " "\n" "(" ")" +cQ "--[[#" "]]" "$file" -o "$output"
 
     if test $status -ne 0
         echo "Error: failed to preprocess $relative"

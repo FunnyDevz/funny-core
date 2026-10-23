@@ -1,8 +1,10 @@
 --!strict
-const Disposable = require("@game/ReplicatedStorage/class/core/Disposable")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
+const Connection = require("@class/common/signal/Connection")
+const Disposable = require("@class/core/Disposable")
+const mtypes = require("@declare/mtypes")
+const types = require("@declare/types")
+const rbxtypes = require("@platform/roblox/rbxtypes")
+const ftype = require("@static/ftype")
 
 const private = {}
 const class: maid = Disposable:new({
@@ -14,7 +16,7 @@ const class: maid = Disposable:new({
 		else
 			table.insert(private.objects[self], that)
 		end
-	end, declare["nil"], "maid", declare.anyt, ftype:opt(declare.boolean)),
+	end, mtypes.never, "maid", mtypes.anyt, ftype:opt(types.boolean)),
 
 	add_key = ftype:write(function<T>(self: maid, of: { [T]: unknown }, key: T): ()
 		if not private.pairs[self][of] then
@@ -22,7 +24,7 @@ const class: maid = Disposable:new({
 		end
 
 		table.insert(private.pairs[self][of], key)
-	end, declare["nil"], "maid", declare.table, declare.anyt),
+	end, mtypes.never, "maid", types.table, mtypes.anyt),
 
 	remove_object = ftype:write(function(self: maid, that: any): () -- #12
 		do
@@ -40,7 +42,7 @@ const class: maid = Disposable:new({
 				table.remove(private.s_objects[self], pos)
 			end
 		end
-	end, declare["nil"], "maid", declare.anyt),
+	end, mtypes.never, "maid", mtypes.anyt),
 
 	remove_key = ftype:write(function<T>(self: maid, of: { [T]: unknown }, key: T): ()
 		if not private.pairs[self][of] then
@@ -51,7 +53,7 @@ const class: maid = Disposable:new({
 		if pos then
 			table.remove(private.pairs[self][of], pos)
 		end
-	end, declare["nil"], "maid", declare.table, declare.anyt),
+	end, mtypes.never, "maid", types.table, mtypes.anyt),
 
 	is_supported = ftype:write(function(self: maid, that: unknown): boolean
 		for _, v in private.supported do
@@ -65,7 +67,7 @@ const class: maid = Disposable:new({
 		end
 
 		return false
-	end, declare.boolean, "maid", declare.anyt),
+	end, types.boolean, "maid", mtypes.anyt),
 })
 
 class:host(function(new)
@@ -87,12 +89,7 @@ class:host(function(new)
 			end
 
 			table.clear(private.pairs[new])
-		end,
-		if project.debug and project.debug.show_maids_releasing
-			then function()
-				project.console_out("maid ", new:iden(), " is released")
-			end
-			else nil :: never
+		end
 	)
 end)
 
@@ -103,10 +100,10 @@ do
 	private.pairs = setmetatable({} :: { [maid]: { [{ [unknown]: unknown }]: { unknown } } }, private.meta)
 
 	private.supported = table.freeze({
-		"connection",
-		"disposable",
-		declare.roblox.RBXScriptConnection,
-		declare.roblox.Instance,
+		Connection.type,
+		Disposable.type,
+		rbxtypes.RBXScriptConnection,
+		rbxtypes.Instance,
 	})
 
 	private.cycle = function(t: { unknown })
@@ -120,21 +117,15 @@ do
 			elseif class:that(v, "reference") then
 				const reference = v :: reference
 				reference:clear()
-			elseif typeof(v) == declare.roblox.RBXScriptConnection then
+			elseif typeof(v) == rbxtypes.RBXScriptConnection then
 				const connection = v :: RBXScriptConnection
 				connection:Disconnect()
-			elseif type(v) == declare["function"] then
+			elseif type(v) == types["function"] then
 				const func = v :: (...any) -> () | any
-				if project.debug then
-					func()
-				else
-					pcall(func)
-				end
-			elseif typeof(v) == declare.roblox.Instance then
+				func()
+			elseif typeof(v) == rbxtypes.Instance then
 				const instance = v :: Instance
 				instance:Destroy()
-			else
-				project.console_out("unknown LuaObject, skip")
 			end
 		end
 	end

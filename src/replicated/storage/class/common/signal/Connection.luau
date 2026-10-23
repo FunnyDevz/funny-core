@@ -1,13 +1,14 @@
 --!strict
-const EnumItem = require("@game/ReplicatedStorage/class/core/EnumItem")
-const Observer = require("@game/ReplicatedStorage/class/core/Observer")
-const Pointer = require("@game/ReplicatedStorage/class/core/Pointer")
-const SecurityRNG = require("@game/ReplicatedStorage/class/service/SecurityRNG")
-const ConnectionVariant = require("@game/ReplicatedStorage/enums/descriptor/ConnectionVariant")
-const SetupNotification = require("@game/ReplicatedStorage/enums/notification/SetupNotification")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const project = require("@game/ReplicatedStorage/static/project")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
+const EnumItem = require("@class/core/EnumItem")
+const Observer = require("@class/core/Observer")
+const Pointer = require("@class/core/Pointer")
+const mtypes = require("@declare/mtypes")
+const types = require("@declare/types")
+const ConnectionVariant = require("@enums/descriptor/ConnectionVariant")
+const SetupNotification = require("@enums/notification/SetupNotification")
+const stderr = require("@extension/stderr")
+const Cryptography = require("@import/Cryptography")
+const ftype = require("@static/ftype")
 
 --[[
 
@@ -42,11 +43,11 @@ const class: connection = (Observer :: observer<enumitem_setup_notification>):ne
 			return
 		end
 		self:subscription_set_mode(mode, self:get <<pointer>>(private.key))
-	end, declare["nil"], "connection", "enumitem"),
+	end, mtypes.never, "connection", "enumitem"),
 
 	is_connected = ftype:write(function(self: connection): boolean
 		return self:get(private.key) ~= nil
-	end, declare.boolean, "connection"),
+	end, types.boolean, "connection"),
 
 	disconnect = ftype:write(function(self: connection): ()
 		const func = self:get(private.key)
@@ -55,13 +56,13 @@ const class: connection = (Observer :: observer<enumitem_setup_notification>):ne
 		end
 
 		self:notificate(SetupNotification.Disconnected)
-	end, declare["nil"], "connection"),
+	end, mtypes.never, "connection"),
 
 	invoke = ftype:write(function(self: connection, ...): ()
 		for i = 1, self.count do
 			self:notificate(private.special, ...)
 		end
-	end, declare["nil"], "connection", ftype:var(declare.anyt)),
+	end, mtypes.never, "connection", ftype:var(mtypes.anyt)),
 })
 
 class:host(function(new)
@@ -69,17 +70,17 @@ class:host(function(new)
 	local pointer: pointer
 	
 	pointer = new:subscribe(SetupNotification.Install, ConnectionVariant.Ever, function(mode: enumitem, func: any)
-		if not project.assert(class.is(mode, EnumItem.type), "unexpected LuaObject", true) then
+		if not stderr:assert(class.is(mode, EnumItem.type), "unexpected LuaObject") then
 			return
 		end
-		if not project.assert(ConnectionVariant:is_my_enumitem(mode), "unexpected move variant", true) then
+		if not stderr:assert(ConnectionVariant:is_my_enumitem(mode), "unexpected move variant") then
 			return
 		end
 
 		new:set(private.key, new:subscribe(private.special, mode :: enumitem_connection_variant, func)
 )
 		new:subscribe(SetupNotification.Require, ConnectionVariant.Ever, function(item, ...)
-			if not project.assert(class.is(item, EnumItem.type), "unknown enumitem") then
+			if not stderr:check(class.is(item, EnumItem.type), "unknown enumitem") then
 				return
 			end
 
@@ -95,7 +96,7 @@ end)
 
 do
 	private.special = EnumItem:new({ name = "InternalConnectionCallItem" })
-	private.key = SecurityRNG:get_hash_sha256("connection_func_code")
+	private.key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "connection_func_code")
 end
 
 return class

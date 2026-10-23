@@ -4,9 +4,11 @@ const ConnectionVariant = require("@game/ReplicatedStorage/enums/descriptor/Conn
 const ReferenceNotification = require("@game/ReplicatedStorage/enums/notification/ReferenceNotification")
 const ctags = require("@game/ReplicatedStorage/static/ctags")
 const ctype = require("@game/ReplicatedStorage/static/ctype")
-const project = require("@game/ReplicatedStorage/static/project")
 
 const private = {}
+--[==[
+	Это шаблон референса для хранения только экземпляров `Humanoid?`.
+]==]
 const class: reference<Humanoid?> = (Reference :: reference<Humanoid?>):new()
 
 do

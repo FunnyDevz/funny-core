@@ -1,16 +1,17 @@
 --!strict
 --!native
 --!optimize 2
-
-const Struct = require("@game/ReplicatedStorage/class/core/Struct")
-const AABBVolume = require("@game/ReplicatedStorage/class/struct/geometry/AABBVolume")
-const CubeVolume = require("@game/ReplicatedStorage/class/struct/geometry/CubeVolume")
-const SAT = require("@game/ReplicatedStorage/dependency/SAT")
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
+const Struct = require("@class/core/Struct")
+const AABBVolume = require("@class/struct/geometry/AABBVolume")
+const CubeVolume = require("@class/struct/geometry/CubeVolume")
+const types = require("@declare/types")
+const stderr = require("@extension/stderr")
+const stdout = require("@extension/stdout")
+const SAT = require("@import/SAT")
+const rbxtypes = require("@platform/roblox/rbxtypes")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
+const ftype = require("@static/ftype")
 
 const private = {}
 const class: obbvolume = CubeVolume:new({
@@ -27,7 +28,7 @@ const class: obbvolume = CubeVolume:new({
 		local new = private.convert(values[1])
 
 		if not new then
-			project.console_out_error("unsupported geometry in OBB from")
+			stdout:oute("unsupported geometry in OBB from")
 			return self:clone()
 		end
 
@@ -40,7 +41,7 @@ const class: obbvolume = CubeVolume:new({
 		end
 
 		return new
-	end, "obbvolume", "obbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, "obbvolume", "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	middle = ftype:write(function(self: obbvolume, ...: geometry_supported): obbvolume
 		const values = { ... }
@@ -61,7 +62,7 @@ const class: obbvolume = CubeVolume:new({
 			const volume = private.convert(value)
 
 			if not volume then
-				project.console_out_error("unsupported geometry in OBB middle")
+				stdout:oute("unsupported geometry in OBB middle")
 				return self:clone()
 			end
 
@@ -95,18 +96,18 @@ const class: obbvolume = CubeVolume:new({
 			front_axis,
 			vector.create(right_half_sum / count, up_half_sum / count, front_half_sum / count)
 		)
-	end, "obbvolume", "obbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, "obbvolume", "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	cover = ftype:write(function(self: obbvolume, ...: geometry_supported): obbvolume
 		return private.cover(self, { ... })
-	end, "obbvolume", "obbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, "obbvolume", "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	is_inside = ftype:write(function(self: obbvolume, ...: unknown): boolean
 		for _, value in { ... } do
 			const volume = private.convert(value :: any)
 
 			if not volume then
-				project.console_out_error("unsupported geometry in OBB is_inside")
+				stdout:oute("unsupported geometry in OBB is_inside")
 				return false
 			end
 
@@ -116,7 +117,7 @@ const class: obbvolume = CubeVolume:new({
 		end
 
 		return true
-	end, declare.boolean, "obbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, types.boolean, "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	is_interacts = ftype:write(function(self: obbvolume, ...: unknown): boolean
 		for _, value in { ... } do
@@ -126,14 +127,14 @@ const class: obbvolume = CubeVolume:new({
 		end
 
 		return true
-	end, declare.boolean, "obbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, types.boolean, "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	is_intersection = ftype:write(function(self: obbvolume, ...: unknown): boolean
 		for _, value in { ... } do
 			const volume = private.convert(value :: any)
 
 			if not volume then
-				project.console_out_error("unsupported geometry in OBB is_intersection")
+				stdout:oute("unsupported geometry in OBB is_intersection")
 				return false
 			end
 
@@ -143,7 +144,7 @@ const class: obbvolume = CubeVolume:new({
 		end
 
 		return true
-	end, declare.boolean, "obbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, types.boolean, "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	look_at = ftype:write(function(self: obbvolume, at: vector, up: vector?): obbvolume
 		const center = self:get_center()
@@ -174,7 +175,7 @@ const class: obbvolume = CubeVolume:new({
 		const real_up = vector.normalize(vector.cross(front, right))
 
 		return private.from_basis(self, center, right, real_up, front, self.half)
-	end, "obbvolume", "obbvolume", declare.vector, ftype:opt(declare.vector)),
+	end, "obbvolume", "obbvolume", types.vector, ftype:opt(types.vector)),
 
 	rotate_radian = ftype:write(function(self: obbvolume, radian_vector: vector): obbvolume
 		const right, up, front = private.get_axes(self)
@@ -203,7 +204,7 @@ const class: obbvolume = CubeVolume:new({
 		-- Rz(yaw) * Ry(pitch) * Rx(roll)
 
 		return private.from_basis(self, self:get_center(), new_right, new_up, new_front, self.half)
-	end, "obbvolume", "obbvolume", declare.vector),
+	end, "obbvolume", "obbvolume", types.vector),
 
 	get_rotation_radian = ftype:write(function(self: obbvolume): vector
 		const right, up, front = private.get_axes(self)
@@ -222,7 +223,7 @@ const class: obbvolume = CubeVolume:new({
 		const yaw = math.atan2(-up.x, up.y)
 
 		return vector.create(roll, pitch, yaw)
-	end, declare.vector, "obbvolume"),
+	end, types.vector, "obbvolume"),
 })
 
 ctype:read(class):write_tag(ctags.geometry, ctags.struct)
@@ -509,7 +510,7 @@ do
 			const converted = private.convert(value)
 
 			if not converted then
-				project.console_out_error("unsupported geometry in OBB cover")
+				stdout:oute("unsupported geometry in OBB cover")
 				return result
 			end
 
@@ -525,7 +526,7 @@ do
 		if class:that(v, Struct.type) then
 			const var = v :: luaobject
 			func = list[var.type]
-		elseif typeof(v) == declare.roblox.Instance then
+		elseif typeof(v) == rbxtypes.Instance then
 			const var = v :: Model | BasePart | PVInstance
 
 			-- Сначала точное имя класса.
@@ -542,11 +543,11 @@ do
 				end
 			end
 		else
-			project.console_out_error("cannot reach unknown LuaObject, skipped")
+			stdout:oute("cannot reach unknown LuaObject, skipped")
 			return nil
 		end
 
-		if not project.assert(func, "cannot find right generator", true) then
+		if not stderr:assert(func, "cannot find right generator") then
 			return nil
 		end
 

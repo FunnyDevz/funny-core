@@ -1,0 +1,11 @@
+
+--\# gpp -M "--#" "\n" " " " " "\n" "(" ")" +cQ "--[[#" "]]" "$file" -o "$output"
+
+--#define UNIQUE "$commit"
+
+--#define lua_NOT not
+--#define lua_OR or
+--#define lua_AND and
+
+
+--#define DEBUG true

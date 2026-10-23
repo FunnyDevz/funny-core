@@ -1,7 +1,9 @@
 --!strict
-const LuaObject = require("@game/ReplicatedStorage/class/core/LuaObject")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
+const LuaObject = require("@class/core/LuaObject")
+const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
+const types = require("@declare/types")
+const ftype = require("@static/ftype")
 
 const private = {}
 const class: stack = LuaObject:new({
@@ -14,18 +16,18 @@ const class: stack = LuaObject:new({
 		const value = stack[index]
 		stack[index] = nil
 		return value
-	end, ftype:opt(declare.anyt), "stack"),
+	end, ftype:opt(mtypes.anyt), "stack"),
 
 	put = ftype:write(function<T>(self: stack, item: T): ()
 		const stack = private.stacks[self]
 		stack[#stack + 1] = item
 
 		assert(#stack <= self.max, "stack limit capacity reached")
-	end, declare["nil"], "stack", declare.anyt),
+	end, mtypes.never, "stack", mtypes.anyt),
 
 	count = ftype:write(function(self: stack): number
 		return #private.stacks[self]
-	end, declare.number, "stack"),
+	end, types.number, "stack"),
 })
 
 class:host(function(new)
@@ -34,7 +36,7 @@ class:host(function(new)
 end)
 
 do
-	private.meta = table.freeze({ __mode = "ks" })
+	private.meta = tables.__mode_ks
 	private.stacks = setmetatable({} :: { [stack]: { any } }, private.meta)
 end
 

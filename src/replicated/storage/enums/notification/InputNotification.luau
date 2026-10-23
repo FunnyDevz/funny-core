@@ -1,6 +1,6 @@
 --!strict
-const EnumItem = require("@game/ReplicatedStorage/class/core/EnumItem")
-const EnumObject = require("@game/ReplicatedStorage/class/core/EnumObject")
+const EnumItem = require("@class/core/EnumItem")
+const EnumObject = require("@class/core/EnumObject")
 
 const class: enum_input_notification = EnumObject:new({
 	name = script.Name,

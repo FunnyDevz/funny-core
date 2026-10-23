@@ -1,24 +1,30 @@
 --!strict
---#include <project.gpp>
+const dummies = require("@declare/dummies")
+const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
+const types = require("@declare/types")
+const utypes = require("@declare/utypes")
+const stderr = require("@extension/stderr")
+const stdout = require("@extension/stdout")
+const ttable = require("@extension/ttable")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
+const ftype = require("@static/ftype")
 
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
-const project = require("@game/ReplicatedStorage/static/project")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const ttable = require("@game/ReplicatedStorage/static/ttable")
+--#include <project.gpp>
+--#include <build.gpp>
 
 const private = {}
 const class: luaobject = {
 	type = "luaobject",
 
 	new = ftype:write(function <T,U> (self: T, that: U?): any
-        if (not project.assert(type(self) == declare.table, "unexpected self argument", true)) then
-            return declare.tables.__null
+        if (not stderr:assert(type(self) == types.table, "unexpected self argument")) then
+            return dummies.nullf()
         end
 
         if (that ~= nil) then
-            if (not project.assert(type(that) == declare.table, "unexpected that argument, ingoring", true)) then
+            if (not stderr:assert(type(that) == types.table, "unexpected that argument, ingoring")) then
                 that = nil
             end
         end
@@ -44,10 +50,10 @@ const class: luaobject = {
         end
 
         return child
-	end, "luaobject", ftype:uor(declare.table, "luaobject"), ftype:opt(declare.table)),
+	end, "luaobject", ftype:uor(types.table, "luaobject"), ftype:opt(types.table)),
 
 	is = ftype:write(function(self: luaobject, that: string): boolean
-		if (that == declare.anyt) then return true end
+		if (that == mtypes.anyt) then return true end
 
 		local base = self
 
@@ -57,11 +63,11 @@ const class: luaobject = {
 		end
 
 		return false
-	end, declare.boolean, "luaobject", declare.string),
+	end, types.boolean, "luaobject", types.string),
 
 	it = ftype:write(function(self: luaobject, that: string): boolean
 		return self.type == that
-	end, declare.boolean, "luaobject", declare.string),
+	end, types.boolean, "luaobject", types.string),
 
     same = ftype:write(function(self: luaobject, ...: luaobject) : boolean
         for _, that in {...} do
@@ -71,7 +77,7 @@ const class: luaobject = {
         end
 
         return true
-    end, declare.boolean, "luaobject", ftype:var("luaobject")),
+    end, types.boolean, "luaobject", ftype:var("luaobject")),
 
 	eq = ftype:write(function(self: luaobject, ...: luaobject) : ...boolean
         const equality: {boolean} = {}
@@ -81,47 +87,47 @@ const class: luaobject = {
         end
 
 		return table.unpack(equality)
-	end, ftype:var(declare.boolean), "luaobject", ftype:var("luaobject")),
+	end, ftype:var(types.boolean), "luaobject", ftype:var("luaobject")),
 
 	base = ftype:write(function <T> (self: T & luaobject) : any
 		const metainfo = getmetatable(self :: T) :: unknown?
 
-        if (type(metainfo) == declare.table) then
+        if (type(metainfo) == types.table) then
             return metainfo :: luaobject
         end
 
         return nil -- silenced variant
-	end, ftype:opt("luaobject"), "luaobject", ftype:opt(declare.string)),
+	end, ftype:opt("luaobject"), "luaobject", ftype:opt(types.string)),
 
 	host = ftype:write(function (self: luaobject, f: (any) -> ()) : ()
         ttable.toggle(private.get_host_or_create(self) :: any, f)
-	end, declare["nil"], "luaobject", declare["function"]),
+	end, mtypes.never, "luaobject", types["function"]),
 
-	as = ftype:write(function <T> (self: unknown, as: string) : T
-		const cast, _ = project.assert((self :: luaobject):is(as), "cannot convert this luaobject to required type", true)
+	as = ftype:write(function <T> (self: luaobject, as: string) : T
+		const cast = stderr:assert(self:is(as), "cannot convert this luaobject to required type")
 		
         if (not cast) then
-            return declare.tables.__null :: any
+            return dummies.voidf()
         else
             return self :: T
         end
-	end, "luaobject", declare.string),
+	end, "luaobject", types.string),
 
 	that = ftype:write(function<T>(self: luaobject, that: unknown, otype: string): any?
-        if type(that) ~= declare.table or type((that :: any).is) ~= declare["function"] then
+        if type(that) ~= types.table or type((that :: any).is) ~= types["function"] then
             return nil
         end
 
         return (that :: luaobject):is(otype) and (that :: any) or nil 
-    end, ftype:opt("luaobject"), "luaobject", declare.anyt),
+    end, ftype:opt("luaobject"), "luaobject", mtypes.anyt),
 
 	iden = ftype:write(function(self: luaobject) : number
 		return tonumber(tostring(self)) or -1
-	end, declare.number, "luaobject"),
+	end, types.number, "luaobject"),
 
     finally = ftype:write(function(self: luaobject, f: object_finally_type?) : ()
         private.finally[self] = f
-    end, declare["nil"], "luaobject", declare["function"]),
+    end, mtypes.never, "luaobject", types["function"]),
 
     tget = ftype:write(function (self: luaobject, name: string) : any?
         const meta = ctype:read(self)
@@ -135,7 +141,7 @@ const class: luaobject = {
         else
             return nil
         end
-    end, ftype:opt(declare.anyt), "luaobject", declare.string),
+    end, ftype:opt(mtypes.anyt), "luaobject", types.string),
 
     tset = ftype:write(function (self: luaobject, name: string, value: any?) : ()
         const meta = ctype:read(self)
@@ -144,23 +150,22 @@ const class: luaobject = {
         end
 
         if const field = meta:read_field(name) then
-            if value == nil and field.type.opt or table.find(field.type.tval, declare.utypeof(value)) then
+            if value == nil and field.type.opt or table.find(field.type.tval :: any, utypes.utype(value)) then
                 (self::any)[name] = value
             end
         end
         
         return
-    end, declare["nil"], "luaobject", declare.string, ftype:opt(declare.anyt)),
+    end, mtypes.never, "luaobject", types.string, ftype:opt(mtypes.anyt)),
 
     tcall = ftype:write(function (self: luaobject, name: string, ...: any?) : ...any?
         const meta = ctype:read(self)
         const func = meta:read_func(name)
 
         if func == nil then
+
             --#if DEBUG
-            if project.debug.state then
-                project.console_out_error(`tcall: function "{name}" not registered on "{self.type}"`)
-            end
+                stdout:outm(`tcall: function "{name}" not registered on "{self.type}"`)
             --#endif
             return
         end
@@ -169,13 +174,11 @@ const class: luaobject = {
 
         if ffunc_self == nil then
             --#if DEBUG
-            if project.debug.state then
-                project.console_out_error([[
+                stdout:outm([[
                     (!*) The difference of meta information at the class level.
 
                     Apparently, the function is unexpectedly nil, although it is expected to exist.
                     In this case, there will be an attempt to find her through the base.]])
-            end
             --#endif
 
             local base = self:base() :: luaobject?
@@ -190,11 +193,9 @@ const class: luaobject = {
                     end
                 else
                     --#if DEBUG
-                    if project.debug.state then
-                        project.console_out([[
+                        stdout:outm([[
                             (!*) tcall couldn't reach the function because it's not in the base or in the object itself.
                             This probably indicates that there is misinformation in the class metadata.]])
-                    end
                     --#endif
                     return
                 end
@@ -214,9 +215,7 @@ const class: luaobject = {
         for ai = 1, args.n do
             if si > #sigs then
                 --#if DEBUG
-                if project.debug.state then
-                    project.console_out_error(`tcall: too many arguments for "{name}" (got {args.n}, expected {#sigs})`)
-                end
+                    stdout:outm(`tcall: too many arguments for "{name}" (got {args.n}, expected {#sigs})`)
                 --#endif
                 return
             end
@@ -225,9 +224,7 @@ const class: luaobject = {
 
             if not private.matches_argument(args[ai], sig) then
                 --#if DEBUG
-                if project.debug.state then
-                    project.console_out_error(`tcall: argument #{ai} doesn't match signature of "{name}"`)
-                end
+                    stdout:outm(`tcall: argument #{ai} doesn't match signature of "{name}"`)
                 --#endif
                 return
             end
@@ -241,9 +238,7 @@ const class: luaobject = {
             const sig = sigs[si]
             if not (sig.opt or sig.var) then
                 --#if DEBUG
-                if project.debug.state then
-                    project.console_out_error(`tcall: missing required argument #{si} for "{name}"`)
-                end
+                    stdout:outm(`tcall: missing required argument #{si} for "{name}"`)
                 --#endif
                 return
             end
@@ -251,17 +246,17 @@ const class: luaobject = {
         end
 
         return (ffunc_self :: any)(...)
-    end, ftype:var_opt(declare.anyt), "luaobject", declare.string, ftype:var_opt(declare.anyt)),
+    end, ftype:var_opt(mtypes.anyt), "luaobject", types.string, ftype:var_opt(mtypes.anyt)),
 
     ttype = ftype:write(function (self: luaobject | unknown): string?
-        if (type(self) == declare.table) then
-            if (type((self :: any).type) == declare.string) then
+        if (type(self) == types.table) then
+            if (type((self :: any).type) == types.string) then
                 return (self :: any).type
             end
         end
 
         return nil
-    end, ftype:opt(declare.string), ftype:uor(declare.anyt, "luaobject"))
+    end, ftype:opt(types.string), ftype:uor(mtypes.anyt, "luaobject"))
 }
 
 do
@@ -269,8 +264,8 @@ do
         [number]: (T) -> ()
     }
 
-    private.host_list = setmetatable({} :: {[luaobject]: host?}, declare.tables.__mode_ks)
-    private.finally = setmetatable({} :: {[luaobject]: object_finally_type?}, declare.tables.__mode_ks)
+    private.host_list = setmetatable({} :: {[luaobject]: host?}, tables.__mode_ks)
+    private.finally = setmetatable({} :: {[luaobject]: object_finally_type?}, tables.__mode_ks)
 
     private.get_finally = function (of: luaobject) : object_finally_type?
         local current: luaobject? = of
@@ -337,7 +332,7 @@ do
                 const state, err = pcall(v, of)
 
                 if (not state) then
-                    project.console_out_error(of.type, ttable.find(private.host_list, host) or "*missed-luaobject*", err)
+                    stdout:outm(of.type, ttable.find(private.host_list, host) or "*missed-luaobject*", err)
                 end
             end
         end
@@ -348,15 +343,15 @@ do
             return true
         end
 
-        const utype = declare.utypeof(value)
+        const utype = utypes.utype(value)
 
-        for _, tv in sig.tval do
-            if type(tv) == declare.string then
-                if tv == declare.anyt or tv == utype then
+        for _, tv in sig.tval or dummies.table do
+            if type(tv) == types.string then
+                if tv == mtypes.anyt or tv == utype then
                     return true
                 end
 
-                if value ~= nil and type((value :: any).is) == declare["function"] then
+                if value ~= nil and type((value :: any).is) == types["function"] then
                     local ok, res = pcall((value :: any).is, value, tv)
                     if ok and res == true then
                         return true
@@ -372,18 +367,10 @@ do
         return false
     end
 
-	--#if DEBUG
-	if project.debug then
-		if project.debug.show_created_objects then
+	--#if DEBUG && LUAOBJECT_PRINT_NEW
 			class:host(function(new: luaobject)
-				project.console_out(string.format("new %s", new.type))
+				stdout:out(string.format("luaobject::new %s", new.type))
 			end)
-
-            class:host(function(new)
-                
-            end)
-		end
-	end
 	--#endif
 
 	ctype:write(class, ctype:generate_metainfo(class, {

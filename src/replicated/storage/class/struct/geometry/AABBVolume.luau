@@ -2,13 +2,14 @@
 --!native
 --!optimize 2
 
-const CubeVolume = require("@game/ReplicatedStorage/class/struct/geometry/CubeVolume")
-const SAT = require("@game/ReplicatedStorage/dependency/SAT")
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
+const CubeVolume = require("@class/struct/geometry/CubeVolume")
+const types = require("@declare/types")
+const stdout = require("@extension/stdout")
+const SAT = require("@import/SAT")
+const rbxtypes = require("@platform/roblox/rbxtypes")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
+const ftype = require("@static/ftype")
 
 const private = {}
 const class: aabbvolume = CubeVolume:new({
@@ -20,13 +21,13 @@ const class: aabbvolume = CubeVolume:new({
 
 	is_inside = ftype:write(function(self: aabbvolume, ...: unknown): boolean
 		for _, value in { ... } do
-			if typeof(value) == declare.roblox.Instance then
+			if typeof(value) == rbxtypes.Instance then
 				const instance = value :: Instance
 
 				const other_min, other_max = private.get_instance_bounds(instance)
 
 				if not other_min or not other_max then
-					project.console_out_error("unsupported Instance in AABB is_inside")
+					stdout:oute("unsupported Instance in AABB is_inside")
 					return false
 				end
 
@@ -37,7 +38,7 @@ const class: aabbvolume = CubeVolume:new({
 					other_max
 				)
 				then
-					return false
+					return false 
 				end
 
 			elseif self:that(value, "aabbvolume") then
@@ -61,13 +62,13 @@ const class: aabbvolume = CubeVolume:new({
 				end
 
 			else
-				project.console_out_error("unsupported geometry in AABB is_inside")
+				stdout:oute("unsupported geometry in AABB is_inside")
 				return false
 			end
 		end
 
 		return true
-	end, declare.boolean, "aabbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, types.boolean, "aabbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	is_interacts = ftype:write(function(self: aabbvolume, ...: unknown): boolean
 		for _, value in {...} do
@@ -77,17 +78,17 @@ const class: aabbvolume = CubeVolume:new({
 		end
 
 		return true
-	end, declare.boolean, "aabbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, types.boolean, "aabbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	is_intersection = ftype:write(function(self: aabbvolume, ...: unknown): boolean
 		for _, value in {...} do
-			if typeof(value) == declare.roblox.Instance then
+			if typeof(value) == rbxtypes.Instance then
 				const instance = value :: Instance
 
 				const other_min, other_max = private.get_instance_bounds(instance)
 
 				if not other_min or not other_max then
-					project.console_out_error("unsupported Instance in AABB is_intersection")
+					stdout:oute("unsupported Instance in AABB is_intersection")
 					return false
 				end
 
@@ -122,13 +123,13 @@ const class: aabbvolume = CubeVolume:new({
 				end
 
 			else
-				project.console_out_error("unsupported geometry in AABB is_intersection")
+				stdout:oute("unsupported geometry in AABB is_intersection")
 				return false
 			end
 		end
 
 		return true
-	end, declare.boolean, "aabbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, types.boolean, "aabbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	from = ftype:write(function(self: aabbvolume, ...: geometry_supported): aabbvolume
 		const values = {...}
@@ -150,7 +151,7 @@ const class: aabbvolume = CubeVolume:new({
 			const other_min, other_max = private.get_bounds(self, value)
 
 			if not other_min or not other_max then
-				project.console_out_error("unsupported geometry in AABB from")
+				stdout:oute("unsupported geometry in AABB from")
 				return self:clone()
 			end
 
@@ -173,15 +174,15 @@ const class: aabbvolume = CubeVolume:new({
 		end
 
 		return self:clone(private.from_bounds(min :: vector, max :: vector))
-	end, "aabbvolume", "aabbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, "aabbvolume", "aabbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	middle = ftype:write(function(self: aabbvolume, ...: geometry_supported): aabbvolume
 		return private.middle(self, table.freeze({ ... }) :: { geometry_supported })
-	end, "aabbvolume", "aabbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, "aabbvolume", "aabbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	cover = ftype:write(function(self: aabbvolume, ...: geometry_supported): aabbvolume
 		return private.cover(self, table.freeze({ ... }) :: { geometry_supported })
-	end, "aabbvolume", "aabbvolume", ftype:var(declare.roblox.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, "aabbvolume", "aabbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	look_at = ftype:write(function(self: aabbvolume, at: vector, up: vector?) : aabbvolume
 		const center = self:get_center()
@@ -212,7 +213,7 @@ const class: aabbvolume = CubeVolume:new({
 			) * half.x + math.abs(real_up.y) * half.y + math.abs(front.y) * half.z, math.abs(right.z) * half.x + math.abs(real_up.z) * half.y + math.abs(front.z) * half.z)
 
 		return self:clone(private.from_bounds(center - world_half, center + world_half))
-	end, "aabbvolume", "aabbvolume", declare.vector, ftype:opt(declare.vector)),
+	end, "aabbvolume", "aabbvolume", types.vector, ftype:opt(types.vector)),
 })
 
 do
@@ -290,7 +291,7 @@ do
 	end
 
 	private.get_bounds = function(self: aabbvolume, value: geometry_supported): (vector?, vector?)
-		if typeof(value) == declare.roblox.Instance then
+		if typeof(value) == rbxtypes.Instance then
 			const instance = value :: Model | BasePart | PVInstance
 
 			return private.get_instance_bounds(instance)
@@ -381,7 +382,7 @@ do
 			const other_min, other_max = private.get_bounds(self, value)
 
 			if not other_min or not other_max then
-				project.console_out_error("unsupported geometry in AABB middle")
+				stdout:oute("unsupported geometry in AABB middle")
 				return self:clone()
 			end
 
@@ -403,7 +404,7 @@ do
 			const other_min, other_max = private.get_bounds(self, value)
 
 			if not other_min or not other_max then
-				project.console_out_error("unsupported geometry in AABB cover")
+				stdout:oute("unsupported geometry in AABB cover")
 				return self:clone()
 			end
 

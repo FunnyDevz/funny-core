@@ -1,19 +1,19 @@
 --!strict
-const Service = require("@game/ReplicatedStorage/class/core/Service")
-const Event = require("@game/ReplicatedStorage/class/common/signal/Event")
-const NetPack = require("@game/ReplicatedStorage/class/struct/common/NetPack")
-const NetSource = require("@game/ReplicatedStorage/enums/descriptor/NetSource")
-const SharedNetLink = require("@game/ReplicatedStorage/enums/descriptor/SharedNetLink")
-const SharedNetVariant = require("@game/ReplicatedStorage/enums/descriptor/SharedNetVariant")
-const NetNotification = require("@game/ReplicatedStorage/enums/notification/NetNotification")
-const engine = require("@game/ReplicatedStorage/platform/engine")
-const network = require("@game/ReplicatedStorage/platform/network")
-const players = require("@game/ReplicatedStorage/platform/players")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
-
-const FOLDER = "sharednet"
+const Event = require("@class/common/signal/Event")
+const Service = require("@class/core/Service")
+const NetPack = require("@class/struct/common/NetPack")
+const tables = require("@declare/tables")
+const types = require("@declare/types")
+const NetSource = require("@enums/descriptor/NetSource")
+const SharedNetLink = require("@enums/descriptor/SharedNetLink")
+const SharedNetVariant = require("@enums/descriptor/SharedNetVariant")
+const NetNotification = require("@enums/notification/NetNotification")
+const stdout = require("@extension/stdout")
+const engine = require("@platform/roblox/engine")
+const network = require("@platform/roblox/network")
+const players = require("@platform/roblox/players")
+const net = require("@project/net")
+const ftype = require("@static/ftype")
 
 type net_event = event<enumitem_net_notification, netpack>
 type metadata = {
@@ -30,37 +30,43 @@ const class: sharednet = Service:new({
 	emitted = 0,
 	errors = 0,
 
-	get_event = ftype:write(function(self: sharednet, link: enumitem_shared_net_link, variant: enumitem_shared_net_variant?): net_event
-		const kind = variant or SharedNetVariant.Safe
+	get_event = ftype:write(
+		function(self: sharednet, link: enumitem_shared_net_link, variant: enumitem_shared_net_variant?): net_event
+			const kind = variant or SharedNetVariant.Safe
 
-		if not SharedNetLink:is_my_enumitem(link) or not SharedNetVariant:is_my_enumitem(kind) then
-			self.errors += 1
-			project.console_out_error("unexpected SharedNetLink or SharedNetVariant")
-			return Event:new() :: any
-		end
+			if not SharedNetLink:is_my_enumitem(link) or not SharedNetVariant:is_my_enumitem(kind) then
+				self.errors += 1
+				stdout:oute("unexpected SharedNetLink or SharedNetVariant")
+				return Event:new() :: any
+			end
 
-		const name = `{link.name}@{kind.name}`
-		const existing = private.events[name]
-		if existing then
-			return existing
-		end
+			const name = `{link.name}@{kind.name}`
+			const existing = private.events[name]
+			if existing then
+				return existing
+			end
 
-		const event = Event:new() :: net_event
-		const instance = private.get_instance(self, kind, name)
+			const event = Event:new() :: net_event
+			const instance = private.get_instance(self, kind, name)
 
-		private.events[name] = event
-		private.metadata[event] = { variant = kind, link = link, instance = instance }
-		private.setup_behaviour(event, instance)
+			private.events[name] = event
+			private.metadata[event] = { variant = kind, link = link, instance = instance }
+			private.setup_behaviour(event, instance)
 
-		return event
-	end, "event", "sharednet", "enumitem", ftype:opt("enumitem")),
+			return event
+		end,
+		"event",
+		"sharednet",
+		"enumitem",
+		ftype:opt("enumitem")
+	),
 
 	emit_event = ftype:write(function(self: sharednet, event: net_event, pack: netpack): ()
 		const metadata = private.metadata[event]
 
 		if not metadata then
 			self.errors += 1
-			project.console_out_error("unknown event, take it from SharedNet:get_event")
+			stdout:oute("unknown event, take it from SharedNet:get_event")
 			return
 		end
 
@@ -77,15 +83,15 @@ const class: sharednet = Service:new({
 		end
 
 		self.emitted += 1
-	end, declare["nil"], "sharednet", "event", "netpack"),
+	end, types["nil"], "sharednet", "event", "netpack"),
 })
 
 do
 	private.events = {} :: { [string]: net_event }
-	private.metadata = setmetatable({} :: { [net_event]: metadata }, declare.tables.__mode_ks)
+	private.metadata = setmetatable({} :: { [net_event]: metadata }, tables.__mode_ks)
 
 	function private.get_instance(that: sharednet, variant: enumitem_shared_net_variant, name: string): Instance
-		const folder = network.get_folder(FOLDER, that.timeout)
+		const folder = network.get_folder(net.shared_folder, that.timeout)
 		const existing = network.find_remote(folder, name)
 
 		if existing then
@@ -102,7 +108,7 @@ do
 		end
 
 		that.errors += 1
-		project.console_out_error(`{name} wasn't created by the server, replaced with a local event`)
+		stdout:oute(`{name} wasn't created by the server, replaced with a local event`)
 		return network.create_remote(nil, name, "BindableEvent")
 	end
 
@@ -117,14 +123,17 @@ do
 				return
 			end
 
-			if type(flat) == declare.table and (flat :: any).from == NetSource.FromServer.name then
+			if type(flat) == types.table and (flat :: any).from == NetSource.FromServer.name then
 				players.kick(sender, "Invalid network packet")
 				return
 			end
 
 			const pack = NetPack:from_flat(flat)
 			if pack then
-				event:invoke(NetNotification.Received, pack:clone({ from = NetSource.FromClient.name, sender = sender.UserId }))
+				event:invoke(
+					NetNotification.Received,
+					pack:clone({ from = NetSource.FromClient.name, sender = sender.UserId })
+				)
 			end
 		end)
 	end

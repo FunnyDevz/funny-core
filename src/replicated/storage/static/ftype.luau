@@ -1,13 +1,12 @@
 --!strict
 
-const declare = require("./declare")
-const project = require("./project")
+const stdout = require("@extension/stdout")
+const types = require("@declare/types")
+const args = require("@static/mtargument")
+const outs = require("@static/mtout")
 
-const arg = require("./mtargument")
-const outs = require("./mtout")
-
-type argument = arg.argument
-type tval = arg.tval
+type argument = args.argument
+type tval = args.tval
 type out = outs.out
 
 --[==[
@@ -73,7 +72,7 @@ type ftype = {
 	--[==[
 		Checks whether an argument descriptor is variadic.
 
-		arg variadic argument represents zero or more values of its declared type
+		args variadic argument represents zero or more values of its declared type
 		rather than one fixed argument position.
 	]==]
 	read is_var: (self: ftype, argument: argument) -> boolean,
@@ -81,7 +80,7 @@ type ftype = {
 	--[==[
 		Checks whether an argument descriptor represents a union of types.
 
-		arg union argument may accept more than one alternative type.
+		args union argument may accept more than one alternative type.
 	]==]
 	read is_or: (self: ftype, argument: argument) -> boolean,
 
@@ -228,31 +227,31 @@ const packed = setmetatable(
 
 const ftype: ftype = table.freeze({
 	write = function<T>(self: ftype, func: T, rtype: tval, ...: tval): T
-		const args: { argument } = {}
+		const arguments: { argument } = {}
 
 		local has_var = false
 
 		for _, value in { ... } do
-			const argument = arg.pack(value)
+			const argument = args.pack(value)
 
 			if argument.var then
 				if has_var then
-					project.console_out_error("ftype arg with .var already exists, skip")
+					stdout:oute("ftype args with .var already exists, skip")
 
 					continue
 				end
 
 				has_var = true
 			elseif has_var then
-				project.console_out_error("ftype arg after .var is not allowed, skip")
+				stdout:oute("ftype args after .var is not allowed, skip")
 
 				continue
 			end
 
-			table.insert(args, argument)
+			table.insert(arguments, argument)
 		end
 
-		packed[func] = outs.new(arg.pack(rtype), args, true)
+		packed[func] = outs.new(args.pack(rtype), arguments, true)
 
 		return func
 	end,
@@ -282,7 +281,7 @@ const ftype: ftype = table.freeze({
 	is_type = function(_self: ftype, argument: argument, ...: string): boolean
 		for _, expected in { ... } do
 			for _, actual in argument.tval do
-				if type(actual) == declare.string and actual == expected then
+				if type(actual) == types.string and actual == expected then
 					return true
 				end
 			end
@@ -292,7 +291,7 @@ const ftype: ftype = table.freeze({
 	end,
 
 	has_tval = function(_self: ftype, argument: argument, value: tval): boolean
-		return arg.has_tval(argument, value)
+		return args.has_tval(argument, value)
 	end,
 
 	has_type = function(self: ftype, argument: argument, ...: string): boolean
@@ -346,7 +345,7 @@ const ftype: ftype = table.freeze({
 	end,
 
 	get_tval = function(_self: ftype, argument: argument): ...tval
-		const values = arg.get_tval(argument)
+		const values = args.get_tval(argument)
 
 		return unpack(values)
 	end,
@@ -355,7 +354,7 @@ const ftype: ftype = table.freeze({
 		const result: { string } = {}
 
 		for _, value in argument.tval do
-			if type(value) == declare.string then
+			if type(value) == types.string then
 				table.insert(result, value :: string)
 			end
 		end
@@ -367,7 +366,7 @@ const ftype: ftype = table.freeze({
 		const result: { argument } = {}
 
 		for _, value in argument.tval do
-			if type(value) == declare.table then
+			if type(value) == types.table then
 				table.insert(result, value :: argument)
 			end
 		end
@@ -379,7 +378,7 @@ const ftype: ftype = table.freeze({
 		const result: { argument } = {}
 
 		for _, value in { ... } do
-			local argument = arg.pack(value, true, false, false)
+			local argument = args.pack(value, true, false, false)
 
 			table.insert(result, argument)
 		end
@@ -388,27 +387,27 @@ const ftype: ftype = table.freeze({
 	end,
 
 	var = function(_self: ftype, ...: tval): argument
-		return arg.new(table.freeze {...}, false, true, false)
+		return args.new(table.freeze({ ... }), false, true, false)
 	end,
 
 	uor = function(_self: ftype, ...: tval): argument
-		return arg.new(table.freeze {...}, false, false, true)
+		return args.new(table.freeze({ ... }), false, false, true)
 	end,
 
 	var_or = function(_self: ftype, ...: tval): argument
-		return arg.new(table.freeze {...}, false, true, true)
+		return args.new(table.freeze({ ... }), false, true, true)
 	end,
 
 	var_or_opt = function(_self: ftype, ...: tval): argument
-		return arg.new(table.freeze { ... }, true, true, true)
+		return args.new(table.freeze({ ... }), true, true, true)
 	end,
 
 	var_opt = function(_self: ftype, ...: tval): argument
-		return arg.new(table.freeze {...}, true, true, false)
+		return args.new(table.freeze({ ... }), true, true, false)
 	end,
 
 	or_opt = function(_self: ftype, ...: tval): argument
-		return arg.new(table.freeze{...}, true, false, true)
+		return args.new(table.freeze({ ... }), true, false, true)
 	end,
 })
 

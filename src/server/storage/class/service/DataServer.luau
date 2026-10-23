@@ -1,19 +1,22 @@
 --!strict
-const ProfileStore = require("@game/ServerStorage/server_dependency/ProfileStore")
-const Service = require("@game/ReplicatedStorage/class/core/Service")
-const Event = require("@game/ReplicatedStorage/class/common/signal/Event")
-const SharedNet = require("@game/ReplicatedStorage/class/service/SharedNet")
-const NetPack = require("@game/ReplicatedStorage/class/struct/common/NetPack")
-const SharedNetLink = require("@game/ReplicatedStorage/enums/descriptor/SharedNetLink")
-const DataNotification = require("@game/ReplicatedStorage/enums/notification/DataNotification")
-const NetNotification = require("@game/ReplicatedStorage/enums/notification/NetNotification")
-const DataState = require("@game/ReplicatedStorage/enums/state/DataState")
-const engine = require("@game/ReplicatedStorage/platform/engine")
-const players = require("@game/ReplicatedStorage/platform/players")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
+const Event = require("@class/common/signal/Event")
+const Service = require("@class/core/Service")
+const SharedNet = require("@class/service/SharedNet")
+const NetPack = require("@class/struct/common/NetPack")
+const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
+const types = require("@declare/types")
+const SharedNetLink = require("@enums/descriptor/SharedNetLink")
+const DataNotification = require("@enums/notification/DataNotification")
+const NetNotification = require("@enums/notification/NetNotification")
+const DataState = require("@enums/state/DataState")
+const stderr = require("@extension/stderr")
 const data = require("@game/ServerStorage/prefs/data")
+const ProfileStore = require("@include/ProfileStore")
+const engine = require("@platform/roblox/engine")
+const players = require("@platform/roblox/players")
+const rbxtypes = require("@platform/roblox/rbxtypes")
+const ftype = require("@static/ftype")
 
 const REPLICATING = data.replicating :: { [string]: boolean }
 
@@ -51,16 +54,16 @@ const class: dataserver = Service:new({
 		for k, v in players.get_all() do
 			task.spawn(private.player_added, v)
 		end
-	end, declare["nil"], "dataserver"),
+	end, mtypes.never, "dataserver"),
 
 	get_state = ftype:write(function(self: dataserver, player: Player): enumitem_data_state
 		return private.states[player] or DataState.ProfileReleased
-	end, "enumitem", "dataserver", declare.roblox.Instance),
+	end, "enumitem", "dataserver", rbxtypes.Instance),
 
 	get_data = ftype:write(function(self: dataserver, player: Player): data_snapshot?
 		const profile = private.profiles[player]
 		return if profile then profile.Data else nil
-	end, ftype:opt(declare.table), "dataserver", declare.roblox.Instance),
+	end, ftype:opt(types.table), "dataserver", rbxtypes.Instance),
 
 	wait_data = ftype:write(function(self: dataserver, player: Player): data_snapshot?
 		while private.states[player] == DataState.ProfileLoading do
@@ -68,39 +71,51 @@ const class: dataserver = Service:new({
 		end
 
 		return self:get_data(player)
-	end, ftype:opt(declare.table), "dataserver", declare.roblox.Instance),
+	end, ftype:opt(types.table), "dataserver", rbxtypes.Instance),
 
 	get_value = ftype:write(function<T>(self: dataserver, player: Player, path: data_path): T
 		const snapshot = self:get_data(player)
 
-		if not snapshot then
-			project.console_out_error(`{player.Name}'s data isn't loaded`)
+		if not stderr:check(snapshot, `{player.Name}'s data isn't loaded`) then
 			return nil :: any
 		end
 
-		const parent, key = private.resolve(snapshot, private.split(path))
+		const parent, key = private.resolve(snapshot :: data_snapshot & exist, private.split(path))
 		return parent[key]
-	end, ftype:opt(declare.anyt), "dataserver", declare.roblox.Instance, ftype:uor(declare.string, declare.table)),
+	end, ftype:opt(mtypes.anyt), "dataserver", rbxtypes.Instance, ftype:uor(types.string, types.table)),
 
-	set_value = ftype:write(function(self: dataserver, player: Player, path: data_path, to: unknown): ()
-		const snapshot = self:get_data(player)
+	set_value = ftype:write(
+		function(self: dataserver, player: Player, path: data_path, to: unknown): ()
+			const snapshot = self:get_data(player)
 
-		if not snapshot then
-			project.console_out_error(`{player.Name}'s data isn't loaded`)
-			return
-		end
+			if not stderr:check(snapshot, `{player.Name}'s data isn't loaded`) then
+				return
+			end
 
-		const segments = private.split(path)
-		const parent, key = private.resolve(snapshot, segments)
-		parent[key] = to
-		private.replicate(player, segments, to)
-	end, declare["nil"], "dataserver", declare.roblox.Instance, ftype:uor(declare.string, declare.table), ftype:opt(declare.anyt)),
+			const segments = private.split(path)
+			const parent, key = private.resolve(snapshot :: data_snapshot & exist, segments)
+			parent[key] = to
+			private.replicate(player, segments, to)
+		end,
+		mtypes.never,
+		"dataserver",
+		rbxtypes.Instance,
+		ftype:uor(types.string, types.table),
+		ftype:opt(mtypes.anyt)
+	),
 
-	update_value = ftype:write(function<T>(self: dataserver, player: Player, path: data_path, f: (current: T) -> T): T
-		const next_value = f(self:get_value(player, path))
-		self:set_value(player, path, next_value)
-		return next_value
-	end, ftype:opt(declare.anyt), "dataserver", declare.roblox.Instance, ftype:uor(declare.string, declare.table), declare["function"]),
+	update_value = ftype:write(
+		function<T>(self: dataserver, player: Player, path: data_path, f: (current: T) -> T): T
+			const next_value = f(self:get_value(player, path))
+			self:set_value(player, path, next_value)
+			return next_value
+		end,
+		ftype:opt(mtypes.anyt),
+		"dataserver",
+		rbxtypes.Instance,
+		ftype:uor(types.string, types.table),
+		types["function"]
+	),
 
 	reset = ftype:write(function(self: dataserver, player: Player): boolean
 		const profile = private.profiles[player]
@@ -112,7 +127,7 @@ const class: dataserver = Service:new({
 		profile.Data = private.deep_copy(data.template)
 		private.send_snapshot(player)
 		return true
-	end, declare.boolean, "dataserver", declare.roblox.Instance),
+	end, types.boolean, "dataserver", rbxtypes.Instance),
 
 	send_message = ftype:write(function(self: dataserver, user_id: number, message: { [string]: any }): boolean
 		const store = private.get_store()
@@ -123,7 +138,7 @@ const class: dataserver = Service:new({
 		end
 
 		return succ
-	end, declare.boolean, "dataserver", declare.number, declare.table),
+	end, types.boolean, "dataserver", types.number, types.table),
 
 	get_data_event = ftype:write(function(self: dataserver): data_event
 		return private.event
@@ -131,7 +146,7 @@ const class: dataserver = Service:new({
 })
 
 do
-	private.meta = declare.tables.__mode_ks
+	private.meta = tables.__mode_ks
 	private.store = nil :: any
 	private.net = nil :: event<enumitem_net_notification, netpack>?
 	private.event = Event:new() :: data_event
@@ -194,7 +209,7 @@ do
 		private.profiles[player] = profile
 
 		const user = profile.Data.user
-		if type(user) == declare.table then
+		if type(user) == types.table then
 			const now = os.time()
 
 			if user.joined_at == 0 then
@@ -207,7 +222,7 @@ do
 		end
 
 		profile:MessageHandler(function(message: unknown, processed: () -> ())
-			if type(message) == declare.table then
+			if type(message) == types.table then
 				private.event:invoke(DataNotification.DataMessage, player, message, processed)
 			end
 		end)
@@ -226,7 +241,7 @@ do
 
 		if profile then
 			const user = profile.Data.user
-			if type(user) == declare.table then
+			if type(user) == types.table then
 				const now = os.time()
 				user.played_time += now - user.last_seen_at
 				user.last_seen_at = now
@@ -248,7 +263,7 @@ do
 	end
 
 	function private.split(path: data_path): { string }
-		if type(path) == declare.table then
+		if type(path) == types.table then
 			return path :: { string }
 		end
 
@@ -260,14 +275,14 @@ do
 
 		for k = 1, #segments - 1 do
 			node = node[segments[k]]
-			assert(type(node) == declare.table, `bad data path {table.concat(segments, "/")}`)
+			assert(type(node) == types.table, `bad data path {table.concat(segments, "/")}`)
 		end
 
 		return node, segments[#segments]
 	end
 
 	function private.deep_copy(from: any): any
-		if type(from) ~= declare.table then
+		if type(from) ~= types.table then
 			return from
 		end
 

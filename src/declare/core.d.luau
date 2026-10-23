@@ -3,6 +3,11 @@
 --- CORE
 
 --[==[
+    Неправильно настроенные типы могут привести к типовой деградации нижнего уровня (самого luaobject). Появление
+    *error-type* типов внутри типа - признак неправильной настройки. 
+]==]
+
+--[==[
     В этом проекте механика наследования построена на интерсекции типов.
 
     `luau-lang/luau` **#3059** (v0.743)
@@ -14,9 +19,11 @@
         export type extend<extension = {}, base = {}> = setmetatable<extension & base, base>
     ```
 
-    Однако сейчас `base` для `U` специально деградирован до `luaobject`. Это не мешает наследованию
+    В текущий момент из-за наличия мощных багов с работой MetatableType и потерей информации, данные о метатаблице
+    для каждого ребенка вручную подменяются на `luaobject`. Это деградация позволяет защитить механизм работы
+    тайп-солвера и не лишаться дополнительных комментариев.
 ]==]
-export type extend<extension = {}, base = luaobject> = setmetatable<extension & base, luaobject>
+export type extend<extension = {}, base = luaobject> = extension & base
 
 --[==[
     Базовый объект проекта.
@@ -88,7 +95,7 @@ export type luaobject = {
         Состояние родителя не влияет на ребенка, и даже если родитель уже невалиден и освобожден, то
         ребенок будет продолжать всегда ссылаться на него. Это все конечно зависит от контекста.
     ]==]
-    read base: (<T>(self: luaobject & T) -> getmetatable<T>),
+    read base: (self: luaobject) -> luaobject,
     
     --[==[
         Host представляет функцию для инициализации нового объекта. По сути это замена функции конструктора,
@@ -99,9 +106,9 @@ export type luaobject = {
         будет вставлен обратно. То есть работает как toggle.
 
         В текущей версии лямбда принимает нетипизированный `luaobject` только потому что generic `T` не подхватывает
-        `self`
+        `self`. Это между прочем намеренное поведение
     ]==]
-	read host: <T>(self: luaobject, f: (new: luaobject) -> ()) -> (),
+	read host: (self: luaobject, f: (new: luaobject) -> ()) -> (),
 
     --[==[
         Это аналог `luaobject.as(self, type)`, но мягкий и для каста других объектов. Он не вернет ошибку,
@@ -187,14 +194,39 @@ export type enumobject = extend<{
     ]==]
     read name: string,
 
+    --[==[
+        Возвращает список всех релевантных этому `enumobject` объектов `enumitem`.
+    ]==]
 	read get_enums_list: (self: enumobject) -> { [unknown]: enumitem },
+
+    --[==[
+        Возвращает общее количество енамов в объекте.
+    ]==]
 	read get_enums_count: (self: enumobject) -> number,
+
+    --[==[
+        Возвращает все имена енамов в объекте.
+    ]==]
 	read get_enums_name: (self: enumobject, ...enumitem) -> ...string?,
+
+    --[==[
+        Возвращает все хэши каждого енама в объекте.
+    ]==]
     read get_hashlink_list: (self: enumobject) -> { string },
 
+    --[==[
+        Пробует вытащить енам по его имени из объекта.
+    ]==]
     read get_enum_by_name: (self: enumobject, name: string) -> enumitem?,
+
+    --[==[
+        Прощует вытащить енам по его хэшу из объекта.
+    ]==]
     read get_enum_by_hashlink: (self: enumobject, hashlink: string) -> enumitem?,
 
+    --[==[
+        Проверяет, является ли этот енам, или имя или строка частью этого объекта.
+    ]==]
 	read is_my_enumitem: (self: enumobject, that: enumitem|string) -> boolean,
 }, luaobject>
 
@@ -427,16 +459,18 @@ export type scheduler_teta<T... = ...any> = thread | (T...) -> ()
 ]==]
 export type scheduler = extend<{
 	--[==[
-        Возвращает новый планировщик. Планировщик наследует
-    ]==]
-	read new: ((self: scheduler) -> scheduler) & () -> scheduler,
-
-	--[==[
         Планирует коррутину в любое удобное время для планировщика. Коррутина будет вызвана
         в следующем `scheduler:process()` либо в этом же цикле, если уже запланированная
         коррутина подала запрос. 
     ]==]
 	read plan: <T...>(self: scheduler, t: scheduler_teta<T...>, T...) -> thread,
+
+    --[==[
+        Пробует найти в каком именно обработчике зарегистрирована эта коррутина. Если не найдет,
+        значит она вообще не зарегистрирована в `scheduler` классе и его наследниках. Скорее всего
+        она либо создана 
+    ]==]
+    read whose: (self: scheduler, c: thread) -> scheduler?,
 
 	--[==[
         Отменяет коррутину из планировщика. Функция безопасна для вызова, она тихо проигнорирует
@@ -447,12 +481,12 @@ export type scheduler = extend<{
 	--[==[
         Проверяет, является ли эта коррутина запланированной для выполнения
     ]==]
-	read is_planned: ((self: scheduler, c: thread) -> boolean) & ((self: scheduler) -> boolean),
+	read is_planned: (self: scheduler, c: thread?) -> boolean,
 
 	--[==[
         Проверяет, является ли эта коррутина в процессе ожидания или холда.
     ]==]
-	read is_waiting: ((self: scheduler, c: thread) -> boolean) & ((self: scheduler) -> boolean),
+	read is_waiting: (self: scheduler, c: thread?) -> boolean,
 
 	--[==[
         Ставит текущую выполняемую коррутину на паузу до момента, когда не будет достигнуто указанное время
@@ -996,7 +1030,6 @@ export type profile<T = enumitem> = extend<{
 
     read get_inlined: (self: profile<T>, uid: number) -> profile<T>,
     read get_player: (self: profile<T>) -> Player?,
-    read get_reference: (self: profile<T>) -> reference<Player>,
     read get_configurated: <Y> (self: profile<T>, of: enumitem) -> variable<Y>,
     read get_joined_at: (self: profile<T>) -> DateTime,
     read get_last_seen_at: (self: profile<T>) -> DateTime?,
@@ -1018,7 +1051,7 @@ export type profile<T = enumitem> = extend<{
     read is_out: (self: profile<T>) -> boolean,
     read is_in_place: (self: profile<T>) -> boolean,
     read is_in_server: (self: profile<T>) -> boolean,
-}, observer<enumitem_user_notification>>
+} & referenceable<profile<T>, Player?>, observer<enumitem_user_notification>>
 
 export type localuser = extend<{
     read uid: number,
@@ -1510,9 +1543,9 @@ export type ikr6legs = extend<{
 } & initiable<ikr6legs>, ikr6solver>
 
 --[==[
-    Объект, представляющий самостоятельный buildin ik решатель для рук r6 рига
+    Объект, представляющий самостоятельный buildin ik решатель для рук r6 рига.
 
-    Он полностью предоставляет собственное поведение и автоматизирован относительно алгоритмической
+    Решатель полностью предоставляет собственное поведение и автоматизирован относительно алгоритмической
     сложности для пользователей
 ]==]
 export type ikr6arms = extend<{
@@ -1528,30 +1561,39 @@ export type ikr6arms = extend<{
     read get_left_arm: (self: ikr6arms) -> ikr6arm
 } & initiable<ikr6arms>, ikr6solver>
 
+--[==[
+    Объект, представляющий одну руку для `ikr6arms`.
+]==]
 export type ikr6arm = extend<{
     --[==[
-        Выбираемая цель, к которой тянется рука.
-    ]==]
-    read get_target: (self: ikr6arm) -> vector,
-    read set_target: (self: ikr6arm, target: vector?, absolute: boolean?) -> ()
+        Если цель является абсолютной в пространстве, то рука устремится к этой позиции в любой точке пространства:
+        она будет смотреть в цель отовсюду. Иначе эта точка принимается как относительная позиция, тогда рука будет
+        стремиться смотреть в цель относительно.
 
-}, ikr6limb<ikr6arminfo>>
+        Например, при абсолютных координатах `0,100,0` рука находясь на `1000, 0, 0` будет смотреть влево-вверх. При
+        относительных координатах рука будет просто смотреть вверх.
+    ]==]
+    absolute: boolean,
+
+} & I_targetable<ikr6arm, vector>, ikr6limb<ikr6arminfo>>
 
 --[==[
     Объект, представляющий реализацию односуставной IK конечности, будь бы это нога,
     рука, или иной вид конечности
 
-
+    Построен на фейках.
 ]==]
 export type ikr6limb <T = enumitem, U = ikr6limbinfo> = extend<{
+    --[==[
+        Для этой конечности решатель может выполнять некоторые общие операции.
+    ]==]
+    mode: enumitem_iklimb_mode,
+
     --[==[
         Исходная точка от которой проводятся вычисления,
         по умолчанию является bottom torso позицией
     ]==]
     from: vector,
-
-    -- position - RaycastResult.Position
-    -- normal - RaycastResult.Normal
 
     --[==[
         Позиция конечности, вычисленная на основании `from` с учетом `leginfo.leg_diff`
@@ -1678,13 +1720,49 @@ export type ikr6limb <T = enumitem, U = ikr6limbinfo> = extend<{
     --[==[
         Принудительно пересоздать `fake`
     ]==]
-    read rebuild_fake: (self: ikr6limb<T,U>) -> ()
-}  & initiable<ikr6limb<T,U>> & switchable & referenceable<ikr6limb<T,U>, BasePart> & stateable<ikr6limb<T,U>, T>  & informable<ikr6limb<T,U>, U>, disposable>
+    read rebuild_fake: (self: ikr6limb<T,U>) -> (),
 
+    --[==[
+        Устанавливает режим для конечности.
+    ]==]
+    read set_mode: (self: ikr6limb<T,U>, mode: enumitem_iklimb_mode) -> ()
+}  & initiable<ikr6limb<T,U>> &
+    switchable &
+    referenceable<ikr6limb<T,U>, BasePart> &
+    stateable<ikr6limb<T,U>, T>  &
+    informable<ikr6limb<T,U>, U> &
+    I_targetable<ikr6limb<T,U>, basis>
+, disposable>
+
+--[==[
+    Объект, представляющий одну ногу для `ikr6legs`.
+]==]
 export type ikr6foot = extend<{}, ikr6limb<enumitem_iklegs_state, ikr6leginfo>>
 
+--[==[
+    Объект, представляющий самостоятельный buildin ik решатель для головы r6 рига
 
+    Для головы r6 рига строится шея. Верхняя часть торса р6 является основанием шеи. Далее строится
+    меридиана между шеей и головой, после чего получается полный цикл IK. Решатель смотрит на максимальные
+    углы поворота как самой головы, так и шеи. Относительно целевой точки в пространстве выстраивается путь
+    и положение головы. Самой шеи не существует, она вычисляется математически.
 
+    Решатель полностью предоставляет собственное поведение и автоматизирован относительно алгоритмической
+    сложности для пользователей
+]==]
+export type ikr6heads = extend<{
+
+    --[==[
+        Возвращает голову.
+    ]==]
+    read get_head: (self: ikr6heads) -> ikr6head
+} & initiable<ikr6heads>, ikr6solver>
+
+export type ikr6head = extend<{
+
+}, ikr6limb>
+
+export type ikr6headinfo = extend<{}, ikr6limbinfo>
 
 
 
@@ -2687,8 +2765,25 @@ export type enum_default_variant = extend<{
 	read Any: enumitem_default_variant,
 }, enumobject>
 
+--[==[
+    Экземпляры енамов для описания режима работы IKLimb.
+]==]
+export type enumitem_iklimb_mode = enumitem<enum_iklimb_mode>
+--[==[
+    Объект енам, содержащий в себе `enumitem_iklimb_mode`.
+]==]
+export type enum_iklimb_mode = extend<{
+    --[==[
+        Решатель ведет себя стандартно.
+    ]==]
+	read FakeIK: enumitem_iklimb_mode,
 
-
+    --[==[
+        Решатель выполняет fallback к текущему положению реальной конечности,
+        вместо того чтобы выполнять какую-либо работу с ним связанную.
+    ]==]
+	read RealFK: enumitem_iklimb_mode,
+}, enumobject>
 
 export type enumitem_list_notification = enumitem<enum_list_notification>
 export type enum_list_notification = extend<{
@@ -3638,4 +3733,19 @@ export type list_operations <T = unknown, U... = ...unknown> = {
         Ищет в объекте указанные элементы, возвращает были ли они или нет?
     ]==]
     read find: (self: T, U...) -> ...boolean
+}
+
+--[==[
+    Объект имеет цели ради которых выполняет какую-либо работу. Это общий интерфейс для таких объектов.
+]==]
+export type I_targetable <T = unknown, U = unknown> = {
+    --[==[
+        Устанавливает цель. Невалидные цели игнорирует.
+    ]==]
+    read set_target: (self: T, target: U) -> (),
+
+    --[==[
+        Получает цель объекта в зависимости от предоставляемого им контракта.
+    ]==]
+    read get_target: (self: T) -> U
 }

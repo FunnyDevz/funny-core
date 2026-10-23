@@ -1,21 +1,23 @@
 --!strict
-const Maybe = require("@game/ReplicatedStorage/class/common/gc/Maybe")
-const IKR6Foot = require("@game/ReplicatedStorage/class/game/play/characters/ik/r6/IKR6Foot")
-const IKR6Solver = require("@game/ReplicatedStorage/class/game/play/characters/ik/r6/IKR6Solver")
-const IKR6Info = require("@game/ReplicatedStorage/class/struct/game/IKR6Info")
-const IKR6LegInfo = require("@game/ReplicatedStorage/class/struct/game/ik/IKR6LegInfo")
-const Basis = require("@game/ReplicatedStorage/class/struct/geometry/Basis")
-const ConnectionVariant = require("@game/ReplicatedStorage/enums/descriptor/ConnectionVariant")
-const ReferenceNotification = require("@game/ReplicatedStorage/enums/notification/ReferenceNotification")
-const IKLegsState = require("@game/ReplicatedStorage/enums/state/IKLegsState")
-const engine = require("@game/ReplicatedStorage/platform/engine")
-const instance = require("@game/ReplicatedStorage/platform/instance")
-const worldspace = require("@game/ReplicatedStorage/platform/worldspace")
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
+const Maybe = require("@class/common/gc/Maybe")
+const IKR6Foot = require("@class/game/play/characters/ik/r6/IKR6Foot")
+const IKR6Solver = require("@class/game/play/characters/ik/r6/IKR6Solver")
+const IKR6Info = require("@class/struct/game/ik/IKR6Info")
+const IKR6LegInfo = require("@class/struct/game/ik/IKR6LegInfo")
+const Basis = require("@class/struct/geometry/Basis")
+const tables = require("@declare/tables")
+const ConnectionVariant = require("@enums/descriptor/ConnectionVariant")
+const types = require("@declare/types")
+const IKLimbMode = require("@enums/game/mode/IKLimbMode")
+const ReferenceNotification = require("@enums/notification/ReferenceNotification")
+const IKLegsState = require("@enums/state/IKLegsState")
+const stdout = require("@extension/stdout")
+const engine = require("@platform/roblox/engine")
+const instance = require("@platform/roblox/instance")
+const worldspace = require("@platform/roblox/worldspace")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
+const ftype = require("@static/ftype")
 
 const private = {}
 const class : ikr6legs = IKR6Solver:new {
@@ -34,26 +36,31 @@ const class : ikr6legs = IKR6Solver:new {
 
     get_active_cycle_leg_pair = ftype:write(function (self: ikr6legs) : (ikr6foot, ikr6foot)
         const left_leg = self:get_left_leg()
-        if left_leg.current then 
-            return left_leg, self:get_right_leg()
-        end
-
         const right_leg = self:get_right_leg()
 
-        if right_leg.current then
-            return right_leg, self:get_left_leg()
+        const left_ik = left_leg.mode == IKLimbMode.FakeIK
+        const right_ik = right_leg.mode == IKLimbMode.FakeIK
+
+        if left_ik ~= right_ik then
+            return left_ik and left_leg or right_leg, left_ik and right_leg or left_leg
         end
 
+        if left_leg.current then
+            return left_leg, right_leg
+        end
+        if right_leg.current then
+            return right_leg, left_leg
+        end
         return left_leg, right_leg
     end, ftype:var(IKR6Foot.type), "ikr6legs"),
 
     is_initiated = ftype:write(function (self: ikr6legs) : boolean
         return private.maybe_left_legs:exist(self) and private.maybe_right_legs:exist(self)
-    end, declare.boolean, "ikr6legs"),
+    end, types.boolean, "ikr6legs"),
 
     is_active = ftype:write(function (self: ikr6legs) : boolean
         return private.active[self] or false
-    end, declare.boolean, "ikr6legs")
+    end, types.boolean, "ikr6legs")
 }
 
 do
@@ -73,10 +80,14 @@ do
 	private.rayparams.BruteForceAllSlow = false
 	private.rayparams.IgnoreWater = true
     private.rayparams.ExcludeInstances = {}
-
     private.default_ikr6info = IKR6Info:new()
     private.default_ikr6leginfo_left = IKR6LegInfo:new({limb_diff = -IKR6LegInfo.limb_diff})
     private.default_ikr6leginfo_right = IKR6LegInfo:new({limb_diff = IKR6LegInfo.limb_diff})
+    private.list = setmetatable({} :: {ikr6legs}, tables.__mode_vs)
+    private.active = setmetatable({} :: {[ikr6legs]: boolean?}, tables.__mode_ks)
+    private.maybe_left_legs = Maybe:new() :: maybe<ikr6foot, ikr6legs>
+    private.maybe_right_legs = Maybe:new() :: maybe<ikr6foot, ikr6legs>
+    private.signal = engine.postphysic
 
     private.create_left_ikr6foot = function ()
         const new = IKR6Foot:new()
@@ -90,11 +101,7 @@ do
         return new
     end
 
-    private.list = setmetatable({} :: {ikr6legs}, declare.tables.__mode_vs)
-    private.active = setmetatable({} :: {[ikr6legs]: boolean?}, declare.tables.__mode_ks)
-    private.maybe_left_legs = Maybe:new() :: maybe<ikr6foot, ikr6legs>
-    private.maybe_right_legs = Maybe:new() :: maybe<ikr6foot, ikr6legs>
-    private.signal = engine.postphysic
+
 
     private.register_new = function (new: luaobject)
             const new = new:as <<ikr6legs>> (class.type)
@@ -109,34 +116,17 @@ do
                 const left_leg = new:get_left_leg()
                 const left_limb_part = instance.humanoid.get_limb_of(humanoid, Enum.Limb.LeftLeg)
                 left_leg:get_reference():set_instance(left_limb_part)
-                
 
                 if left_leg:is_initiated() then
                     left_leg:rebuild_fake()
                 end
 
-                
-        
                 const right_leg = new:get_right_leg()
                 const right_limb_part = instance.humanoid.get_limb_of(humanoid, Enum.Limb.RightLeg)
                 right_leg:get_reference():set_instance(right_limb_part)
 
                 if right_leg:is_initiated() then
                     right_leg:rebuild_fake()
-                end
-
-                if project.debug.state then
-                    if right_leg:is_initiated() then
-                        right_leg:rebuild_fake()
-                    end
-
-                    if left_leg:is_initiated() then
-                        left_leg:rebuild_fake()
-                    end
-
-                    if project.debug.show_ikr6legs_solver_path then
-                        project.console_out("new humanoid setup")
-                    end
                 end
             end
         )
@@ -258,18 +248,18 @@ do
         private.is_valid = function (ikr6foot: ikr6foot): boolean
             const reference_to_origin = ikr6foot:get_reference()
             if not reference_to_origin:is_instance_exists() then
-                if project.debug.state then
-                    project.console_out_error("cannot process leg fallback, because origin does not exists")
-                end
+                --#if IKR6LEGS_PRINT_ACT
+                stdout:outm("cannot process leg fallback, because origin does not exists")
+                --#endif
 
                 return false
             end
 
             const reference_to_fake = ikr6foot:get_fake()
             if not reference_to_fake:is_instance_exists() then
-                if project.debug.state then
-                    project.console_out_error("cannot process leg fallback, because fake does not exists")
-                end
+                --#if IKR6LEGS_PRINT_ACT
+                    stdout:outm("cannot process leg fallback, because fake does not exists")
+                --#endif
 
                 return false
             end
@@ -286,9 +276,9 @@ do
                 const fake_leg = fake:get_instance()
                 foot.fallback_basis = Basis:to_basis(fake_leg.CFrame)
             else
-                if project.debug.state then
-                    project.console_out_error("fake_leg does not exists, cannot create fallback basis, nothing to do")
-                end
+                --#if IKR6LEGS_PRINT_ACT
+                    stdout:outw("fake_leg does not exists, cannot create fallback basis, nothing to do")
+                --#endif
             end
 
         end
@@ -507,22 +497,67 @@ do
             return
         end
 
-        private.solver_foot = function (raw: raw, ikr6legs: ikr6legs, delta: number)
-            if project.debug.state and	project.debug.show_ikr6legs_solver_path then
-                project.console_out "foots"
+        private.solver_foot_realfk = function (raw: raw, foot: ikr6foot, delta: number)
+            const info = foot:get_info()
+            const reference_to_origin = foot:get_reference()
+            const reference_to_fake = foot:get_fake()
+
+            if not reference_to_fake:is_instance_exists() then
+                --#if IKR6LEGS_PRINT_ACT
+                stdout:outw("RealFK: fake does not exist")
+                --#endif
+                return
             end
 
+            if not reference_to_origin:is_instance_exists() then
+                if not foot.fallback then
+                    foot.fallback = true
+                    const sm = foot:get_states()
+
+                    sm:set_state(false, IKLegsState.Settling, IKLegsState.Stepping)
+                    sm:set_state(true, IKLegsState.Planted)
+                end
+
+                private.solver_leg_fallback(foot, info, delta)
+                return
+            end
+
+            if foot.fallback then
+                foot.fallback = false
+            end
+
+            const origin = reference_to_origin:get_instance()
+            const target = Basis:to_basis(origin.CFrame)
+
+            foot.target = target
+            foot.fallback_basis = target
+            foot.hit_position = target.position - target.rotation.up * (info.limb_size.y * 0.5)
+            foot.hit_normal = target.rotation.up
+
+            const fake_leg = reference_to_fake:get_instance()
+            fake_leg.CFrame = fake_leg.CFrame:Lerp(
+                Basis:to_cframe(target),
+                1 - math.exp(-info.limb_planted_speed * delta)
+            )
+        end
+
+        private.solver_foot = function (raw: raw, ikr6legs: ikr6legs, delta: number)
             for _, ikr6foot in {ikr6legs:get_left_leg(), ikr6legs:get_right_leg()} do
                 if not ikr6foot.enabled then continue end
+
+                if ikr6foot.mode == IKLimbMode.RealFK then
+                    private.solver_foot_realfk(raw, ikr6foot, delta)
+                    continue
+                end
 
                 const info = ikr6foot:get_info()
                 const state_machine = ikr6foot:get_states()
                 const fake = ikr6foot:get_fake()
 
                 if not fake:is_instance_exists() then
-                    if project.debug.state then
-                        project.console_out_error("cannot process null-reference fake-leg")
-                    end
+                    --#if IKR6LEGS_PRINT_ACT
+                        stdout:outw("cannot process null-reference fake-leg")
+                    --#endif
 
                     continue
                 end
@@ -568,10 +603,6 @@ do
     end
 
     private.solver_to_idle = function (raw: raw, ikr6foot: ikr6foot)
-        if project.debug.state and	project.debug.show_ikr6legs_solver_path then
-            project.console_out "move to idle"
-        end
-
         const state_machine = ikr6foot:get_states()
         const info = ikr6foot:get_info()
 
@@ -586,10 +617,6 @@ do
     end
 
     private.world_solver  = function (delta: number)
-        if project.debug.state and	project.debug.show_ikr6legs_solver_path then
-            project.console_out ("world solver with ikr6legs list:", #private.list )
-        end
-
         -- '__mode = "s"` gives the GC the right to reduce the size of the table,
         -- but this may cause optimization failures, so we cannot table.clear(private.active)
         for i, _ in private.active do
@@ -599,10 +626,6 @@ do
         for _, ik in private.list do
             if not ik.enabled then
                 private.mark_unactive(ik)
-
-                if project.debug.state and	project.debug.show_ikr6legs_solver_path then
-                    project.console_out "world solver unable"
-                end
 
                 continue
             end
@@ -623,28 +646,20 @@ do
                 ik.last_work_time -= interval
 
                 private.solver(ik, info, work_delta)
-            else
-                if project.debug.state and	project.debug.show_ikr6legs_solver_path then
-                    project.console_out "world solver skip"
-                end
             end
         end
     end
 
     private.solver = function (ik: ikr6legs, info: ikr6info, delta: number)
-        if project.debug.state and project.debug.show_ikr6legs_solver_path then
-            project.console_out(`solver ({ik:iden()})`)
-        end
-
         const reference_to_humanoid = ik:get_humanoid()
         const reference_to_torso = ik:get_torso()
 
         if not reference_to_humanoid:is_instance_exists() then 
             private.mark_unactive(ik)
 
-            if project.debug.state then
-                project.console_out ('this solver has no humanoid, skip')
-            end
+            --#if IKR6LEGS_PRINT_ACT
+                stdout:outw ('this solver has no humanoid, skip')
+            --#endif
 
             return
         end
@@ -652,9 +667,9 @@ do
         if not reference_to_torso:is_instance_exists() then
             private.mark_unactive(ik) 
 
-            if project.debug.state then
-                project.console_out ('this solver has no torso, skip')
-            end
+            --#if IKR6LEGS_PRINT_ACT
+            stdout:outw('this solver has no torso, skip')
+            --#endif
 
             return
         end
@@ -667,21 +682,31 @@ do
         private.modify_params(torso.Parent or torso)
         const raw = private.create_raw(torso, humanoid)
 
-        
         ik.current_idle_time = if raw.is_moving then 0 else ik.current_idle_time + delta
-
 
         private.solver_foot(raw, ik, delta)
 
         const left_leg = ik:get_left_leg()
         const right_leg = ik:get_right_leg()
 
-        private.solver_recover_fallback(raw, left_leg)
-        private.solver_recover_fallback(raw, right_leg)
+        if left_leg.mode == IKLimbMode.FakeIK then
+            private.solver_recover_fallback(raw, left_leg)
+        end
+        if right_leg.mode == IKLimbMode.FakeIK then
+            private.solver_recover_fallback(raw, right_leg)
+        end
 
         if not raw.is_moving and ik.current_idle_time >= info.idle_time then
-            private.solver_to_idle(raw, left_leg)
-            private.solver_to_idle(raw, right_leg)
+            if left_leg.mode == IKLimbMode.FakeIK then
+                private.solver_to_idle(raw, left_leg)
+            end
+            if right_leg.mode == IKLimbMode.FakeIK then
+                private.solver_to_idle(raw, right_leg)
+            end
+        end
+
+        if left_leg.mode ~= IKLimbMode.FakeIK or right_leg.mode ~= IKLimbMode.FakeIK then
+            return
         end
 
         const left_fallback = left_leg.fallback
@@ -731,9 +756,9 @@ do
     ctype:read(class):write_tag(ctags.immersiveness, ctags.inverse_kinematic, ctags.solver, ctags.class, ctags.game)
     class:host(private.register_new)
 
-    if project.game.smalltalk_like then
-        private.register_new(class)
-    end
+    --#if LUAOBJECT_SELF_REG
+    private.register_new(class)
+    --#endif   
 end
 
 return class

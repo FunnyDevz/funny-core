@@ -1,12 +1,16 @@
 --!strict
-const Maybe = require("@game/ReplicatedStorage/class/common/gc/Maybe")
-const Controller = require("@game/ReplicatedStorage/class/common/runtime/Controller")
-const EnumItem = require("@game/ReplicatedStorage/class/core/EnumItem")
-const Observer = require("@game/ReplicatedStorage/class/core/Observer")
-const ConnectionVariant = require("@game/ReplicatedStorage/enums/descriptor/ConnectionVariant")
-const OperationVariant = require("@game/ReplicatedStorage/enums/descriptor/OperationVariant")
-const TickNotification = require("@game/ReplicatedStorage/enums/notification/TickNotification")
-const ControllerState = require("@game/ReplicatedStorage/enums/state/ControllerState")
+const Maybe = require("@class/common/gc/Maybe")
+const Controller = require("@class/common/runtime/Controller")
+const EnumItem = require("@class/core/EnumItem")
+const Observer = require("@class/core/Observer")
+const mtypes = require("@declare/mtypes")
+const types = require("@declare/types")
+const ConnectionVariant = require("@enums/descriptor/ConnectionVariant")
+const OperationVariant = require("@enums/descriptor/OperationVariant")
+const TickNotification = require("@enums/notification/TickNotification")
+const ControllerState = require("@enums/state/ControllerState")
+const ftype = require("@static/ftype")
+
 
 const private = {}
 const class : timer = (Observer :: observer<enumitem_tick_notification>):new {
@@ -14,41 +18,41 @@ const class : timer = (Observer :: observer<enumitem_tick_notification>):new {
 	iterate = 1,
 	modifier = 1,
 
-	get_control = function (self: timer): controller
+	get_control = ftype:write(function (self: timer): controller
 		return private.maybe:enactment(self, Controller)
-	end,
+	end, Controller.type, "timer"),
 
-	get_elapsed = function (self: timer) : number
+	get_elapsed = ftype:write(function (self: timer) : number
 		return self:get_duration() - self:get_remaining()
-	end,
+	end, types.number, "timer"),
 
-	get_remaining = function (self: timer) : number
+	get_remaining = ftype:write(function (self: timer) : number
 		return private.get(self).remaining
-	end,
+	end, types.number, "timer"),
 
-	get_duration = function (self: timer) : number
+	get_duration = ftype:write(function (self: timer) : number
 		return private.get(self).duration
-	end,
+	end, types.number, "timer"),
 
-	get_step = function (self: timer) : number
+	get_step = ftype:write(function (self: timer) : number
 		return private.get(self).step
-	end,
+	end, types.number, "timer"),
 
-	set_duration = function (self: timer, duration: number) : ()
+	set_duration = ftype:write(function (self: timer, duration: number) : ()
 		private.get(self).duration = duration
-	end,
+	end, mtypes.never, "timer", types.number),
 
-	set_step = function (self: timer, step: number) : ()
+	set_step = ftype:write(function (self: timer, step: number) : ()
 		private.get(self).step = step
-	end,
+	end, mtypes.never, "timer", types.number),
 
-	is_running = function (self: timer) : boolean
+	is_running = ftype:write(function (self: timer) : boolean
 		return private.get(self).remaining > 0
-	end,
+	end, types.boolean, "timer"),
 
-	is_finished = function (self: timer) : boolean
+	is_finished = ftype:write(function (self: timer) : boolean
 		return private.get(self).remaining <= 0
-	end
+	end, types.boolean, "timer")
 
 }
 
@@ -128,7 +132,6 @@ do
 
 	private.maybe = Maybe:new() :: maybe<controller, timer>
 	private.internal_item = EnumItem:new {name = "InternalTimerItem"}
-
 	private.maybe:subscribe(OperationVariant.New, ConnectionVariant.Ever, function (it: timer, controller: controller)
 		it:notificate(private.internal_item, controller)
 	end)

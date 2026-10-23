@@ -1,9 +1,9 @@
 [package]
-name = "ifmnb/forgotten-grave"
-version = "0.0.1"
-license = "MIT"
-authors = ["Aftersky", "serp2587"]
-description = "Source code of ForgottenGrave game"
+name = "ifmnb/fog"
+version = "2610.21.0"
+license = "MPLv2"
+authors = ["IFMNB, TheExeDEV,"]
+description = "Foundation of games."
 
 repository = "https://github.com/IFMNB/fog-rbx"
 registry = "https://github.com/UpliftGames/wally-index"
@@ -12,34 +12,14 @@ realm = "shared"
 
 [dependencies]
 
-#clientside
-
-ExpressivePrompts = "miagobble/expressive-prompts@1.1.5"
-
-Concur = "sleitnick/concur@0.1.2" # Task async control
-
-Videlib = "centau/vide@0.4.1" # UI Library
-
-Lori = "kyrorblx/lori@0.1.7" # Debug manager
-Konsole = "kyrorblx/konsole@0.1.11" # Console manager
 Cryptography = "daily3014/cryptography@1.5.0" # Security/Hash
-Squash = "data-oriented-house/squash@5.0.0" # Buffer/Ser
 
 Quat = "ifmnb/quat@2609.23.1"
 SAT = "ifmnb/algorithm-sat@2609.7.0"
 ArrayBuffer = "ifmnb/array-buffer@2609.7.1"
 ECSB = "ifmnb/algorithm-ecsb@2609.7.0"
 
-Chrono = "parihsz/chrono@2.1.6"
-Jolt = "toriumslurs/jolt@4.4.0"
-
-[server-dependencies]
-
-FastCast2 = "weenachuangkud/fastcast2@0.1.4"
-ProfileStore = "lm-loleris/profilestore@1.0.3"
-
 
 [dev-dependencies]
-# CI test cfg
 Jest = "roblox/jest@=3.20.0"
 JestGlobals = "roblox/jest-globals@=3.20.0"

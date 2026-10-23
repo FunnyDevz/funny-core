@@ -1,6 +1,5 @@
 --!strict
-
-const declare = require("./declare")
+const types = require("@static/declare/types")
 
 --[==[
 	Represents a type value.
@@ -46,7 +45,7 @@ argument.metatable = table.freeze {
 	a descriptor from a raw type name.
 ]==]
 function argument.pack(value: tval, opt: boolean?, var: boolean?, uor: boolean?): argument
-	if type(value) == declare.string then
+	if type(value) == types.string then
 		return table.freeze(setmetatable({
 			tval = table.freeze({
 				value :: string,
@@ -62,7 +61,7 @@ function argument.pack(value: tval, opt: boolean?, var: boolean?, uor: boolean?)
 end
 
 function argument.new(value: { tval }, opt: boolean?, var: boolean?, uor: boolean?): argument
-	if type(value) == declare.string then
+	if type(value) == types.string then
 		return table.freeze(setmetatable({
 			tval = value,
 			opt = opt == true,
@@ -95,6 +94,6 @@ function argument.has_tval(self: argument, value: tval): boolean
 	return false
 end
 
-argument.unknown = argument.pack(declare["nil"], false, false, false)
+argument.unknown = argument.pack(types["nil"], false, false, false)
 
 return table.freeze(argument)

@@ -1,11 +1,14 @@
 --!strict
-const Observer = require("@game/ReplicatedStorage/class/core/Observer")
-const SecurityRNG = require("@game/ReplicatedStorage/class/service/SecurityRNG")
-const OperationVariant = require("@game/ReplicatedStorage/enums/descriptor/OperationVariant")
-const LuaObject = require("@game/ReplicatedStorage/class/core/LuaObject")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
+const LuaObject = require("@class/core/LuaObject")
+const Observer = require("@class/core/Observer")
+const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
+const types = require("@declare/types")
+const OperationVariant = require("@enums/descriptor/OperationVariant")
+const stderr = require("@extension/stderr")
+const Cryptography = require("@import/Cryptography")
+const ftype = require("@static/ftype")
+
 
 const private = {}
 const class: maybe = (Observer :: observer<enumitem_operation_variant>):new({
@@ -21,10 +24,10 @@ const class: maybe = (Observer :: observer<enumitem_operation_variant>):new({
 		end
 
 		return that
-	end, declare.anyt, "maybe", declare.anyt, declare["function"]),
+	end, mtypes.anyt, "maybe", mtypes.anyt, types["function"]),
 
 	enactment = ftype:write(function (self: maybe, it: unknown, of: luaobject) : luaobject
-		if not project.assert(self:that(of, "LuaObject"), "unexpected obhect", true) then
+		if not stderr:assert(self:that(of, "LuaObject"), "unexpected obhect") then
 			return of
 		end
 
@@ -38,11 +41,11 @@ const class: maybe = (Observer :: observer<enumitem_operation_variant>):new({
 		end
 
 		return current :: any
-	end, LuaObject.type, "maybe", declare.anyt, LuaObject.type),
+	end, LuaObject.type, "maybe", mtypes.anyt, LuaObject.type),
 
 	exist = ftype:write(function(self: maybe, it: unknown): boolean
 		return private.get(self)[it] ~= nil
-	end, declare.boolean, "maybe", declare.anyt),
+	end, types.boolean, "maybe", mtypes.anyt),
 
 	erase = ftype:write(function(self: maybe, it: unknown): ()
 		const stored = private.get(self)
@@ -51,16 +54,16 @@ const class: maybe = (Observer :: observer<enumitem_operation_variant>):new({
 		stored[it] = nil
 
 		self:notificate(OperationVariant.Remove, it)
-	end, declare["nil"], "maybe", declare.anyt),
+	end, mtypes.never, "maybe", mtypes.anyt),
 })
 
 class:host(function(new)
 	const new = new:as <<maybe>> (class.type)
-	new:set(private.key, setmetatable({}, declare.tables.__mode_ks))
+	new:set(private.key, setmetatable({}, tables.__mode_ks))
 end)
 
 do
-	private.key = SecurityRNG:get_hash_blake3("maybe_key")
+	private.key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "maybe_key")
 	private.get = function (self: maybe)
 		return self:get <<{[unknown]: unknown}>>(private.key)
 	end

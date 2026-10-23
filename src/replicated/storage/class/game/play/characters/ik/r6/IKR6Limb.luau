@@ -1,26 +1,31 @@
 --!strict
-const Reference = require("@game/ReplicatedStorage/class/common/Reference")
-const StateMachine = require("@game/ReplicatedStorage/class/common/StateMachine")
-const Maybe = require("@game/ReplicatedStorage/class/common/gc/Maybe")
-const Disposable = require("@game/ReplicatedStorage/class/core/Disposable")
-const SecurityRNG = require("@game/ReplicatedStorage/class/service/SecurityRNG")
-const IKR6LimbInfo = require("@game/ReplicatedStorage/class/struct/game/ik/IKR6LimbInfo")
-const Basis = require("@game/ReplicatedStorage/class/struct/geometry/Basis")
-const ConnectionVariant = require("@game/ReplicatedStorage/enums/descriptor/ConnectionVariant")
-const ReferenceNotification = require("@game/ReplicatedStorage/enums/notification/ReferenceNotification")
-const engine = require("@game/ReplicatedStorage/platform/engine")
-const worldspace = require("@game/ReplicatedStorage/platform/worldspace")
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
-const ReferenceBasePart = require("@game/ReplicatedStorage/templates/class/reference/ReferenceBasePart")
+const Reference = require("@class/common/Reference")
+const StateMachine = require("@class/common/StateMachine")
+const Maybe = require("@class/common/gc/Maybe")
+const Disposable = require("@class/core/Disposable")
+const EnumItem = require("@class/core/EnumItem")
+const IKR6LimbInfo = require("@class/struct/game/ik/IKR6LimbInfo")
+const Basis = require("@class/struct/geometry/Basis")
+const mtypes = require("@declare/mtypes")
+const types = require("@declare/types")
+const ConnectionVariant = require("@enums/descriptor/ConnectionVariant")
+const IKLimbMode = require("@enums/game/mode/IKLimbMode")
+const ReferenceNotification = require("@enums/notification/ReferenceNotification")
+const IKLegsState = require("@enums/state/IKLegsState")
+const stdout = require("@extension/stdout")
+const Cryptography = require("@import/Cryptography")
+const engine = require("@platform/roblox/engine")
+const worldspace = require("@platform/roblox/worldspace")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
+const ftype = require("@static/ftype")
+const ReferenceBasePart = require("@templates/class/reference/ReferenceBasePart")
 
 const private = {}
 const class : ikr6limb = Disposable:new {
     type = "ikr6limb",
 
+    mode = IKLimbMode.FakeIK,
     current = false,
     enabled = false,
     fallback = false,
@@ -36,7 +41,7 @@ const class : ikr6limb = Disposable:new {
 
     is_visible = ftype:write(function (self: ikr6limb) : boolean
         return private.get_visible(self)
-    end, declare.boolean, "ikr6limb"),
+    end, types.boolean, "ikr6limb"),
 
     is_orientation_finished = ftype:write(function (self: ikr6limb) : boolean
         const fake = self:get_fake()
@@ -48,7 +53,7 @@ const class : ikr6limb = Disposable:new {
         const up_dot = math.clamp(vector.dot(current_up, target_up), -1, 1)
 
         return math.acos(up_dot) <= self:get_info().limb_orientation_mistake_angle
-    end, declare.boolean, "ikr6limb"),
+    end, types.boolean, "ikr6limb"),
 
     is_moving_finished = ftype:write (function (self: ikr6limb) : boolean
         const fake = self:get_fake()
@@ -62,11 +67,11 @@ const class : ikr6limb = Disposable:new {
         const target_up = self.target.rotation.up
 
         return math.acos(math.clamp(vector.dot(current_up, target_up), -1, 1)) <= math.rad(5)
-    end, declare.boolean, "ikr6limb"),
+    end, types.boolean, "ikr6limb"),
 
     get_limb_contact = ftype:write(function (self: ikr6limb) : vector
         return self.target.position - self.target.rotation.up * (self:get_info().limb_size.y * 0.5)
-    end, declare.vector, "ikr6limb"),
+    end, types.vector, "ikr6limb"),
 
     set_visible = ftype:write(function (self: ikr6limb, to: boolean)  : ()
         self:set(private.visible_key, to)
@@ -82,7 +87,7 @@ const class : ikr6limb = Disposable:new {
                 instance_of_fake_leg.LocalTransparencyModifier = .5
             end
         end
-    end, declare["nil"], "ikr6limb", declare.boolean),
+    end, mtypes.never, "ikr6limb", types.boolean),
 
     get_states = ftype:write(function (self: ikr6limb) : statemachine
         return private.states:enactment(self, StateMachine)
@@ -90,7 +95,7 @@ const class : ikr6limb = Disposable:new {
 
     is_initiated = ftype:write(function (self: ikr6limb) : boolean
         return private.maybe_fake:exist(self)
-    end, declare.boolean, "ikr6limb"),
+    end, types.boolean, "ikr6limb"),
 
     get_limb_target = ftype:write(function (self: ikr6limb) : basis
         const fake = self:get_fake()
@@ -160,7 +165,7 @@ const class : ikr6limb = Disposable:new {
         const pole_length = if has_move then half else distance * 0.1
 
         return midpoint + pole_dir * pole_length + bend_up * half
-    end, declare.vector, "ikr6limb", declare.vector, declare.vector),
+    end, types.vector, "ikr6limb", types.vector, types.vector),
 
     get_limb_facing = ftype:write(function (self: ikr6limb, with_move_direction: vector, with_main_look_direction: vector?) : vector
         if vector.magnitude(with_move_direction) <= 1e-5 then
@@ -175,7 +180,7 @@ const class : ikr6limb = Disposable:new {
         end
 
         return move
-    end, declare.vector, "ikr6limb", declare.vector, ftype:opt(declare.vector)),
+    end, types.vector, "ikr6limb", types.vector, ftype:opt(types.vector)),
 
     get_limb_basis = ftype:write(function (self: ikr6limb, coordinate: basis, knee: vector, with_main_look_direction: vector) : basis
         const knee_local = coordinate:point_to_local(knee)
@@ -215,7 +220,7 @@ const class : ikr6limb = Disposable:new {
 
         self.current_basis = output
         return output
-    end, Basis.type, "ikr6limb", Basis.type, declare.vector, declare.vector),
+    end, Basis.type, "ikr6limb", Basis.type, types.vector, types.vector),
 
     get_info = ftype:write(function (self: ikr6limb) : ikr6limbinfo
         return self:get <<ikr6limbinfo>> (private.info_key)
@@ -223,7 +228,7 @@ const class : ikr6limb = Disposable:new {
 
     set_info = ftype:write(function (self: ikr6limb, new: ikr6limbinfo): ()
         self:set(private.info_key, new)
-    end, declare["nil"], "ikr6limb", IKR6LimbInfo.type),
+    end, mtypes.never, "ikr6limb", IKR6LimbInfo.type),
 
     get_reference = ftype:write(function (self: ikr6limb) : reference<BasePart>
         return private.maybe_origin:enactment(self, Reference)
@@ -245,7 +250,31 @@ const class : ikr6limb = Disposable:new {
             private.maybe_fake:erase(self)
             self:get_fake()
         end
-    end, declare["nil"], "ikr6limnb")
+    end, mtypes.never, "ikr6limnb"),
+
+    set_target = ftype:write(function (self: ikr6limb, target: basis) : ()
+        if (not self.it(target, "basis")) then
+            return
+        end
+
+        self.target = target
+    end, mtypes.never, "ikr6limb", "basis"),
+
+    get_target = ftype:write(function (self: ikr6limb) : basis
+        return self.target
+    end, "basis", "ikr6limb"),
+
+    set_mode = ftype:write(function (self: ikr6limb, new: enumitem_iklimb_mode) : ()
+        if self.mode == new then return end
+        self.mode = new
+
+        const sm = self:get_states()
+        sm:set_state(false, IKLegsState.Stepping, IKLegsState.Settling)
+        sm:set_state(true, IKLegsState.Planted)
+
+        self.fallback = false
+        self.accumulated_distance = 0
+    end, mtypes.never, "ikr6limb", EnumItem.type),
 }
 
 class:host(function(new): ()
@@ -256,8 +285,8 @@ end)
 
 do
     private.states = Maybe:new() :: maybe<statemachine, ikr6limb>
-    private.info_key = SecurityRNG:get_hash_sha256("r6foot_info_key")
-    private.visible_key = SecurityRNG:get_hash_blake3("r6foot_visible_key")
+    private.info_key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "r6foot_info_key")
+    private.visible_key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "r6foot_visible_key")
     private.default_info = IKR6LimbInfo:new()
     private.maybe_origin = Maybe:new() :: maybe<reference<BasePart>, ikr6limb>
     private.maybe_fake = Maybe:new() :: maybe<reference<BasePart>, ikr6limb>
@@ -289,9 +318,7 @@ do
             if reference_of_origin:is_instance_exists() then
                 new = reference_of_origin:get_instance():Clone()
             else
-                if project.debug.state then
-                    project.console_out_error("cannot create clone of origin, because origin does not exists. Fallback to default part")
-                end
+                stdout:outm("cannot create clone of origin, because origin does not exists. Fallback to default part")
 
                 new = Instance.new "Part"
                 new.Size = worldspace.to_vector3(info.limb_size)
@@ -405,7 +432,9 @@ do
         reference:subscribe({ReferenceNotification.ChangedInstance, ReferenceNotification.NullifiedInstance, ReferenceNotification.NewInstance}, ConnectionVariant.Ever, function ()
             if reference:get_instance() ~= new then
                 reference:set_instance(new)
-                project.console_out_error("changing Part instance of R6Foot fake_leg isn't allowed, change aborted")
+                --#if IKR6LIMB_PRINT_ACT
+                stdout:outw("changing Part instance of R6Foot fake_leg isn't allowed, change aborted")
+                --#endif
             end
         end)
 
@@ -422,9 +451,9 @@ do
             new.CFrame = origin_instance.CFrame
             new.Parent = origin_instance
         else
-            if project.debug.state then
-                project.console_out("origin does not exists, fallback to workspace")
-            end
+            --#if IKR6LIMB_PRINT_ACT
+            stdout:outw("origin does not exists, fallback to workspace")
+            --endif
 
             new.Parent = workspace
         end

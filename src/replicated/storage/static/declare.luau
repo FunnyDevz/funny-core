@@ -1,6 +1,11 @@
 --!strict
 
-return table.freeze({
+--[==[
+	Адаптер над магической частью как языка, так и ядра. В большинстве случаев бесполезен и из себя особо ничего не
+	представляет интересного. Однако можно посмотреть на `неправильное` поведение кода, если подменить значения
+	отсюда на фейковые. В большинстве случаев (если не везде вообще) код использует именно этот адаптер для проверок
+]==]
+const declare = table.freeze {
 	["nil"] = "nil" :: "nil",
 	["number"] = "number" :: "number",
 	["string"] = "string" :: "string",
@@ -17,8 +22,15 @@ return table.freeze({
 		["init"] = "init" :: "init",
 	}),
 
-	--[==[
+	["tag"] = table.freeze {
+		--[==[
+			Это поле недоступно для чтения.
+		]==]
+		["NOT_EXISTS"] = "NOT_EXISTS" :: "NOT_EXISTS"
+	},
 
+	--[==[
+		Попытается вывести user type значения, если это доступно
 	]==]
 	utypeof = function(of: any)
 		const T = typeof(of)
@@ -92,7 +104,7 @@ return table.freeze({
 		["__uindex"] = "__uindex" :: "__uindex",
 
 		--[==[
-			Идея взята из Godot. Для данных, которые были 
+			Идея взята из Godot, не реализовано, но зарезервировано
 		]==]
 		["__urpc"] = "__urpc" :: "__urpc",
 
@@ -176,6 +188,8 @@ return table.freeze({
 		["__mode_vs"] = table.freeze({ __mode = "vs" :: "vs" }),
 		["__mode_kvs"] = table.freeze({ __mode = "kvs" :: "kvs" }),
 		["__newindex_null"] = table.freeze({ __newindex = function() end }),
-		["__null"] = setmetatable({} :: { [any]: any }, { __newindex = function() end }),
+		["__null"] = setmetatable({}, { __newindex = function() end }) :: any,
 	}),
-})
+}
+
+return declare

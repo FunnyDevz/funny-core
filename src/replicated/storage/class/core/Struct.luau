@@ -1,11 +1,10 @@
 --!strict
-
-const LuaObject = require("@game/ReplicatedStorage/class/core/LuaObject")
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
+const LuaObject = require("@class/core/LuaObject")
+const types = require("@declare/types")
+const stdout = require("@extension/stdout")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
+const ftype = require("@static/ftype")
 
 type indexed = struct & {[unknown]: unknown}
 
@@ -30,14 +29,14 @@ const class: struct = LuaObject:new({
             const new = base:new(reconv)
             return new
         else
-            project.console_out_error "cannot take base, return self"
+            stdout:oute "cannot take base, return self"
             return self
         end
     end, "struct", "struct"),
 
     each = ftype:write(function (self: struct, type: string, f: (value: any) -> any) : {[unknown]: any}
         return private.for_each_element_with_type_do(self, type, f) :: any
-    end, declare.table, "struct", declare.string, declare["function"])
+    end, types.table, "struct", types.string, types["function"])
 })
 
 do

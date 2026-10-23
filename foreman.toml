@@ -3,3 +3,4 @@ rojo = { github = "rojo-rbx/rojo", version = "7.7.0" }
 wally = { github = "UpliftGames/wally", version = "0.3.2" }
 StyLua = { github = "JohnnyMorganz/StyLua", version = "2.5.2" }
 jest-roblox-cli = { github = "christopher-buss/jest-roblox-cli", version = "0.4.0"}
+darklua = { github = "seaofvoices/darklua", version = "=0.19.0" }

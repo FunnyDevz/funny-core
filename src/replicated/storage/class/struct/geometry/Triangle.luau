@@ -1,12 +1,11 @@
 --!strict
 --!native
 --!optimize 2
-
-const GeoVolume = require("@game/ReplicatedStorage/class/struct/geometry/GeoVolume")
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
+const GeoVolume = require("@class/struct/geometry/GeoVolume")
+const types = require("@declare/types")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
+const ftype = require("@static/ftype")
 
 const class: triangle = (GeoVolume :: geovolume<triangle>):new({
 	type = "triangle",
@@ -20,19 +19,19 @@ const class: triangle = (GeoVolume :: geovolume<triangle>):new({
 			up = up,
 			front = front,
 		})
-	end, "triangle", "triangle", ftype:opt(declare.vector), ftype:opt(declare.vector), ftype:opt(declare.vector)),
+	end, "triangle", "triangle", ftype:opt(types.vector), ftype:opt(types.vector), ftype:opt(types.vector)),
 
 	get_center = ftype:write(function(self: triangle): vector
 		return (self.right + self.up + self.front) / 3
-	end, declare.vector, "triangle"),
+	end, types.vector, "triangle"),
 
 	get_normal_interpolated = ftype:write(function(self: triangle): vector
 		return vector.normalize(self.right + self.up + self.front)
-	end, declare.vector, "triangle"),
+	end, types.vector, "triangle"),
 
 	get_normal_geometric = ftype:write(function(self: triangle): vector
 		return vector.cross((self.up - self.right), (self.front - self.right))
-	end, declare.vector, "triangle"),
+	end, types.vector, "triangle"),
 })
 
 ctype:read(class):write_tag(ctags.geometry, ctags.struct)

@@ -1,14 +1,15 @@
 --!strict
-const StateMachine = require("@game/ReplicatedStorage/class/common/StateMachine")
-const Maybe = require("@game/ReplicatedStorage/class/common/gc/Maybe")
-const Timer = require("@game/ReplicatedStorage/class/common/runtime/Timer")
-const Observer = require("@game/ReplicatedStorage/class/core/Observer")
-const SecurityRNG = require("@game/ReplicatedStorage/class/service/SecurityRNG")
-const AbilityInfo = require("@game/ReplicatedStorage/class/struct/game/AbilityInfo")
-const AbilityNotification = require("@game/ReplicatedStorage/enums/notification/AbilityNotification")
-const RoundState = require("@game/ReplicatedStorage/enums/state/RoundState")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const project = require("@game/ReplicatedStorage/static/project")
+const StateMachine = require("@class/common/StateMachine")
+const Maybe = require("@class/common/gc/Maybe")
+const Timer = require("@class/common/runtime/Timer")
+const Observer = require("@class/core/Observer")
+const AbilityInfo = require("@class/struct/game/AbilityInfo")
+const tables = require("@declare/tables")
+const AbilityNotification = require("@enums/notification/AbilityNotification")
+const RoundState = require("@enums/state/RoundState")
+const stdout = require("@extension/stdout")
+const Cryptography = require("@import/Cryptography")
+
 
 const private = {}
 const class: ability = (Observer :: observer<enumitem_ability_notification>):new {
@@ -16,10 +17,11 @@ const class: ability = (Observer :: observer<enumitem_ability_notification>):new
 
     activate = function (self: ability, on: character, ...: any) : ()
         if not self:cooldown():is_finished() then
-            if project.debug then
-                project.console_out("cannot activate current ability")
-            end
-            
+
+            --#if ABILITY_PRINT_ACT
+            stdout:out("cannot active current ability, cooldown")
+            --#endif
+
             return
         end
 
@@ -73,13 +75,13 @@ class:host(function(new)
     const new = new:as <<ability>> (class.type)
 
     new:set_info(private.default_ability_info)
-    new:set(private.collision_key, setmetatable({}, declare.tables.__mode_vs))
+    new:set(private.collision_key, setmetatable({}, tables.__mode_vs))
 end)
 
 do
     private.default_ability_info = AbilityInfo:new()
-    private.collision_key = SecurityRNG:get_hash_blake3("ability_collisions_key")
-    private.info_key = SecurityRNG:get_hash_sha256("ability_info_key")
+    private.collision_key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring  "ability_collisions_key")
+    private.info_key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring  "ability_info_key")
     private.maybe_statemachine = Maybe:new() :: maybe<statemachine, ability>
     private.maybe_cooldown = Maybe:new() :: maybe<timer, ability>
 

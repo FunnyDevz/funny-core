@@ -1,23 +1,26 @@
 --!strict
-const LuaObject = require("@game/ReplicatedStorage/class/core/LuaObject")
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
+const LuaObject = require("@class/core/LuaObject")
+const mtypes = require("@declare/mtypes")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
+const types = require("@declare/types")
+const ftype = require("@static/ftype")
 
 const private = {}
 const class: variable = LuaObject:new({
 	creation_time = os.clock(),
 
-	get_value = function<T>(self: variable<T>): unknown
+	get_value = ftype:write(function<T>(self: variable<T>): unknown
 		return private.space[self][#private.space[self]]
-	end,
+	end, ftype:opt(mtypes.anyt), "variable"),
 
-	set_value = function<T>(self: variable<T>, to: T): ()
+	set_value = ftype:write(function<T>(self: variable<T>, to: T): ()
 		private.space[self][#private.space[self]] = to
-	end,
+	end, mtypes.never, "variable", ftype:opt(mtypes.anyt)),
 
-	history = function<T>(self: variable<T>): { [number]: T }
+	history = ftype:write(function<T>(self: variable<T>): { [number]: T }
 		return table.clone(private.space[self])
-	end,
+	end, types.table, "variable"),
 })
 
 class:host(function(new: luaobject)

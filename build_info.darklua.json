@@ -1,0 +1,14 @@
+{
+  "rules": [
+    {
+      "rule": "convert_require",
+      "current": {
+        "name": "luau",
+        "use_luau_configuration": true
+      },
+      "target": {
+        "name": "path"
+      }
+    }
+  ]
+}

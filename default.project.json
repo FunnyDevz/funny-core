@@ -37,19 +37,6 @@
     "ServerStorage": {
       "$path": "src/server/storage",
 
-      "models": {
-        "$className": "Folder",
-        "weaponry": {
-          "$className": "Folder"
-        },
-        "armory": {
-          "$className": "Folder"
-        },
-        "clothes": {
-          "$className": "Folder"
-        }
-      },
-
       "server_dependency": {
           "$path": "ServerPackages"
         }

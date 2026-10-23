@@ -1,12 +1,11 @@
 --!strict
 --!native
 --!optimize 2
-
-const GeoVolume = require("@game/ReplicatedStorage/class/struct/geometry/GeoVolume")
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
+const GeoVolume = require("@class/struct/geometry/GeoVolume")
+const types = require("@declare/types")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
+const ftype = require("@static/ftype")
 
 const class : directions = GeoVolume:new {
     type = "directions",
@@ -17,7 +16,7 @@ const class : directions = GeoVolume:new {
 
     to_vector = ftype:write(function (self: directions) : vector
         return vector.create(vector.magnitude(self.right), vector.magnitude(self.up), vector.magnitude(self.front))
-    end, declare.vector, "directions"),
+    end, types.vector, "directions"),
 }
 
 ctype:read(class):write_tag(ctags.geometry, ctags.struct)

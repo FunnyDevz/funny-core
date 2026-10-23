@@ -1,9 +1,8 @@
 --!strict
-const LuaObject = require("@game/ReplicatedStorage/class/core/LuaObject")
-const Cryptography = require("@game/ReplicatedStorage/dependency/Cryptography")
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
-const project = require("@game/ReplicatedStorage/static/project")
+const LuaObject = require("@class/core/LuaObject")
+const Cryptography = require("@import/Cryptography")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
 
 const class: enumitem = LuaObject:new({
 	type = "enumitem",
@@ -12,14 +11,15 @@ const class: enumitem = LuaObject:new({
 	enum = nil :: never,
 })
 
-class:host(function(new: luaobject)
+class:host(function(new)
 	const new = new:as <<enumitem>> (class.type);
+	const tnew: any = new
 
-	(new :: any).hashlink = Cryptography.Hashing.Blake3.Digest(buffer.fromstring(new.name))
+	tnew.hashlink = Cryptography.Hashing.Blake3.Digest(buffer.fromstring(new.name))
 
-	if project.enums.enumitem_freeze then
-		table.freeze(new)
-	end
+	--#if ENUMITEM_FREEZE_NEW
+	table.freeze(new)
+	--#endif
 end)
 
 ctype:read(class):write_tag(ctags.core)

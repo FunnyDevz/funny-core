@@ -1,6 +1,6 @@
 --!strict
-const Struct = require("@game/ReplicatedStorage/class/core/Struct")
-const declare = require("@game/ReplicatedStorage/static/declare")
+const Struct = require("@class/core/Struct")
+const types = require("@declare/types")
 
 const class: result = Struct:new({
 	type = "result",
@@ -8,7 +8,7 @@ const class: result = Struct:new({
 	result = nil,
 
 	unpack = function(self: result): ...unknown
-		if type(self.result) == declare.table then
+		if type(self.result) == types.table then
 			return unpack(self.result :: { unknown })
 		else
 			return nil

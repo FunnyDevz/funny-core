@@ -1,18 +1,22 @@
 --!strict
-const Observer = require("@game/ReplicatedStorage/class/core/Observer")
-const SecurityRNG = require("@game/ReplicatedStorage/class/service/SecurityRNG")
-const declare = require("@game/ReplicatedStorage/static/declare")
+const Observer = require("@class/core/Observer")
+const Character = require("@class/game/play/Character")
+const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
+const types = require("@declare/types")
+const Cryptography = require("@import/Cryptography")
+const ftype = require("@static/ftype")
 
 const private = {}
 const class : faction = (Observer :: observer<enumitem_faction_notification>):new {
     type = "faction",
     name = "default_faction_name",
 
-    get_member = function (self: faction) : ...character
+    get_member = ftype:write(function (self: faction) : ...character
         return table.unpack(private.get(self))
-    end,
+    end, ftype:var(Character.type), "faction"),
 
-    add_member = function (self: faction, ...: character) : ()
+    add_member = ftype:write(function (self: faction, ...: character) : ()
         const list = private.get(self)
 
         for _, v in {...} do
@@ -20,17 +24,17 @@ const class : faction = (Observer :: observer<enumitem_faction_notification>):ne
                 table.insert(list, v)
             end
         end
-    end,
+    end, mtypes.never, "faction", ftype:var(Character.type)),
 
-    rem_member = function (self: faction, ...: character) : ()
+    rem_member = ftype:write(function (self: faction, ...: character) : ()
         const list = private.get(self)
 
         for _, v in {...} do
             table.remove(list, table.find(list, v) or 0)
         end
-    end,
+    end, mtypes.never, "faction", ftype:var(Character.type)),
 
-    is_member = function (self: faction, ...:character) : boolean
+    is_member = ftype:write(function (self: faction, ...:character) : boolean
         const list = private.get(self)
 
         for _, v in list do
@@ -40,16 +44,18 @@ const class : faction = (Observer :: observer<enumitem_faction_notification>):ne
         end
 
         return true
-    end
+    end, types.boolean, "faction", ftype:var(Character.type))
 }
 
 
-class:host(function(new: faction)
-    new:set(private.key, setmetatable({}, declare.tables.__mode_vs))
+class:host(function(new)
+    const new = new:as <<faction>> (class.type)
+
+    new:set(private.key, setmetatable({}, tables.__mode_vs))
 end)
 
 do
-    private.key = SecurityRNG:get_hash_sha256("faction_key")
+    private.key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring("Faction_Key_Unique"))
     private.get = function (self: faction)
         return self:get <<{character}>>(private.key)
     end

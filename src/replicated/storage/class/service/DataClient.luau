@@ -1,15 +1,16 @@
 --!strict
-const Service = require("@game/ReplicatedStorage/class/core/Service")
-const Event = require("@game/ReplicatedStorage/class/common/signal/Event")
-const SharedNet = require("@game/ReplicatedStorage/class/service/SharedNet")
-const NetPack = require("@game/ReplicatedStorage/class/struct/common/NetPack")
-const SharedNetLink = require("@game/ReplicatedStorage/enums/descriptor/SharedNetLink")
-const DataNotification = require("@game/ReplicatedStorage/enums/notification/DataNotification")
-const NetNotification = require("@game/ReplicatedStorage/enums/notification/NetNotification")
-const DataState = require("@game/ReplicatedStorage/enums/state/DataState")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
+const Event = require("@class/common/signal/Event")
+const Service = require("@class/core/Service")
+const SharedNet = require("@class/service/SharedNet")
+const NetPack = require("@class/struct/common/NetPack")
+const mtypes = require("@declare/mtypes")
+const types = require("@declare/types")
+const SharedNetLink = require("@enums/descriptor/SharedNetLink")
+const DataNotification = require("@enums/notification/DataNotification")
+const NetNotification = require("@enums/notification/NetNotification")
+const DataState = require("@enums/state/DataState")
+const stdout = require("@extension/stdout")
+const ftype = require("@static/ftype")
 
 type data_event = event<enumitem_data_notification, ...any>
 
@@ -25,7 +26,7 @@ const class: dataclient = Service:new({
 
 		self.enabled = true
 		task.spawn(private.connect)
-	end, declare["nil"], "dataclient"),
+	end, mtypes.never, "dataclient"),
 
 	get_state = ftype:write(function(self: dataclient): enumitem_data_state
 		return private.state
@@ -35,7 +36,7 @@ const class: dataclient = Service:new({
 		local node: any = private.data
 
 		for k, v in private.split(path) do
-			if type(node) ~= declare.table then
+			if type(node) ~= types.table then
 				return nil :: any
 			end
 
@@ -43,13 +44,13 @@ const class: dataclient = Service:new({
 		end
 
 		return node
-	end, ftype:opt(declare.anyt), "dataclient", ftype:uor(declare.string, declare.table)),
+	end, ftype:opt(mtypes.anyt), "dataclient", ftype:uor(types.string, types.table)),
 
 	wait_loaded = ftype:write(function(self: dataclient): ()
 		if private.state ~= DataState.ProfileLoaded then
 			private.event:wait(DataNotification.DataLoaded)
 		end
-	end, declare["nil"], "dataclient"),
+	end, mtypes.never, "dataclient"),
 
 	get_data_event = ftype:write(function(self: dataclient): data_event
 		return private.event
@@ -78,7 +79,7 @@ do
 	end
 
 	function private.split(path: data_path): { string }
-		if type(path) == declare.table then
+		if type(path) == types.table then
 			return path :: { string }
 		end
 
@@ -104,8 +105,8 @@ do
 		for k = 1, #segments - 1 do
 			node = node[segments[k]]
 
-			if type(node) ~= declare.table then
-				project.console_out_error(`bad replicated path {table.concat(segments, "/")}`)
+			if type(node) ~= types.table then
+				stdout:oute(`bad replicated path {table.concat(segments, "/")}`)
 				return
 			end
 		end

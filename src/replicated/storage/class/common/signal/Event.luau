@@ -1,13 +1,15 @@
 --!strict
-
-const Observer = require("@game/ReplicatedStorage/class/core/Observer")
-const Connection = require("@game/ReplicatedStorage/class/common/signal/Connection")
-const SecurityRNG = require("@game/ReplicatedStorage/class/service/SecurityRNG")
-const ConnectionVariant = require("@game/ReplicatedStorage/enums/descriptor/ConnectionVariant")
-const DefaultVariant = require("@game/ReplicatedStorage/enums/descriptor/DefaultVariant")
-const SetupNotification = require("@game/ReplicatedStorage/enums/notification/SetupNotification")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
+const Connection = require("@class/common/signal/Connection")
+const EnumItem = require("@class/core/EnumItem")
+const Observer = require("@class/core/Observer")
+const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
+const types = require("@declare/types")
+const ConnectionVariant = require("@enums/descriptor/ConnectionVariant")
+const DefaultVariant = require("@enums/descriptor/DefaultVariant")
+const SetupNotification = require("@enums/notification/SetupNotification")
+const Cryptography = require("@import/Cryptography")
+const ftype = require("@static/ftype")
 
 const private = {}
 const class: event = (Observer :: observer<enumitem<any>>):new({
@@ -24,7 +26,7 @@ const class: event = (Observer :: observer<enumitem<any>>):new({
 
 		table.insert(list, con)
 		return con
-	end, "connection", "event", ftype:opt("enumitem"), ftype:uor("observer", declare["function"], declare.thread)),
+	end, Connection.type, "event", ftype:opt(EnumItem.type), ftype:uor("observer", types["function"], types.thread)),
 
 	once = ftype:write(function(self: event, on: enumitem?, f: any): connection
 		const list = private.get_store(self)
@@ -37,14 +39,14 @@ const class: event = (Observer :: observer<enumitem<any>>):new({
 
 		table.insert(list, con)
 		return con
-	end, "connection", "event", ftype:opt("enumitem"), ftype:uor("observer", declare["function"], declare.thread)),
+	end, Connection.type, "event", ftype:opt(EnumItem.type), ftype:uor("observer", types["function"], types.thread)),
 
 	wait = ftype:write(function(self: event, on: enumitem?): ...any
 		const to = (on or self.on or DefaultVariant.Unknown) :: enumitem
 
 		self:once(to, coroutine.running())
 		return coroutine.yield()
-	end, ftype:var(declare.anyt), "event", ftype:opt("enumitem")),
+	end, ftype:var(mtypes.anyt), "event", ftype:opt(EnumItem.type)),
 
 	invoke = ftype:write(function(self: event, call: enumitem, ...: any): ()
 		const list = private.get_store(self)
@@ -52,7 +54,7 @@ const class: event = (Observer :: observer<enumitem<any>>):new({
 		for _, v in list do
 			v:notificate(SetupNotification.Require, call, ...)
 		end 
-	end, declare["nil"], "event", "enumitem", ftype:var_opt(declare.anyt)),
+	end, mtypes.never, "event", EnumItem.type, ftype:var_opt(mtypes.anyt)),
 })
 
 class:host(function(new)
@@ -63,8 +65,8 @@ end)
 do
 	type store = {connection}
 
-	private.meta = table.freeze {__mode = "vs"}
-	private.key =  SecurityRNG:get_hash_sha256("event_store_code")
+	private.meta = tables.__mode_vs
+	private.key =  Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "event_store_code")
 	private.get_store = function (of: event)
 		return of:get(private.key) :: store
 	end

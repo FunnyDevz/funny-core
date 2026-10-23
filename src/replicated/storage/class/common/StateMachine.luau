@@ -1,14 +1,19 @@
 --!strict
-const Observer = require("@game/ReplicatedStorage/class/core/Observer")
-const SecurityRNG = require("@game/ReplicatedStorage/class/service/SecurityRNG")
-const StateMachineNotification = require("@game/ReplicatedStorage/enums/notification/StateMachineNotification")
-const declare = require("@game/ReplicatedStorage/static/declare")
+const EnumItem = require("@class/core/EnumItem")
+const Observer = require("@class/core/Observer")
+const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
+const types = require("@declare/types")
+const StateMachineNotification = require("@enums/notification/StateMachineNotification")
+const Cryptography = require("@import/Cryptography")
+const ftype = require("@static/ftype")
+
 
 const private = {}
 const class: statemachine = (Observer :: observer<enumitem_statemachine_notification>):new {
 	type = "statemachine",
 
-	get_state = function (self: statemachine, ...:enumitem) : boolean
+	get_state = ftype:write(function (self: statemachine, ...:enumitem) : boolean
 		const list = private.worklist(self)
 		
 		for _, v in {...} do
@@ -18,9 +23,9 @@ const class: statemachine = (Observer :: observer<enumitem_statemachine_notifica
 		end
 
 		return true
-	end,
+	end, types.boolean, "statemachine", ftype:var(EnumItem.type)),
 
-	set_state = function (self: statemachine, to: boolean?, ...: enumitem) : ()
+	set_state = ftype:write(function (self: statemachine, to: boolean?, ...: enumitem) : ()
 		const list = private.worklist(self)
 		const blacklist = private.blacklist(self)
 
@@ -38,9 +43,9 @@ const class: statemachine = (Observer :: observer<enumitem_statemachine_notifica
 				self:notificate(StateMachineNotification.ChangedState, v)
 			end
 		end
-	end,
+	end, mtypes.never, "statemachine", ftype:opt(types.boolean), ftype:var(EnumItem.type)),
 
-	blacklist = function (self: statemachine, ...: enumitem) : ()
+	blacklist = ftype:write(function (self: statemachine, ...: enumitem) : ()
 		const blacklist = private.blacklist(self)
 
 		for _, v in {...} do
@@ -54,20 +59,20 @@ const class: statemachine = (Observer :: observer<enumitem_statemachine_notifica
 				self:notificate(StateMachineNotification.BlacklistAdded, v)
 			end
 		end
-	end,
+	end, mtypes.never, "statemachine", ftype:var(EnumItem.type)),
 }
 
 class:host(function(new)
 	const new = new:as <<statemachine>> (class.type)
 
-	new:set(private.key, setmetatable({}, declare.tables.__mode_ks))
-	new:set(private.key2, setmetatable({}, declare.tables.__mode_vs))
+	new:set(private.key, setmetatable({}, tables.__mode_ks))
+	new:set(private.key2, setmetatable({}, tables.__mode_vs))
 end)
 
 do
 
-	private.key = SecurityRNG:get_hash_blake3("states_key")
-	private.key2 = SecurityRNG:get_hash_blake3("states_blacklist_key")
+	private.key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "states_key")
+	private.key2 = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "states_blacklist_key")
 
 	private.worklist = function (of: statemachine)
 		return of:get <<{[enumitem]: boolean?}>> (private.key)

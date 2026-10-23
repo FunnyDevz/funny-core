@@ -1,15 +1,19 @@
 --!strict
-const EnumItem = require("@game/ReplicatedStorage/class/core/EnumItem")
-const EnumObject = require("@game/ReplicatedStorage/class/core/EnumObject")
-const Pointer = require("@game/ReplicatedStorage/class/core/Pointer")
-const SecurityRNG = require("@game/ReplicatedStorage/class/service/SecurityRNG")
-const ConnectionVariant = require("@game/ReplicatedStorage/enums/descriptor/ConnectionVariant")
-const LuaObject = require("@game/ReplicatedStorage/class/core/LuaObject")
-const ctags = require("@game/ReplicatedStorage/static/ctags")
-const ctype = require("@game/ReplicatedStorage/static/ctype")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const project = require("@game/ReplicatedStorage/static/project")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
+const EnumItem = require("@class/core/EnumItem")
+const EnumObject = require("@class/core/EnumObject")
+const Pointer = require("@class/core/Pointer")
+const ConnectionVariant = require("@enums/descriptor/ConnectionVariant")
+const LuaObject = require("@class/core/LuaObject")
+const dummies = require("@declare/dummies")
+const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
+const types = require("@declare/types")
+const stderr = require("@extension/stderr")
+const stdout = require("@extension/stdout")
+const global = require("@project/global")
+const ctags = require("@static/ctags")
+const ctype = require("@static/ctype")
+const ftype = require("@static/ftype")
 
 type observer_on<T = enumitem> = T | { T } | enumobject | { enumobject } | { T | enumobject }
 type observer_var<T = unknown> = ((...any) -> ()) | thread | observer<T>
@@ -32,9 +36,8 @@ const class: observer = LuaObject:new({
 
 				return table.unpack(empty_pointers)
 			end
-			if not project.assert(private.relevant_actions[mode], `subscription option of {mode.name} does not exists`) then
-				return
-			end
+
+			if (not stderr:check(private.relevant_actions[mode], `subscription option of {mode.name} does not exists`)) then return end
 
 			const flat = private.create_flatted_on(on)
 			const items = private.get_items(self)
@@ -60,9 +63,9 @@ const class: observer = LuaObject:new({
 		end,
 		ftype:var("pointer"),
 		"observer",
-		ftype:uor("enumitem", "enumobject", declare.table),
+		ftype:uor("enumitem", "enumobject", types.table),
 		"enumitem",
-		ftype:var_or("observer", declare["function"], declare.thread)
+		ftype:var_or("observer", types["function"], types.thread)
 	),
 
 	unsubscribe = ftype:write(function(self: observer, ...: pointer): ()
@@ -80,7 +83,7 @@ const class: observer = LuaObject:new({
 
 			pointers[v] = nil
 		end
-	end, declare["nil"], "observer", ftype:var("pointer")),
+	end, mtypes.never, "observer", ftype:var("pointer")),
 
 	notificate = ftype:write(function(self: observer, on: observer_on, ...: unknown): ()
 		const items = private.get_items(self)
@@ -107,7 +110,7 @@ const class: observer = LuaObject:new({
 				end
 			end
 		end
-	end, declare["nil"], "observer", ftype:uor("enumitem", "enumobject", declare.table), ftype:var(declare.anyt)),
+	end, mtypes.never, "observer", ftype:uor("enumitem", "enumobject", types.table), ftype:var(mtypes.anyt)),
 
 	subscription_set_mode = ftype:write(function(self: observer, operation: enumitem_connection_variant, ...: pointer): ()
 		const pointers = private.get_pointers(self)
@@ -119,7 +122,7 @@ const class: observer = LuaObject:new({
 				private.relevant_pointer_setting[operation](pointer, v)
 			end
 		end
-	end, declare["nil"], "observer", "enumitem", ftype:var("pointer")),
+	end, mtypes.never, "observer", "enumitem", ftype:var("pointer")),
 
 	subscription_get_mode = ftype:write(function(self: observer, ...: pointer): ...enumitem_connection_variant
 		const pointers = private.get_pointers(self)
@@ -173,12 +176,11 @@ do
 		read of: observer,
 	}
 
-
-	private.dummy = declare.tables.dummy
-	private.meta = declare.tables.__mode_ks
+	private.dummy = dummies.table
+	private.meta = tables.__mode_ks
 	private.shadow_space = setmetatable({} :: {[observer]: {[any]: any}}, private.meta)
-	private.pointers = SecurityRNG:get_hash_sha256("observer_pointers")
-	private.items = SecurityRNG:get_hash_sha256("observer_items")
+	private.pointers = newproxy()
+	private.items = newproxy()
 
 	private.create_flatted_on = function(on: observer_on<any>): { enumitem }
 		const output_for_cycle = {}
@@ -193,7 +195,7 @@ do
 			const list_of_related = private.create_flatted_on(list_of_items)
 
 			table.move(list_of_related, 1, #list_of_related, #output_for_cycle + 1, output_for_cycle)
-		elseif type(on) == declare.table then
+		elseif type(on) == types.table then
 			const on_list = on :: { enumitem | enumobject }
 
 			for _, v in on_list do
@@ -201,7 +203,7 @@ do
 				table.move(flat, 1, #flat, #output_for_cycle + 1, output_for_cycle)
 			end
 		else
-			project.console_out_error("unknown CallType")
+			stdout:oute("unknown CallType")
 		end
 
 		return output_for_cycle
@@ -247,21 +249,21 @@ do
 			coroutine.yield()
 		end
 
-		if T == declare["function"] then
+		if T == types["function"] then
 			const var_func = v :: (...any) -> any
 			const out, msg = pcall(var_func, ...)
-			const res = project.assert(out, `{tostring(msg)}`)
+			const res = stderr:assert(out, `{tostring(msg)}`)
 			return res
-		elseif T == declare.thread then
+		elseif T == types.thread then
 			const var_thread = v :: thread
 			const out, msg = coroutine.resume(var_thread, ...)
-			const res = project.assert(out, `{tostring(msg)}`)
+			const res = stderr:assert(out, `{tostring(msg)}`)
 			return res
 		elseif class:that(v, class.type) then
 			const var_observer = v :: observer
 			var_observer:notificate(related.notification_of, ...)
 		else
-			project.console_out_error("unexpected connection, skip")
+			stdout:oute("unexpected connection, skip")
 			return false
 		end
 
@@ -334,8 +336,8 @@ do
 		if work.work_list ~= target_list then
 			--#if DEBUG
 			if not pointer:is_pointed_exists() then
-				if project.debug then
-					project.console_out_error("pointer does not exists?")
+				if global.debug then
+					stdout:oute("pointer does not exist?")
 				end
 			end
 			--#endif

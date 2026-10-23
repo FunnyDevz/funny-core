@@ -1,30 +1,53 @@
 --!strict
-const LuaObject = require("@game/ReplicatedStorage/class/core/LuaObject")
+const LuaObject = require("@class/core/LuaObject")
+const mtypes = require("@declare/mtypes")
+const types = require("@declare/types")
+const stderr = require("@extension/stderr")
+const stdout = require("@extension/stdout")
+const ftype = require("@static/ftype")
 --#include <project.gpp>
 
 const private = {}
 const class: scheduler = LuaObject:new {
+    type = "scheduler",
+
 	plan = function<T...>(self: scheduler, t: scheduler_teta<T...>, ...: T...): thread
 		const new = private.new_tar(t, ...)
 		table.insert(private.get_local(self).planned, new)
 		return new.run
 	end,
 
-	cancel = function(self: scheduler, c: thread): ()
+    whose = ftype:write(function (self: scheduler, c: thread) : scheduler?
+        for scheduler, scheduler_loc in private.loc do
+            if (c == scheduler_loc.current) then
+                return scheduler
+            end
+
+            for _, tar_runtime in scheduler_loc.planned do
+                if (tar_runtime.run == c) then
+                    return scheduler
+                end
+            end
+        end
+
+        return nil
+    end, ftype:opt("scheduler"), "scheduler", types.thread),
+
+	cancel = ftype:write(function(self: scheduler, c: thread): ()
 		const loc = private.get_local(self)
 		table.remove(loc.planned, table.find(loc.planned, private.find(loc, c)) or 0)
-	end,
+	end, mtypes.never, "scheduler", types.thread),
 
-	is_planned = function(self: scheduler, a: any?): boolean
+	is_planned = ftype:write(function(self: scheduler, a: thread?): boolean
 		if a ~= nil then
-			assert(type(a) == "thread", "this is not a coroutine thread")
+			stderr:assert(type(a) == "thread", "this is not a coroutine thread")
 			return private.find(private.get_local(self), a) ~= nil
 		end
 
 		return private.valid(self)
-	end,
+	end, types.boolean, "scheduler", ftype:opt(types.thread)),
 
-	is_waiting = function(self: scheduler, c: any?): boolean
+	is_waiting = ftype:write(function(self: scheduler, c: thread?): boolean
 		if c == nil then
 			return self:is_waiting(coroutine.running())
 		else
@@ -38,16 +61,15 @@ const class: scheduler = LuaObject:new {
 
 			return tar.fwait or false
 		end
-	end,
+	end, types.boolean, "scheduler", ftype:opt(types.thread)),
 
-	hold = function(self: scheduler, time: number?): ()
+	hold = ftype:write(function(self: scheduler, time: number?): ()
 		const run = coroutine.running()
 		const loc = private.get_local(self)
 		time = time or 0
 
-		if run ~= loc.current then
-			error("cannot hold unplanned coroutine")
-		end
+		stderr:assert(run ~= loc.current, "cannot hold unplanned coroutine")
+
 		if loc.current_tar then
 			loc.current_tar.fwait = true
 			loc.current_tar.wait = loc.current_tar.wait and loc.current_tar.wait + time or os.clock() + time
@@ -55,32 +77,31 @@ const class: scheduler = LuaObject:new {
 			return
 		end
 
-		error("something going wrong with scheduler, current_tar does not exists")
-	end,
+		stdout:oute("something going wrong with scheduler, current_tar does not exists")
+	end, mtypes.never, "scheduler", ftype:opt(types.number)),
 
-	wait = function(self: scheduler, time: number?): ()
+	wait = ftype:write(function(self: scheduler, time: number?): ()
 		self:hold(time)
 		coroutine.yield()
-	end,
+	end, mtypes.never, "scheduler", ftype:opt(types.number)),
 
-	last = function(self: scheduler, t: any, ...): ()
+	last = ftype:write(function(self: scheduler, t: any, ...: any): ()
 		const loc = private.get_local(self)
 		table.insert(loc.planned, 1, private.new_tar(t, ...))
-	end,
+	end, mtypes.never, "scheduler", ftype:var_or(types.thread, types["function"], ftype:var(mtypes.anyt))),
 
-	next = function(self: scheduler, t: any, ...): ()
-		if not private.valid(self) then
-			error("cannot plan next schedule, because this thread actually isn't planned thread")
-		end
+	next = ftype:write(function(self: scheduler, t: any, ...: any): ()
+		stderr:assert(private.valid(self), "cannot plan next schedule, because this thread actually isn't planned thread")
+
 		const loc = private.get_local(self)
-
-		const tar = assert(loc.current_tar, "current planned coroutine has a troubles")
-		const index = assert(table.find(loc.planned, tar), "cannot find this coroutine in plan list")
+		const tar = stderr:assert(loc.current_tar, "current planned coroutine has a troubles")
+		const index = stderr:assert(table.find(loc.planned, tar), "cannot find this coroutine in plan list")
 		const new = private.new_tar(t, ...)
-		table.insert(loc.planned, index > 1 and index - 1 or 1, new)
-	end,
 
-	process = function(self: scheduler): ()
+		table.insert(loc.planned, index > 1 and index - 1 or 1, new)
+	end, mtypes.never, "scheduler", ftype:var_or(types.thread, types["function"], ftype:var(mtypes.anyt))),
+
+	process = ftype:write(function(self: scheduler): ()
 		const loc = private.get_local(self)
 
 		const c = #loc.planned
@@ -112,7 +133,7 @@ const class: scheduler = LuaObject:new {
 			loc.current_tar = nil
 
 			if not state then
-				print(
+				stdout:outw(
 					`coroutine {tostring(tar.run)} return error, so scheduler cancel this coroutine. Error {tostring(
 						err
 					)}`
@@ -134,7 +155,7 @@ const class: scheduler = LuaObject:new {
 				continue
 			end
 		end
-	end,
+	end, mtypes.never, "scheduler"),
 }
 
 class:host(function(new: luaobject)
@@ -208,7 +229,7 @@ do
 		elseif type(t) == "function" then
 			return coroutine.create(t)
 		else
-			return error(`cannot create plan for this, expected function or coroutine thread, but got {typeof(t)}`)
+			return stdout:oute(`cannot create plan for this, expected function or coroutine thread, but got {typeof(t)}`)
 		end
 	end
 

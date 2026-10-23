@@ -1,16 +1,17 @@
 --!strict
-
-const Observer = require("@game/ReplicatedStorage/class/core/Observer")
-const OperationVariant = require("@game/ReplicatedStorage/enums/descriptor/OperationVariant")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
+const Observer = require("@class/core/Observer")
+const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
+const types = require("@declare/types")
+const OperationVariant = require("@enums/descriptor/OperationVariant")
+const stdout = require("@extension/stdout")
+const ftype = require("@static/ftype")
 
 const private = {}
 const class: value = (Observer :: observer<enumitem_operation_variant>):new({
 	type = "value",
 
-	get_value = ftype:write(function(self: value ): any
+	get_value = ftype:write(function(self: value): any
 		const value: any = private.values[self]
 		if value ~= nil then
 			return value
@@ -22,7 +23,7 @@ const class: value = (Observer :: observer<enumitem_operation_variant>):new({
 		end
 
 		return nil
-	end, declare.anyt, "value"),
+	end, mtypes.anyt, "value"),
 
 	set_value = ftype:write(function(self: value, value: any, default: boolean?): ()
 		const stored: any = private.values[self]
@@ -34,19 +35,22 @@ const class: value = (Observer :: observer<enumitem_operation_variant>):new({
 		end
 
 		if stored == nil then
-			self:notificate(OperationVariant.New )
+			self:notificate(OperationVariant.New)
 		elseif stored ~= value then
-			self:notificate(OperationVariant.Change )
+			self:notificate(OperationVariant.Change)
 		elseif value == nil then
-			self:notificate(OperationVariant.Remove )
+			self:notificate(OperationVariant.Remove)
+		--#if VALUE_PRINT_ACT
 		else
-			project.console_out_error("unexpected value behaviour")
+			stdout:outw("unexpected value behaviour, skip")
+		--#endif
 		end
-	end, declare["nil"], "value", declare.anyt, ftype:opt(declare.boolean)),
+
+	end, mtypes.never, "value", mtypes.anyt, ftype:opt(types.boolean)),
 })
 
 do
-	private.meta = table.freeze { __mode = "ks"}
+	private.meta = tables.__mode_ks
 	private.values = setmetatable({} :: { [value]: any }, private.meta)
 	private.defaults = setmetatable({} :: { [value]: any }, private.meta)
 end

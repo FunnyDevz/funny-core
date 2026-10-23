@@ -2,7 +2,8 @@
     "luau-lsp.sourcemap.rojoProjectFile": "default.project.json",
     "luau-lsp.types.robloxSecurityLevel": "LocalUserSecurity",
     "luau-lsp.types.definitionFiles": {
-        "@forgotten_grave": "src/declare/core.d.luau"
+        "@fog_core": "src/declare/core.d.luau",
+        "@fog_tfunc": "src/declare/tfunc.d.luau"
     },
     "luau-lsp.completion.imports.requireStyle": "alwaysAbsolute",
     "luau-lsp.fflags.override": {

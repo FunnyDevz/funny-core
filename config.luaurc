@@ -43,6 +43,16 @@
     ],
 
     "aliases": {
-
+        "templates": "src/replicated/storage/templates",
+        "class": "src/replicated/storage/class",
+        "enums": "src/replicated/storage/enums",
+        "static": "src/replicated/storage/static",
+        "extension": "src/replicated/storage/extension",
+        "platform": "src/replicated/storage/platform",
+        "import": "Packages",
+        "import_dv": "DevPackages",
+        "include": "ServerPackages",
+        "project": "src/replicated/storage/static/project",
+        "declare": "src/replicated/storage/static/declare"
     }
 }

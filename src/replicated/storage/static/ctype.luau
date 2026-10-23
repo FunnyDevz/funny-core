@@ -1,10 +1,12 @@
 --!strict
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
-
-const args = require("./mtargument")
-const outs = require("./mtout")
+const dummies = require("@declare/dummies")
+const mtypes = require("@declare/mtypes")
+const stdout = require("@extension/stdout")
+const types = require("@declare/types")
+const ftype = require("@static/ftype")
+const tables = require("@declare/tables")
+const args = require("@static/mtargument")
+const outs = require("@static/mtout")
 
 type argument = args.argument
 type tval = args.tval
@@ -222,17 +224,17 @@ const metainfo: metainfo = table.freeze({
 	classname = "",
 	guaranteed = false,
 
-	tag = declare.tables.__null,
-	fields = declare.tables.__null,
-	funcs = declare.tables.__null,
-	attributes = declare.tables.__null,
+	tag = dummies.table :: any,
+	fields = dummies.table :: any,
+	funcs = dummies.table :: any,
+	attributes = dummies.table :: any,
 
 	write_func = function(self: metainfo, name: string, signature: out?, readonly: boolean?, static: boolean?): ()
 		table.insert(self.funcs, private.make_func_member(name, signature or outs.unknown, readonly, static))
 	end,
 
 	write_field = function(self: metainfo, name: string, type: tval?, readonly: boolean?, static: boolean?): ()
-		table.insert(self.fields, private.make_field_member(name, args.pack(type or declare.anyt), readonly, static))
+		table.insert(self.fields, private.make_field_member(name, args.pack(type or mtypes.anyt), readonly, static))
 	end,
 
 	write_attribute = function(self: metainfo, name: string, value: unknown): ()
@@ -355,26 +357,26 @@ const ctype: ctype = table.freeze({
 		const new = private.make_minfo(tags, classname, true)
 
 		for i, v in of do
-			if typeof(i) ~= declare.string then
-				project.console_out_error(`index {i} unsupported, skip`)
+			if typeof(i) ~= types.string then
+				stdout:oute(`index {i} unsupported, skip`)
 				continue
 			end
 
 			const T = typeof(v)
 			const name = tostring(i)
 
-			if T == declare["function"] then
+			if T == types["function"] then
 				new:write_func(name, ftype:read(v), true, true)
-			elseif T == declare.table then
+			elseif T == types.table then
 				if
-					type(v.that) == declare["function"]
-					and type(v.type) == declare.string
-					and type(v.is) == declare["function"]
+					type(v.that) == types["function"]
+					and type(v.type) == types.string
+					and type(v.is) == types["function"]
 				then
 					const var = v :: luaobject
 					new:write_field(name, var.type, true, false)
 				else
-					new:write_field(name, declare.table, false, false)
+					new:write_field(name, types.table, false, false)
 				end
 			else
 				new:write_field(tostring(i), T, false, false)
@@ -398,7 +400,7 @@ const ctype: ctype = table.freeze({
 })
 
 do
-	private.mkinfo_list = setmetatable({} :: { [tbl]: metainfo? }, declare.tables.__mode_ks)
+	private.mkinfo_list = setmetatable({} :: { [tbl]: metainfo? }, tables.__mode_ks)
 
 	private.__metainfo = table.freeze({ __index = metainfo })
 

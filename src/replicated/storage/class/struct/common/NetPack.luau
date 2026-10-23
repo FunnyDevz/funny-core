@@ -1,11 +1,14 @@
 --!strict
-const Struct = require("@game/ReplicatedStorage/class/core/Struct")
-const NetSource = require("@game/ReplicatedStorage/enums/descriptor/NetSource")
-const engine = require("@game/ReplicatedStorage/platform/engine")
-const players = require("@game/ReplicatedStorage/platform/players")
-const declare = require("@game/ReplicatedStorage/static/declare")
-const ftype = require("@game/ReplicatedStorage/static/ftype")
-const project = require("@game/ReplicatedStorage/static/project")
+const Struct = require("@class/core/Struct")
+const mtypes = require("@declare/mtypes")
+const types = require("@declare/types")
+const NetSource = require("@enums/descriptor/NetSource")
+const stdout = require("@extension/stdout")
+const engine = require("@platform/roblox/engine")
+const players = require("@platform/roblox/players")
+const rbxtypes = require("@platform/roblox/rbxtypes")
+const net = require("@project/net")
+const ftype = require("@static/ftype")
 
 const private = {}
 const class: netpack = Struct:new({
@@ -23,42 +26,44 @@ const class: netpack = Struct:new({
 			loaded = { ... },
 			count = select("#", ...),
 		}) :: any
-	end, "netpack", "netpack", ftype:opt(declare.table), ftype:var_opt(declare.anyt)),
+	end, "netpack", "netpack", ftype:opt(types.table), ftype:var_opt(mtypes.anyt)),
 
 	from_flat = ftype:write(function(self: netpack, flat: unknown): netpack?
-		if type(flat) ~= declare.table then
+		if type(flat) ~= types.table then
 			return nil
 		end
 
 		const raw = flat :: { [string]: unknown }
-		if type(raw.loaded) ~= declare.table then
+		if type(raw.loaded) ~= types.table then
 			return nil
 		end
 
 		const to = {}
-		if type(raw.to) == declare.table then
+		if type(raw.to) == types.table then
 			for k, v in raw.to :: { unknown } do
-				if type(v) == declare.number then
+				if type(v) == types.number then
 					table.insert(to, v :: number)
 				end
 			end
 		end
 
-		const count = if type(raw.count) == declare.number then math.clamp(math.floor(raw.count :: number), 0, project.max_send_packet) else 0
+		const count = if type(raw.count) == types.number
+			then math.clamp(math.floor(raw.count :: number), 0, net.max_send_packet)
+			else 0
 
 		return self:new({
 			loaded = raw.loaded,
 			count = count,
 			to = to,
-			from = if type(raw.from) == declare.string then raw.from else NetSource.FromClient.name,
-			sender = if type(raw.sender) == declare.number then raw.sender else nil,
+			from = if type(raw.from) == types.string then raw.from else NetSource.FromClient.name,
+			sender = if type(raw.sender) == types.number then raw.sender else nil,
 			rpc = raw.rpc == true,
 		}) :: any
-	end, ftype:opt("netpack"), "netpack", declare.anyt),
+	end, ftype:opt("netpack"), "netpack", mtypes.anyt),
 
 	payload = ftype:write(function(self: netpack): ...any
 		return table.unpack(self.loaded, 1, self.count)
-	end, ftype:var_opt(declare.anyt), "netpack"),
+	end, ftype:var_opt(mtypes.anyt), "netpack"),
 
 	get_flat = ftype:write(function(self: netpack): netpack_flat
 		return {
@@ -69,7 +74,7 @@ const class: netpack = Struct:new({
 			sender = self.sender,
 			rpc = self.rpc,
 		}
-	end, declare.table, "netpack"),
+	end, types.table, "netpack"),
 
 	get_players = ftype:write(function(self: netpack): { Player }
 		const result = {}
@@ -80,12 +85,12 @@ const class: netpack = Struct:new({
 			if player then
 				table.insert(result, player)
 			else
-				project.console_out(`netpack target {v} isn't in the game`)
+				stdout:out(`netpack target {v} isn't in the game`)
 			end
 		end
 
 		return result
-	end, declare.table, "netpack"),
+	end, types.table, "netpack"),
 
 	get_source = ftype:write(function(self: netpack): enumitem_net_source?
 		return NetSource:get_enum_by_name(self.from) :: any
@@ -97,7 +102,7 @@ const class: netpack = Struct:new({
 		end
 
 		return self.sender == private.local_user_id() and self.from ~= NetSource.FromServer.name
-	end, declare.boolean, "netpack"),
+	end, types.boolean, "netpack"),
 })
 
 class:host(function(new)
@@ -115,12 +120,12 @@ class:host(function(new)
 
 	const to = {}
 	for k, v in this.to :: { Player | number } do
-		if typeof(v) == declare.roblox.Instance and (v :: Instance):IsA("Player") then
+		if typeof(v) == rbxtypes.Instance and (v :: Instance):IsA("Player") then
 			table.insert(to, (v :: Player).UserId)
-		elseif type(v) == declare.number then
+		elseif type(v) == types.number then
 			table.insert(to, v :: number)
 		else
-			project.console_out("unexpected netpack target", v)
+			stdout:out("unexpected netpack target", v)
 		end
 	end
 	this.to = to
