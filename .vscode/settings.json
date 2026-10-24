@@ -1,9 +1,9 @@
 {
-    "luau-lsp.sourcemap.rojoProjectFile": "default.project.json",
+    "luau-lsp.sourcemap.rojoProjectFile": "src/default.project.json",
     "luau-lsp.types.robloxSecurityLevel": "LocalUserSecurity",
     "luau-lsp.types.definitionFiles": {
-        "@fog_core": "src/declare/core.d.luau",
-        "@fog_tfunc": "src/declare/tfunc.d.luau"
+        "@fog_core": "src/core.d.luau",
+        "@fog_tfunc": "src/tfunc.d.luau"
     },
     "luau-lsp.completion.imports.requireStyle": "alwaysAbsolute",
     "luau-lsp.fflags.override": {
@@ -30,6 +30,6 @@
     },
     "luau-lsp.diagnostics.workspace": true,
     "luau-lsp.fflags.enableNewSolver": true,
-    "luau-lsp.server.baseLuaurc": "config.luaurc",
+    "luau-lsp.server.baseLuaurc": "src/config.luaurc",
     "luau-lsp.ignoreGlobs": [".rojo/**", "Packages/**", "ServerPackages/**", "node_modules/**", "DevPackages/**"],
 }

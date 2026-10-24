@@ -43,16 +43,16 @@
     ],
 
     "aliases": {
-        "templates": "src/templates",
-        "class": "src/class",
-        "enums": "src/enums",
-        "static": "src/static",
-        "extension": "src/extension",
-        "platform": "src/platform",
-        "import": "Packages",
-        "import_dv": "DevPackages",
-        "include": "ServerPackages",
-        "project": "src/static/project",
-        "declare": "src/static/declare"
+        "templates": "templates",
+        "class": "class",
+        "enums": "enums",
+        "static": "static",
+        "extension": "extension",
+        "platform": "platform",
+        "import": "../Packages",
+        "import_dv": "../DevPackages",
+        "include": "../ServerPackages",
+        "project": "static/project",
+        "declare": "static/declare"
     }
 }
