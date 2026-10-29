@@ -77,13 +77,16 @@ CI/spec/contract.luau ─────────► CI/build/spec/contract.luau
 
 ## CI
 
-- `.github/workflows/test.yml`: только проверка, тесты через Open Cloud (`python3 CI/test.py --install`). Запускается на pull request, на push в `pre-main*` и из `release.yml`. Ничего не публикует.
-- `.github/workflows/release.yml`: только когда pull request **вручную смержен** в `main`. Прямой push в `main` и незакрытые PR ничего не публикуют.
-  1. Прогоняет `test.yml` на коммите мержа.
-  2. Если все тесты прошли, а GitHub Release `v<version из crater.json>` ещё не создан, выполняет `crater publish -y`. Команда открывает PR в реестр crater, и пакет появляется после того, как владелец реестра его примет.
-  3. Создаёт GitHub Release `v<version>`.
+`.github/workflows/test.yml` гоняет тесты через Open Cloud (`python3 CI/test.py --install`) на pull request и на push в `main` и `pre-main*`. Он только проверяет код и ничего не публикует.
 
-  Порядок работы: ветка, затем PR в `main`. Пока что-то не доделано, CI только проверяет PR. Когда готово, подними `version` в `crater.json` (`crater bump`) и нажми Merge. Если версию не поднимать, публикация пропускается.
+Публикация в crater ручная, после того как CI на `main` зелёный:
+
+```bash
+crater bump
+crater publish
+```
+
+`crater publish` открывает PR в реестр crater, и пакет появляется после того, как этот PR примут.
 
 Нужны секреты организации FunnyDevz (Settings → Secrets and variables → Actions → **Secrets**) с доступом для `funny-core`:
 
@@ -92,7 +95,6 @@ CI/spec/contract.luau ─────────► CI/build/spec/contract.luau
 | `RBX_API_KEY` | Ключ Roblox Open Cloud с правами `universe-places:write` и `universe.place.luau-execution-session:write` на тестовый experience. |
 | `ROBLOX_UNIVERSE_ID` | Universe тестового experience. |
 | `ROBLOX_PLACE_ID` | Тестовый плейс. CLI перезаписывает его при каждом прогоне, поэтому не указывай боевой. |
-| `CRATER_TOKEN` | GitHub-токен аккаунта, который публикует пакет (`public_repo`). Аккаунт должен быть публичным участником организации FunnyDevz. |
 
 Репозиторий публичный, поэтому:
 - в логах Actions значения секретов GitHub заменяет на `***` сам;
