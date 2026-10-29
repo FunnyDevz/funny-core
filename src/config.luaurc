@@ -50,9 +50,10 @@
         "extension": "extension",
         "platform": "platform",
         "import": "../Packages",
-        "import_dv": "../DevPackages",
+        "internal": "../DevPackages",
         "include": "../ServerPackages",
         "project": "static/project",
-        "declare": "static/declare"
+        "declare": "static/declare",
+        "setting": "settings"
     }
 }

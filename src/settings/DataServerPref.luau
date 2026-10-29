@@ -1,12 +1,16 @@
 const engine = require("@platform/roblox/engine")
 
-const template = {
+export type template = {
+    read settings: {[unknown]: unknown},
+    read stats: {[unknown]: unknown}
+}
+
+const template: template = {
     settings = {},
     stats = {},
 }
 
-export type template = typeof(template)
-return table.freeze({
+return {
     --[=[
 		DataStore name. Changing it starts every player from the template
 	]=]
@@ -37,4 +41,4 @@ return table.freeze({
 		]=]
         mock = engine.is_studio
     }),
-})
+}

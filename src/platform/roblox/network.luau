@@ -1,6 +1,5 @@
 --!strict
 const ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 const engine = require("@platform/roblox/engine")
 
 return table.freeze {

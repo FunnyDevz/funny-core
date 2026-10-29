@@ -18,7 +18,7 @@ const class: ability = (Observer :: observer<enumitem_ability_notification>):new
     activate = function (self: ability, on: character, ...: any) : ()
         if not self:cooldown():is_finished() then
 
-            --#if ABILITY_PRINT_ACT
+            --#if DEBUG && ABILITY_PRINT_ACT
             stdout:out("cannot active current ability, cooldown")
             --#endif
 

@@ -2,64 +2,35 @@
 --#include <project.gpp>
 const types = require("@declare/types")
 
---[[
-    Статические константы ядра, которые определяются до момента билда и будут учитываться функционирующей структурой
-]]
-const global = table.freeze {
-
+export type core_supported_platforms = "Roblox"|"UNKNOWN_PLATFORM"
+export type core_global_info = {
     --[==[
         Версия ядра. Это отображаемая версия, она не аргумент при проверке версий.
     ]==]
-    version = "unreleased",
-
+    read version: string,
+    
     --[==[
-        Платформа под которую предназначено ядро. Технически его можно перенести на любую другую,
-        однако это делается не за 1 клик. Часть проекта спроектирована под роблокс, а часть под собственную
-        платформу. Можно сказать что в какой-то степени ядро не зависит от чего-либо, но это относительно
+        Платформа под которую предназначено ядро. Выбирается на этапе билдинга исходников.
     ]==]
-    platform = "Roblox",
-
+    read platform: core_supported_platforms?,
+        
     --[==[
         Уникальный ключ версии. Если кратко, то это номер последнего коммита, то бишь номер того коммита,
         который будет забилжен. Если билд проходит не на CI платформе, то подставляется фейковый коммит
         в качестве идентификатора - `NON_PRODUCTION_BUILD`
     ]==]
-    unique = --[[#UNIQUE]] --[[#lua_OR]] "UNKNOWN_BUILD";
-
-	--[[
-        Дескриптор, сообщающий о возможной параллельности внутри этого контекта
-        выполнения. Проще говоря, если это свойство имеет состояние `true`, то
-        значит можно вызывать параллельные методы типа `ConnectParallel` или
-        `task.synchronize()`, `task.desynchronize()`
-
-        Поскольку `require()` всегда доступен только в синхронном контексте, это
-        значит что никакой поток не потеряется, то есть его текущий контекст не
-        изменится, поэтому эта информация полностью безопасна
-    ]]
-	parallel = pcall(function(): ()
-		if type(task) ~= types.table then
-			error("parallel unsupported env")
-			return
-		end
-
-		if type(task.desynchronize) ~= types["function"] then
-			error("parallel unsupported env")
-			return
-		end
-		
-        if type(task.synchronize) ~= types["function"] then
-			error("parallel unsupported env")
-			return
-		end
-
-		task.desynchronize()
-		task.synchronize()
-	end),
+    read unique: string | "UNKNOWN_BUILD",
 
     --[==[
-        Включает специальное поведение для ядра, в котором может быть дополнительная верификация того или иного слоя кода.
+        Метка, сообщающая что билд был специально залит с `debug` проверками.
     ]==]
-    debug = --[[#if !DEBUG]] not --[[#endif]] true,
+    read debug: boolean?,
+    
+    --[==[
+        Метка, сообщающая что билд использует экспериментальные функции и код, которые могут работать
+        некорректно.
+    ]==]
+    read experimental: boolean?,
 
     --[==[
         Это довольно опасное поведение, которое позволяет `Null` не взрывать весь прод. Если оно будет `false`,
@@ -68,9 +39,30 @@ const global = table.freeze {
         Существует специальный `Null` синглтон, который используется в разработке или при самом крайнем случае.
         Он доступен через декларационную часть.
 
-        `Null`
+        Требует `global.debug == true` как зависимость.
     ]==]
-    nullable = true
+    read nullable: boolean,
+}
+
+--[[
+    Статические константы ядра, которые определяются до момента билда и будут учитываться функционирующей структурой
+]]
+const global: core_global_info = table.freeze {
+
+    version = "unreleased",
+
+    platform = --[[#PLATFORM]] --[[#lua_OR]] "UNKNOWN_PLATFORM" :: "UNKNOWN_PLATFORM";
+    unique = --[[#UNIQUE]] --[[#lua_OR]] "UNKNOWN_BUILD";
+
+    --#if DEBUG
+    debug = true,
+    --#endif
+
+    --#if EXPERIMENTAL
+    experimental = true,
+    --#endif
+
+    nullable = --[[#if !DEBUG]] not --[[#endif]] true,
 }
 
 return global

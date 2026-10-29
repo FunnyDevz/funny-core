@@ -116,7 +116,7 @@ do
 				disposable:free()
 			elseif class:that(v, "reference") then
 				const reference = v :: reference
-				reference:clear()
+				reference:set_instance(nil)
 			elseif typeof(v) == rbxtypes.RBXScriptConnection then
 				const connection = v :: RBXScriptConnection
 				connection:Disconnect()

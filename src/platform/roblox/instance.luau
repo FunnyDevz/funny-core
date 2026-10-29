@@ -3,6 +3,7 @@ const CollectionService = game:GetService("CollectionService")
 
 const stderr = require("@extension/stderr")
 const stdout = require("@extension/stdout")
+const rbxtypes = require("@platform/roblox/rbxtypes")
 
 const humanoid = table.freeze({
 	get_limb_of = function(humanoid: Humanoid, limb: Enum.Limb): BasePart
@@ -608,7 +609,14 @@ const instance = table.freeze({
 	end,
 })
 
+const object = table.freeze {
+	get_invariant = function <T> (of: Object?, expected: string) : (T & Object)?
+		return rbxtypes:is_rbx_type(typeof(of)) and of ~= nil and of:IsA(expected) and of or nil
+	end,
+}
+
 return table.freeze {
     datamodel = instance,
-    humanoid = humanoid
+    humanoid = humanoid,
+	object = object
 }

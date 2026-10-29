@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/TheExeDEV/crater/main/schemas/crater.settings.schema.json",
+  "client": {
+    "path": "Packages",
+    "alias": "import"
+  },
+  "server": {
+    "path": "ServerPackages",
+    "alias": "include"
+  },
+  "develop": {
+    "path": "DevPackages",
+    "alias": "internal"
+  },
+  "luaurc": ".luaurc",
+  "vscode_definitions": true,
+  "confirm": true,
+  "link_style": "string"
+}

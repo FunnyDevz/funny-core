@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/TheExeDEV/crater/main/schemas/crater.schema.json",
+
+  "name": "ifmnb/funny-core-raw",
+  "version": "0.0.1",
+  "description": "An unloaded raw version of funny-core. It is not intended to be executed.",
+  "authors": ["IFMNB", "TheExeDEV"],
+  "license": "MPLv2",
+  "keywords": ["roblox", "core", "foundation", "library", "engine", "game-ready"],
+
+  "repository": "https://github.com/FunnyDevz/funny-core",
+  "registries": {},
+  "can_publish": false,
+  "import_to": "shared",
+
+  "path_to_main": "",
+  "path_to_definition_files": [
+    "./src/tfunc.d.luau",
+    "./src/core.d.luau"
+  ],
+  "package_files": { "exclude": [], "allow": [] },
+
+  "import_client": [
+    "Quat:ifmnb/quat@2609.23.1",
+    "SAT:ifmnb/algorithm-sat@2609.7.0",
+    "Cryptography:daily3014/cryptography@1.5.0"
+  ],
+  "import_server": [
+    "ProfileStore:lm-loleris/profilestore@1.0.3"
+  ],
+  "import_develop": [
+    "Jest:roblox/jest@=3.20.0",
+    "JestG:roblox/jest-globals@=3.20.0"
+  ],
+  "overrides": [],
+
+  "workspace": [],
+  "scripts": {},
+  "tools": {
+    "darklua": "seaofvoices/darklua@0.19.0",
+    "stylua": "JohnnyMorganz/StyLua@2.6.0",
+    "rojo": "rojo-rbx/rojo@7.7.1"
+  },
+  "package_scripts": { "block": true, "allow": [] },
+
+  "monorepository-elements": {},
+  "interface": false,
+  "realized_interfaces": []
+}

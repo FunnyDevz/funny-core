@@ -1,8 +1,6 @@
 --!strict
 const LuaObject = require("@class/core/LuaObject")
 const Cryptography = require("@import/Cryptography")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 
 const class: enumitem = LuaObject:new({
 	type = "enumitem",
@@ -18,10 +16,10 @@ class:host(function(new)
 	tnew.hashlink = Cryptography.Hashing.Blake3.Digest(buffer.fromstring(new.name))
 
 	--#if ENUMITEM_FREEZE_NEW
-	table.freeze(new)
+	if not table.isfrozen(new) then
+		table.freeze(new)
+	end
 	--#endif
 end)
-
-ctype:read(class):write_tag(ctags.core)
 
 return class

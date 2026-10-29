@@ -1,9 +1,16 @@
+
+--#define EXPERIMENTAL false
+--#define DEBUG true
+--#define PLATFORM "Roblox"
+
+--#ifndef PLATFORM
+--#define PLATFORM "UNKNOWN_PLATFORM"
+--#endif
+
 --#ifndef UNIQUE
---#define UNIQUE "NON_PRODUCTION_BUILD"
+--#define UNIQUE "UNKNOWN_BUILD"
 --#endif
 
 --#define lua_NOT not
 --#define lua_OR or
 --#define lua_AND and
-
---#define DEBUG 1

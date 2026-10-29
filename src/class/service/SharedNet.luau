@@ -12,7 +12,7 @@ const stdout = require("@extension/stdout")
 const engine = require("@platform/roblox/engine")
 const network = require("@platform/roblox/network")
 const players = require("@platform/roblox/players")
-const net = require("@project/net")
+const SharedNetPref = require("@setting/SharedNetPref")
 const ftype = require("@static/ftype")
 
 type net_event = event<enumitem_net_notification, netpack>
@@ -91,7 +91,7 @@ do
 	private.metadata = setmetatable({} :: { [net_event]: metadata }, tables.__mode_ks)
 
 	function private.get_instance(that: sharednet, variant: enumitem_shared_net_variant, name: string): Instance
-		const folder = network.get_folder(net.shared_folder, that.timeout)
+		const folder = network.get_folder(SharedNetPref.deploy_placement_name, that.timeout)
 		const existing = network.find_remote(folder, name)
 
 		if existing then

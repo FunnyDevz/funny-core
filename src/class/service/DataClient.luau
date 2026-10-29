@@ -1,5 +1,6 @@
 --!strict
 const Event = require("@class/common/signal/Event")
+const EnumItem = require("@class/core/EnumItem")
 const Service = require("@class/core/Service")
 const SharedNet = require("@class/service/SharedNet")
 const NetPack = require("@class/struct/common/NetPack")
@@ -30,7 +31,7 @@ const class: dataclient = Service:new({
 
 	get_state = ftype:write(function(self: dataclient): enumitem_data_state
 		return private.state
-	end, "enumitem", "dataclient"),
+	end, EnumItem.type, "dataclient"),
 
 	get_value = ftype:write(function<T>(self: dataclient, path: data_path): T
 		local node: any = private.data
@@ -54,7 +55,7 @@ const class: dataclient = Service:new({
 
 	get_data_event = ftype:write(function(self: dataclient): data_event
 		return private.event
-	end, "event", "dataclient"),
+	end, Event.type, "dataclient"),
 })
 
 do

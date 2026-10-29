@@ -53,6 +53,4 @@ do
 	private.points = setmetatable({} :: list<unknown>, table.freeze({ __mode = "kvs" }))
 end
 
-ctype:read(class):write_tag(ctags.core)
-
 return class

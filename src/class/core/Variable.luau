@@ -1,6 +1,7 @@
 --!strict
 const LuaObject = require("@class/core/LuaObject")
 const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
 const ctags = require("@static/ctags")
 const ctype = require("@static/ctype")
 const types = require("@declare/types")
@@ -29,7 +30,7 @@ class:host(function(new: luaobject)
 end)
 
 do
-	private.meta = table.freeze({ __mode = "ks" })
+	private.meta = tables.__mode_ks
 	private.space = setmetatable({} :: { [variable]: { [number]: unknown } }, private.meta)
 	private.space[class] = {}
 end

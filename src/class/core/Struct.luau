@@ -8,12 +8,12 @@ const ftype = require("@static/ftype")
 
 type indexed = struct & {[unknown]: unknown}
 
-const private = {}
+const private = {type = "struct"}
 const class: struct = LuaObject:new({
-    type = "struct",
+    type = private.type,
 
     clone = ftype:write(function (self: struct, change: {[unknown]: unknown}?) : any
-        const base = self:base():as <<struct>> ("struct")
+        const base = self:base():as <<struct>> (private.type)
         const reconv = table.clone(self) :: indexed
 
         if change then
@@ -24,19 +24,18 @@ const class: struct = LuaObject:new({
                 reconv[i] = v
             end
         end
-        
-        if base then
-            const new = base:new(reconv)
-            return new
-        else
+
+        --#if DEBUG
+        if base == nil then
             stdout:oute "cannot take base, return self"
-            return self
         end
-    end, "struct", "struct"),
+        --#endif
+        return base and base:new(reconv) or self
+    end, private.type, private.type),
 
     each = ftype:write(function (self: struct, type: string, f: (value: any) -> any) : {[unknown]: any}
         return private.for_each_element_with_type_do(self, type, f) :: any
-    end, types.table, "struct", types.string, types["function"])
+    end, types.table, private.type, types.string, types["function"])
 })
 
 do
@@ -56,10 +55,10 @@ do
         const result: {[unknown]: unknown} = {}
 
         for i, v in self :: {[any]: any} do
-            result[ class:that(class.base(i :: any), "struct") and class.clone(i) or
-                type(i) == "table" and private.recursive_convertion(i :: {[unknown]: unknown} or
-                i) ] = class:that(class.base(v :: any), "struct") and class.clone(v) or
-                type(v) == "table" and private.recursive_convertion(v :: {[unknown]: unknown} or
+            result[ class:that(class.base(i :: any), private.type) and class.clone(i) or
+                type(i) == types.table and private.recursive_convertion(i :: {[unknown]: unknown} or
+                i) ] = class:that(class.base(v :: any), private.type) and class.clone(v) or
+                type(v) == types.table and private.recursive_convertion(v :: {[unknown]: unknown} or
                 v)
         end
 
@@ -67,7 +66,9 @@ do
     end
 
     class:finally(function(self: luaobject, base)
-        table.freeze(self)
+        if (not table.isfrozen(self)) then
+            table.freeze(self)
+        end
     end)
 end
 

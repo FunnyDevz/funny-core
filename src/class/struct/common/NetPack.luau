@@ -7,7 +7,7 @@ const stdout = require("@extension/stdout")
 const engine = require("@platform/roblox/engine")
 const players = require("@platform/roblox/players")
 const rbxtypes = require("@platform/roblox/rbxtypes")
-const net = require("@project/net")
+const net = require("@setting/SharedNetPref")
 const ftype = require("@static/ftype")
 
 const private = {}
@@ -48,7 +48,7 @@ const class: netpack = Struct:new({
 		end
 
 		const count = if type(raw.count) == types.number
-			then math.clamp(math.floor(raw.count :: number), 0, net.max_send_packet)
+			then math.clamp(math.floor(raw.count :: number), 0, net.max_network_packages)
 			else 0
 
 		return self:new({

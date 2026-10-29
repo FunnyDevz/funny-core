@@ -4,6 +4,7 @@ const EnumObject = require("@class/core/EnumObject")
 const Pointer = require("@class/core/Pointer")
 const ConnectionVariant = require("@enums/descriptor/ConnectionVariant")
 const LuaObject = require("@class/core/LuaObject")
+const Scheduler = require("@class/core/Scheduler")
 const dummies = require("@declare/dummies")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
@@ -18,11 +19,11 @@ const ftype = require("@static/ftype")
 type observer_on<T = enumitem> = T | { T } | enumobject | { enumobject } | { T | enumobject }
 type observer_var<T = unknown> = ((...any) -> ()) | thread | observer<T>
 
-const private = {}
+const private = {type = "observer"}
 const class: observer = LuaObject:new({
-	type = "observer",
-	deffered_call = true,
-	deffered_mode = false,
+	type = private.type,
+	deferred_call = true,
+	deferred_mode = false,
 	allow_new_connections = true,
 
 	subscribe = ftype:write(
@@ -61,11 +62,11 @@ const class: observer = LuaObject:new({
 
 			return unpack(result)
 		end,
-		ftype:var("pointer"),
-		"observer",
-		ftype:uor("enumitem", "enumobject", types.table),
-		"enumitem",
-		ftype:var_or("observer", types["function"], types.thread)
+		ftype:var(Pointer.type),
+		private.type,
+		ftype:uor(EnumItem.type, EnumObject.type, types.table),
+		EnumItem.type,
+		ftype:var_or(private.type, types["function"], types.thread)
 	),
 
 	unsubscribe = ftype:write(function(self: observer, ...: pointer): ()
@@ -83,14 +84,19 @@ const class: observer = LuaObject:new({
 
 			pointers[v] = nil
 		end
-	end, mtypes.never, "observer", ftype:var("pointer")),
+	end, mtypes.never, private.type, ftype:var(Pointer.type)),
 
 	notificate = ftype:write(function(self: observer, on: observer_on, ...: unknown): ()
 		const items = private.get_items(self)
 
-		if self.deffered_mode and coroutine.isyieldable() then
-			task.defer(coroutine.running())
-			coroutine.yield()
+		if self.deferred_mode and coroutine.isyieldable() then
+            const scheduler = Scheduler:whose()
+			if scheduler then
+				scheduler:last()
+				scheduler:wait()
+			else
+				task.wait()
+			end
 		end
 
 		for _, enumitem in private.create_flatted_on(on) do
@@ -110,7 +116,7 @@ const class: observer = LuaObject:new({
 				end
 			end
 		end
-	end, mtypes.never, "observer", ftype:uor("enumitem", "enumobject", types.table), ftype:var(mtypes.anyt)),
+	end, mtypes.never, private.type, ftype:uor(EnumItem.type, EnumObject.type, types.table), ftype:var(mtypes.anyt)),
 
 	subscription_set_mode = ftype:write(function(self: observer, operation: enumitem_connection_variant, ...: pointer): ()
 		const pointers = private.get_pointers(self)
@@ -122,7 +128,7 @@ const class: observer = LuaObject:new({
 				private.relevant_pointer_setting[operation](pointer, v)
 			end
 		end
-	end, mtypes.never, "observer", "enumitem", ftype:var("pointer")),
+	end, mtypes.never, private.type, EnumItem.type, ftype:var(Pointer.type)),
 
 	subscription_get_mode = ftype:write(function(self: observer, ...: pointer): ...enumitem_connection_variant
 		const pointers = private.get_pointers(self)
@@ -141,15 +147,15 @@ const class: observer = LuaObject:new({
 		end
 
 		return unpack(packed)
-	end, ftype:var("enumitem"), "observer", ftype:var("pointer")),
+	end, ftype:var(EnumItem.type), private.type, ftype:var(Pointer.type)),
 
-    get = function <Y> (self: observer, label: unknown) : Y
+    get = ftype:write(function <Y> (self: observer, label: unknown) : Y
         return private.shadow_space[self][label]
-    end,
+    end, ftype:opt(mtypes.anyt)), private.type, mtypes.anyt,
 
-    set = function <Y> (self: observer, label: unknown, to: Y) : ()
+    set = ftype:write(function <Y> (self: observer, label: unknown, to: Y) : ()
         private.shadow_space[self][label] = to
-    end 
+    end, mtypes.never, private.type, mtypes.anyt)
 })
 
 class:host(function(new)
@@ -202,9 +208,11 @@ do
 				const flat = private.create_flatted_on(v)
 				table.move(flat, 1, #flat, #output_for_cycle + 1, output_for_cycle)
 			end
+        --#if DEBUG
 		else
 			stdout:oute("unknown CallType")
-		end
+		--#endif
+        end
 
 		return output_for_cycle
 	end
@@ -244,9 +252,14 @@ do
 	private.call = function(v: observer_var, related: related, ...): boolean
 		const T = type(v)
 
-		if related.of.deffered_call and coroutine.isyieldable() then
-			task.defer(coroutine.resume, coroutine.running())
-			coroutine.yield()
+		if related.of.deferred_call and coroutine.isyieldable() then
+            const scheduler = Scheduler:whose()
+			if scheduler then
+				scheduler:last()
+				scheduler:wait()
+			else
+				task.wait()
+			end
 		end
 
 		if T == types["function"] then
@@ -262,12 +275,14 @@ do
 		elseif class:that(v, class.type) then
 			const var_observer = v :: observer
 			var_observer:notificate(related.notification_of, ...)
-		else
+            return true
+		--#if DEBUG
+        else
 			stdout:oute("unexpected connection, skip")
-			return false
+        --#endif
 		end
 
-		return true
+		return false
 	end
 
 	private.move_actions_to_mode = function(target: enumitem_connection_variant, related: related, ...)
@@ -319,12 +334,7 @@ do
 		[ConnectionVariant.Skip] = function(related: related, ...)
 			return private.move_actions_to_mode(ConnectionVariant.Once, related, ...)
 		end,
-
-        -- reserved
-		[ConnectionVariant.Hold] = function(related: related, ...)
-			return private.dummy
-		end,
-	}) :: { [enumitem_connection_variant]: (work: related, ...unknown) -> { observer_var<any> } }
+	}) :: { read [enumitem_connection_variant]: (work: related, ...unknown) -> { observer_var<any> } }
 
 	private.move_pointed = function(
 		work: pointer_internal,
@@ -368,7 +378,7 @@ do
 			[ConnectionVariant.Skip] = function(work: pointer_internal, pointer: pointer<any>)
 				private.move_pointed(work, pointer, ConnectionVariant.Skip)
 			end,
-		}) :: { [enumitem_connection_variant]: (work: pointer_internal, pointer: pointer) -> () }
+		}) :: { read [enumitem_connection_variant]: (work: pointer_internal, pointer: pointer) -> () }
 end
 
 ctype:read(class):write_tag(ctags.core)

@@ -102,6 +102,11 @@ export type ttable = {
         Рекурсивная копия. С метатаблицой.
     ]==]
 	read scan: <T>(t0: T, root: T?) -> T,
+
+	--[==[
+		Ищет и удаляет указанный элемент. Если успешно, то вернет true.
+	]==]
+	read frem: (t0: t, ...any) -> ...boolean,
 }
 
 type work = {
@@ -432,6 +437,23 @@ const ttable: ttable = {
 		end
 
 		return clone
+	end,
+
+	frem = function (t0: any, ...: any) : ...boolean
+		const list: {boolean} = {}
+		
+		for _, v in {...} do
+			const pos = table.find(t0, v)
+			
+			if pos ~= nil then
+				table.remove(t0, pos)
+				table.insert(list, true)
+			else
+				table.insert(list, false)
+			end
+		end
+
+		return table.unpack(list)
 	end,
 
 	equals = function(t0: any, ...: any): boolean

@@ -45,6 +45,10 @@ const rbxtypes = table.freeze({
 	["Vector2int16"] = "Vector2int16" :: "Vector2int16",
 	["Vector3"] = "Vector3" :: "Vector3",
 	["Vector3int16"] = "Vector3int16" :: "Vector3int16",
+
+	is_rbx_type = function (self: any, that) : boolean
+		return self[that] ~= nil
+	end
 })
 
 return rbxtypes :: typeof(rbxtypes) & {read [string]: string?}

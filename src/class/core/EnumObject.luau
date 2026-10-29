@@ -11,10 +11,10 @@ const ftype = require("@static/ftype")
 
 type indexed = enumobject & { [unknown]: unknown }
 
-const private = {}
+const private = {type = "enumobject"}
 const class: enumobject = LuaObject:new({
-	type = "enumobject",
-	name = script.Name,
+	type = private.type,
+	name = private.type,
 
 	get_enums_list = ftype:write(function<T>(self: enumobject): { [unknown]: enumitem }
 		const result: { [unknown]: enumitem } = {}
@@ -25,7 +25,7 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return result
-	end, types.table, "enumobject"),
+	end, types.table, private.type),
 
 	get_enums_count = ftype:write(function(self: enumobject): number
 		local count = 0
@@ -35,7 +35,7 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return count
-	end, types.number, "enumobject"),
+	end, types.number, private.type),
 
 	get_enums_name = ftype:write(function(self: enumobject, ...: enumitem): ...string
 		const result: { string } = {}
@@ -47,7 +47,7 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return unpack(result)
-	end, ftype:var(types.string), "enumobject", ftype:var(EnumItem.type)),
+	end, ftype:var(types.string), private.type, ftype:var(EnumItem.type)),
 
 	get_hashlink_list = ftype:write(function(self: enumobject): { string }
 		const result = {}
@@ -57,7 +57,7 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return result
-	end, types.table, "enumobject"),
+	end, types.table, private.type),
 
 	get_enum_by_name = ftype:write(function(self: enumobject, name: string): enumitem?
 		const var: unknown = (self :: indexed)[name]
@@ -67,7 +67,7 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return nil
-	end, ftype:opt(EnumItem.type), "enumobject", types.string),
+	end, ftype:opt(EnumItem.type), private.type, types.string),
 
 	get_enum_by_hashlink = ftype:write(function(self: enumobject, hashlink: string): enumitem?
 		for _, v in self:get_enums_list() do
@@ -77,7 +77,7 @@ const class: enumobject = LuaObject:new({
 		end
 
 		return nil
-	end, EnumItem.type, "enumobject", types.string),
+	end, EnumItem.type, private.type, types.string),
 
 	is_my_enumitem = ftype:write(function(self: enumobject, that: enumitem | string): boolean
 		if self:that(that, EnumItem.type) then
@@ -98,7 +98,7 @@ const class: enumobject = LuaObject:new({
         end
 
 		return false
-	end, types.boolean, "enumobject", EnumItem.type),
+	end, types.boolean, private.type, EnumItem.type),
 })
 
 class:host(function(new)
@@ -117,7 +117,9 @@ class:host(function(new)
             enum = new,
         })
 
-        table.freeze(item_var)
+		if (not table.isfrozen(item_var)) then
+			table.freeze(item_var)
+		end
 
         --#else
 

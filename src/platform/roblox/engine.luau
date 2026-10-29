@@ -1,5 +1,6 @@
 --!strict
 const RunService = game:GetService("RunService")
+const ScriptContext = game:GetService("ScriptContext")
 
 const tag = require("@declare/tag")
 
@@ -44,7 +45,9 @@ const engine = table.freeze {
 	frame = RunService.Heartbeat,
 	prephysic = RunService.PreSimulation,
 	postphysic = RunService.PostSimulation,
-	preanim = RunService.PreAnimation
+	preanim = RunService.PreAnimation,
+
+    on_script_error = ScriptContext.Error
 }
 
 return engine

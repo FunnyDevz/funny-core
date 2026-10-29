@@ -1,3 +1,4 @@
+const types = require("@declare/types")
 const extension = require("@project/extension")
 const global = require("@project/global")
 
@@ -29,7 +30,9 @@ const stdout: stdout = {
     end,
     
     outw = function (self, ...) : ()
-        if (warn ~= nil) then
+        const warn = warn :: any
+
+        if (type(warn) == types["function"]) then
             warn (`warn::{...}{if extension.stdout.traceback then "\n" .. debug.traceback() else ""}`)
         else
             self:out(`warn::{...}{if extension.stdout.traceback then "\n" .. debug.traceback() else ""}`)

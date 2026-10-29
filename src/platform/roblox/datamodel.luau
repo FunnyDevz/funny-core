@@ -1,5 +1,31 @@
 const CollectionService = game:GetService("CollectionService")
 
+const function tokenize(path: string): { string }
+	const tokens: { string } = {}
+	local i, n = 1, #path
+
+	while i <= n do
+		const c = path:sub(i, i)
+		if c == "." then
+			if path:sub(i, i + 1) == ".." then
+				table.insert(tokens, "..")
+				i += 2
+			else
+				i += 1
+			end
+		else
+			local j = i
+			while j <= n and path:sub(j, j) ~= "." do
+				j += 1
+			end
+			table.insert(tokens, path:sub(i, j - 1))
+			i = j
+		end
+	end
+
+	return tokens
+end
+
 const datamodel = {
 	get_nodes = function(of: luaobject): { Instance }
 		return CollectionService:GetTagged(tostring(of:iden()))
@@ -56,6 +82,37 @@ const datamodel = {
 
 		return false
 	end,
+
+	find_by_absolute_path = function (path: string): Instance?
+		const tokens = tokenize(path)
+		if tokens[1] == "game" then
+			table.remove(tokens, 1)
+		end
+
+		local current: Instance? = game
+		for _, token in tokens do
+			if not current then
+				return nil
+			end
+			current = current:FindFirstChild(token)
+		end
+		return current
+	end,
+
+	find_by_relative_path = function (root: Instance, path: string): Instance?
+		local current: Instance? = root
+		for _, token in tokenize(path) do
+			if not current then
+				return nil
+			end
+			if token == ".." then
+				current = current.Parent
+			else
+				current = current:FindFirstChild(token)
+			end
+		end
+		return current
+	end
 }
 
 return datamodel

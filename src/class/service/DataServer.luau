@@ -12,14 +12,14 @@ const DataNotification = require("@enums/notification/DataNotification")
 const NetNotification = require("@enums/notification/NetNotification")
 const DataState = require("@enums/state/DataState")
 const stderr = require("@extension/stderr")
-const data = require("@game/prefs/data")
 const ProfileStore = require("@include/ProfileStore")
 const engine = require("@platform/roblox/engine")
 const players = require("@platform/roblox/players")
 const rbxtypes = require("@platform/roblox/rbxtypes")
+const DataServerPref = require("@setting/DataServerPref")
 const ftype = require("@static/ftype")
 
-const REPLICATING = data.replicating :: { [string]: boolean }
+const REPLICATING = DataServerPref.replicating :: { [string]: boolean }
 
 type profile = any
 type data_event = event<enumitem_data_notification, ...any>
@@ -35,7 +35,7 @@ const class: dataserver = Service:new({
 		end
 
 		self.enabled = true
-		private.store = ProfileStore.New(data.store, data.template :: any)
+		private.store = ProfileStore.New(DataServerPref.store, DataServerPref.template :: any)
 
 		const event = SharedNet:get_event(SharedNetLink.Data)
 		private.net = event
@@ -125,14 +125,14 @@ const class: dataserver = Service:new({
 			return false
 		end
 
-		profile.Data = private.deep_copy(data.template)
+		profile.Data = private.deep_copy(DataServerPref.template)
 		private.send_snapshot(player)
 		return true
 	end, types.boolean, "dataserver", rbxtypes.Instance),
 
 	send_message = ftype:write(function(self: dataserver, user_id: number, message: { [string]: any }): boolean
 		const store = private.get_store()
-		const succ, err = pcall(store.MessageAsync, store, data.key(user_id), message)
+		const succ, err = pcall(store.MessageAsync, store, DataServerPref.key(user_id), message)
 
 		if not succ then
 			warn(`data failed to send a message to {user_id}:`, err)
@@ -158,7 +158,7 @@ do
 	function private.get_store(): any
 		const store = assert(private.store, "DataServer isn't started")
 
-		if engine.is_studio and data.studio.mock then
+		if engine.is_studio and DataServerPref.studio.mock then
 			return store.Mock
 		end
 
@@ -177,7 +177,7 @@ do
 
 		private.set_state(player, DataState.ProfileLoading)
 
-		const profile: profile? = private.get_store():StartSessionAsync(data.key(player.UserId), {
+		const profile: profile? = private.get_store():StartSessionAsync(DataServerPref.key(player.UserId), {
 			Cancel = function()
 				return not players.is_in_game(player)
 			end,
