@@ -6,6 +6,11 @@ on:
       - pre-main*
   pull_request:
   workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: false
+        default: ""
 
 env:
   CRATER_VERSION: v0.6.2
@@ -20,6 +25,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Install Rokit
         uses: CompeyDev/setup-rokit@v0.1.2
@@ -44,7 +51,7 @@ jobs:
           ROBLOX_OPEN_CLOUD_API_KEY: ${{ secrets.RBX_API_KEY }}
           ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
           ROBLOX_PLACE_ID: ${{ vars.ROBLOX_PLACE_ID }}
-          CORE_COMMIT: ${{ github.sha }}
+          CORE_COMMIT: ${{ inputs.ref || github.sha }}
         run: python3 CI/test.py --install
 
       - name: Upload results

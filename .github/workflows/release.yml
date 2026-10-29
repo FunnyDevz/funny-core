@@ -1,10 +1,11 @@
 name: Release
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
       - main
-  workflow_dispatch:
 
 concurrency:
   group: release
@@ -15,7 +16,10 @@ env:
 
 jobs:
   test:
+    if: github.event.pull_request.merged == true
     uses: ./.github/workflows/test.yml
+    with:
+      ref: ${{ github.event.pull_request.merge_commit_sha }}
     secrets: inherit
 
   version:
@@ -32,6 +36,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Read version
         id: read
@@ -58,6 +64,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Install crater
         run: |
@@ -75,9 +83,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.version }}
+          TARGET: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           gh release create "v$VERSION" \
             --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
+            --target "$TARGET" \
             --title "v$VERSION" \
             --generate-notes

@@ -77,13 +77,13 @@ CI/spec/contract.luau ─────────► CI/build/spec/contract.luau
 
 ## CI
 
-- `.github/workflows/test.yml`: тесты через Open Cloud (`python3 CI/test.py --install`). Запускается на pull request, на push в `pre-main*` и из `release.yml`.
-- `.github/workflows/release.yml`: на push в `main`:
-  1. вызывает `test.yml`;
-  2. если все тесты прошли, а GitHub Release `v<version из crater.json>` ещё не создан, выполняет `crater publish -y`. Он открывает PR в реестр crater, пакет появляется после того, как владелец реестра примет PR;
-  3. создаёт GitHub Release `v<version>`.
+- `.github/workflows/test.yml`: только проверка, тесты через Open Cloud (`python3 CI/test.py --install`). Запускается на pull request, на push в `pre-main*` и из `release.yml`. Ничего не публикует.
+- `.github/workflows/release.yml`: только когда pull request **вручную смержен** в `main`. Прямой push в `main` и незакрытые PR ничего не публикуют.
+  1. Прогоняет `test.yml` на коммите мержа.
+  2. Если все тесты прошли, а GitHub Release `v<version из crater.json>` ещё не создан, выполняет `crater publish -y`. Команда открывает PR в реестр crater, и пакет появляется после того, как владелец реестра его примет.
+  3. Создаёт GitHub Release `v<version>`.
 
-  Чтобы выпустить новую версию, подними `version` в `crater.json` (`crater bump`) и влей изменения в `main`. Если версию не поднимать, публикация просто пропускается.
+  Порядок работы: ветка, затем PR в `main`. Пока что-то не доделано, CI только проверяет PR. Когда готово, подними `version` в `crater.json` (`crater bump`) и нажми Merge. Если версию не поднимать, публикация пропускается.
 
 Что нужно в репозитории (Settings → Secrets and variables → Actions):
 
