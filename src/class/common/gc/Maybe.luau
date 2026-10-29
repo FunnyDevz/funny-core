@@ -27,7 +27,7 @@ const class: maybe = (Observer :: observer<enumitem_operation_variant>):new({
 	end, mtypes.anyt, "maybe", mtypes.anyt, types["function"]),
 
 	enactment = ftype:write(function (self: maybe, it: unknown, of: luaobject) : luaobject
-		if not stderr:assert(self:that(of, "LuaObject"), "unexpected obhect") then
+		if not stderr:assert(self:that(of, LuaObject.type), "unexpected obhect") then
 			return of
 		end
 
