@@ -85,14 +85,19 @@ CI/spec/contract.luau ─────────► CI/build/spec/contract.luau
 
   Порядок работы: ветка, затем PR в `main`. Пока что-то не доделано, CI только проверяет PR. Когда готово, подними `version` в `crater.json` (`crater bump`) и нажми Merge. Если версию не поднимать, публикация пропускается.
 
-Что нужно в репозитории (Settings → Secrets and variables → Actions):
+Нужны секреты организации FunnyDevz (Settings → Secrets and variables → Actions → **Secrets**) с доступом для `funny-core`:
 
-| Имя | Тип | Что это |
-| --- | --- | --- |
-| `RBX_API_KEY` | секрет | Ключ Roblox Open Cloud с правами `universe-places:write` и `universe.place.luau-execution-session:write`. |
-| `ROBLOX_UNIVERSE_ID` | переменная | Universe тестового плейса. |
-| `ROBLOX_PLACE_ID` | переменная | Тестовый плейс. CLI перезаписывает его при каждом прогоне, поэтому не указывай боевой. |
-| `CRATER_TOKEN` | секрет | GitHub-токен аккаунта, который публикует пакет (`public_repo`). Аккаунт должен быть публичным участником организации FunnyDevz. |
+| Секрет | Что это |
+| --- | --- |
+| `RBX_API_KEY` | Ключ Roblox Open Cloud с правами `universe-places:write` и `universe.place.luau-execution-session:write` на тестовый experience. |
+| `ROBLOX_UNIVERSE_ID` | Universe тестового experience. |
+| `ROBLOX_PLACE_ID` | Тестовый плейс. CLI перезаписывает его при каждом прогоне, поэтому не указывай боевой. |
+| `CRATER_TOKEN` | GitHub-токен аккаунта, который публикует пакет (`public_repo`). Аккаунт должен быть публичным участником организации FunnyDevz. |
+
+Репозиторий публичный, поэтому:
+- в логах Actions значения секретов GitHub заменяет на `***` сам;
+- перед загрузкой артефакта `jest-results` шаг `Scrub results` вычищает `ROBLOX_UNIVERSE_ID` и `ROBLOX_PLACE_ID` из файлов `CI/output`;
+- PR из форков секреты не получают, такие PR не могут запустить тесты в Open Cloud.
 
 ## Если что-то не работает
 

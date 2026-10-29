@@ -49,10 +49,22 @@ jobs:
       - name: Run tests
         env:
           ROBLOX_OPEN_CLOUD_API_KEY: ${{ secrets.RBX_API_KEY }}
-          ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
-          ROBLOX_PLACE_ID: ${{ vars.ROBLOX_PLACE_ID }}
+          ROBLOX_UNIVERSE_ID: ${{ secrets.ROBLOX_UNIVERSE_ID }}
+          ROBLOX_PLACE_ID: ${{ secrets.ROBLOX_PLACE_ID }}
           CORE_COMMIT: ${{ inputs.ref || github.sha }}
         run: python3 CI/test.py --install
+
+      - name: Scrub results
+        if: always()
+        env:
+          ROBLOX_UNIVERSE_ID: ${{ secrets.ROBLOX_UNIVERSE_ID }}
+          ROBLOX_PLACE_ID: ${{ secrets.ROBLOX_PLACE_ID }}
+        run: |
+          [ -d CI/output ] || exit 0
+          for value in "$ROBLOX_UNIVERSE_ID" "$ROBLOX_PLACE_ID"; do
+            [ -n "$value" ] || continue
+            grep -rlF -- "$value" CI/output | xargs -r sed -i "s/$value/***/g"
+          done
 
       - name: Upload results
         if: always()
