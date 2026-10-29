@@ -100,7 +100,8 @@ const class: observer = LuaObject:new({
 		end
 
 		for _, enumitem in private.create_flatted_on(on) do
-			if const dispatch_layer = items[enumitem] then
+			const dispatch_layer = items[enumitem]
+			if dispatch_layer then
 				for i, observer_connections_list in table.clone(dispatch_layer) do
 					const delta_list = observer_connections_list
 					const related = private.generate_related(self, enumitem, delta_list)

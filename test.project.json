@@ -1,0 +1,28 @@
+{
+  "name": "funny-core-tests",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "core": {
+        "$path": "CI/build/core"
+      },
+      "spec": {
+        "$path": "CI/build/spec"
+      },
+      "Packages": {
+        "$path": "Packages"
+      },
+      "ServerPackages": {
+        "$path": "ServerPackages"
+      },
+      "DevPackages": {
+        "$path": "DevPackages"
+      }
+    },
+    "ServerScriptService": {
+      "$properties": {
+        "LoadStringEnabled": true
+      }
+    }
+  }
+}

@@ -17,3 +17,6 @@
 *.png*
 *.jpg*
 *.luau_*
+/CI/build
+/funny-core-tests.zip
+__pycache__/

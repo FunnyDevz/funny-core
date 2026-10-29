@@ -9,6 +9,7 @@ const ftype = require("@static/ftype")
 
 const private = {}
 const class: variable = LuaObject:new({
+	type = "variable",
 	creation_time = os.clock(),
 
 	get_value = ftype:write(function<T>(self: variable<T>): unknown

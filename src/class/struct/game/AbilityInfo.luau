@@ -3,6 +3,7 @@
 const Struct = require("@class/core/Struct")
 
 const class: abilityinfo = Struct:new({
+	type = "abilityinfo",
 	has_cooldown = false,
 	has_stun = false,
 	has_kickback = false,

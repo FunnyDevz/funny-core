@@ -1,0 +1,17 @@
+{
+  "rojoProject": "test.project.json",
+  "jestPath": "ReplicatedStorage/DevPackages/Jest",
+  "timeout": 300000,
+  "test": {
+    "projects": [
+      {
+        "test": {
+          "displayName": "core",
+          "include": ["CI/build/spec/**/*.spec.luau"],
+          "outDir": "CI/build/spec",
+          "projectTimeout": 240000
+        }
+      }
+    ]
+  }
+}

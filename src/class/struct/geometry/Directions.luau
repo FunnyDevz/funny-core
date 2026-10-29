@@ -17,6 +17,11 @@ const class : directions = GeoVolume:new {
     to_vector = ftype:write(function (self: directions) : vector
         return vector.create(vector.magnitude(self.right), vector.magnitude(self.up), vector.magnitude(self.front))
     end, types.vector, "directions"),
+
+    to_basis = ftype:write(function (self: directions) : basis
+        const Basis: basis = require("@class/struct/geometry/Basis")
+        return Basis:new({ rotation = self })
+    end, "basis", "directions"),
 }
 
 ctype:read(class):write_tag(ctags.geometry, ctags.struct)

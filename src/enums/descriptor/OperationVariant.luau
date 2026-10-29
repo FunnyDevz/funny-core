@@ -7,7 +7,6 @@ const class: enum_operation_variant = EnumObject:new({
 	Remove = EnumItem:new() :: enumitem<any>,
 	New = EnumItem:new() :: enumitem<any>,
 	Change = EnumItem:new() :: enumitem<any>,
-	Null = EnumItem:new() :: enumitem<any>,
 })
 
 return class
