@@ -131,7 +131,8 @@ class:host(function(new)
 
 
         --#if DEBUG
-        if const collision: enumitem? = private.item_builded[v.hashlink] then
+        const collision: enumitem? = private.item_builded[v.hashlink]
+        if collision then
             --#if ENUMBOJECT_PRINT_ACT
             stdout:outm(
                 string.format(

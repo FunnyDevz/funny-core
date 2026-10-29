@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/TheExeDEV/crater/main/schemas/crater.schema.json",
 
-  "name": "ifmnb/funny-core-raw",
+  "name": "funnydevz/funny-core",
   "version": "0.0.1",
   "description": "An unloaded raw version of funny-core. It is not intended to be executed.",
   "authors": ["IFMNB", "TheExeDEV"],
@@ -10,7 +10,7 @@
 
   "repository": "https://github.com/FunnyDevz/funny-core",
   "registries": {},
-  "can_publish": false,
+  "can_publish": true,
   "import_to": "shared",
 
   "path_to_main": "",
@@ -18,19 +18,22 @@
     "./src/tfunc.d.luau",
     "./src/core.d.luau"
   ],
-  "package_files": { "exclude": [], "allow": [] },
+  "package_files": {
+    "exclude": ["CI/**", ".github/**", "build/**", "src/temp/**", "**/__pycache__/**", "jest.config.json", "test.project.json"],
+    "allow": []
+  },
 
   "import_client": [
-    "Quat:ifmnb/quat@2609.23.1",
-    "SAT:ifmnb/algorithm-sat@2609.7.0",
-    "Cryptography:daily3014/cryptography@1.5.0"
+    "Quat:wally#ifmnb/quat@2609.23.1",
+    "SAT:wally#ifmnb/algorithm-sat@2609.7.0",
+    "Cryptography:wally#daily3014/cryptography@1.5.0"
   ],
   "import_server": [
-    "ProfileStore:lm-loleris/profilestore@1.0.3"
+    "ProfileStore:wally#lm-loleris/profilestore@1.0.3"
   ],
   "import_develop": [
-    "Jest:roblox/jest@=3.20.0",
-    "JestG:roblox/jest-globals@=3.20.0"
+    "Jest:wally#roblox/jest@=3.20.0",
+    "JestGlobals:wally#roblox/jest-globals@=3.20.0"
   ],
   "overrides": [],
 

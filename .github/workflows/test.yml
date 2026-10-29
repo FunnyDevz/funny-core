@@ -3,9 +3,12 @@ name: Tests
 on:
   push:
     branches:
-      - main
       - pre-main*
   pull_request:
+  workflow_call:
+
+env:
+  CRATER_VERSION: v0.6.2
 
 jobs:
   test:
@@ -18,18 +21,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install fish
-        run: sudo apt-get update && sudo apt-get install -y fish
-
       - name: Install Rokit
         uses: CompeyDev/setup-rokit@v0.1.2
 
       - name: Install tools
-        run: rokit install
+        run: rokit install --no-trust-check
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install crater
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl --fail --location --output "$HOME/.local/bin/crater" "https://github.com/TheExeDEV/crater/releases/download/$CRATER_VERSION/crater-linux-x64"
+          chmod +x "$HOME/.local/bin/crater"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Run tests
         env:
-          ROBLOX_OPEN_CLOUD_API_KEY: ${{ secrets.ROBLOX_OPEN_CLOUD_API_KEY }}
+          ROBLOX_OPEN_CLOUD_API_KEY: ${{ secrets.RBX_API_KEY }}
           ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
           ROBLOX_PLACE_ID: ${{ vars.ROBLOX_PLACE_ID }}
-        run: fish ./CI/run
+          CORE_COMMIT: ${{ github.sha }}
+        run: python3 CI/test.py --install
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jest-results
+          path: CI/output
+          if-no-files-found: ignore
