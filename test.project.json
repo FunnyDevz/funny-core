@@ -18,6 +18,11 @@
       "DevPackages": {
         "$path": "DevPackages"
       }
+    },
+    "ServerScriptService": {
+      "$properties": {
+        "LoadStringEnabled": true
+      }
     }
   }
 }
