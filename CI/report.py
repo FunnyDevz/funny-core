@@ -121,7 +121,12 @@ def render(results: dict) -> str:
     ]
 
     if failed_suites:
-        out += ["| Type | Failed | Passed | Reason |", "| --- | ---: | ---: | --- |"]
+        out += [
+            f"<details><summary><b>📋 Failed types</b> · {len(failed_suites)}</summary>",
+            "",
+            "| Type | Failed | Passed | Reason |",
+            "| --- | ---: | ---: | --- |",
+        ]
         for name, failures in sorted(failed_suites.items(), key=lambda item: (-len(item[1]), item[0])):
             missing = [m.group(1) for _, why in failures if (m := re.match(r"missing method `(\w+)`", why))]
             reasons: dict[str, int] = defaultdict(int)
@@ -135,16 +140,18 @@ def render(results: dict) -> str:
             hidden = len(top) - 2
             summary = "; ".join(parts) + (f" (+{hidden} more)" if hidden > 0 else "")
             out.append(f"| `{name}` | {len(failures)} | {passed_in[name]} | {cell(summary)} |")
-        out.append("")
+        out += ["", "</details>", ""]
 
-        out += ["### Failures", ""]
+        total = sum(len(failures) for failures in failed_suites.values())
+        out += [f"<details><summary><b>❌ Failures</b> · {total} tests in {len(failed_suites)} types</summary>", ""]
         for name, failures in sorted(failed_suites.items()):
             out += [f"<details><summary><code>{name}</code> · {len(failures)} failed</summary>", ""]
             out += [f"- `{title}`: {cell(why)}" for title, why in failures]
             out += ["", "</details>", ""]
+        out += ["</details>", ""]
 
     if todo:
-        out += [f"<details><summary>{len(todo)} types without a runtime contract (todo)</summary>", ""]
+        out += [f"<details><summary><b>📝 Todo</b> · {len(todo)} types without a runtime contract</summary>", ""]
         out += [f"- `{name}`: {why}" for name, why in sorted(todo)]
         out += ["", "</details>", ""]
 
