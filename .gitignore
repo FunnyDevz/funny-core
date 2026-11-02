@@ -5,6 +5,7 @@
 /ServerPackages
 /wally.lock
 /build/target
+/bin
 
 /*.rbxlx.lock
 /*.rbxl.lock
