@@ -37,9 +37,10 @@ jobs:
       - name: Install crater
         run: |
           mkdir -p "$HOME/.local/bin"
-          curl --fail --location --output "$HOME/.local/bin/crater" "https://github.com/TheExeDEV/crater/releases/download/$CRATER_VERSION/crater-linux-x64"
-          chmod +x "$HOME/.local/bin/crater"
+          curl --fail --location --output "$HOME/.local/bin/crater" "https://github.com"
+          chmod +x "$HOME/.local/bin"crater"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.crater/bin" >> "$GITHUB_PATH"
 
       - name: Run tests
         env:
