@@ -78,7 +78,7 @@ do
 	private.objects[class:iden()] = class
 	private.watch[class] = {}
 
-	--endif
+	--#endif
 end
 
 return class
