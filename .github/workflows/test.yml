@@ -25,7 +25,9 @@ jobs:
         uses: CompeyDev/setup-rokit@v0.1.2
 
       - name: Install tools
-        run: rokit install --no-trust-check
+        run: |
+          rokit install --no-trust-check
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
 
       - name: Setup Python
         uses: actions/setup-python@v5
