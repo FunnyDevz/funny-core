@@ -1,6 +1,6 @@
 const types = require("@declare/types")
 const dummies = require("@declare/dummies")
-const stderr = require("@extension/stderr")
+const std = require("@extension/std")
 
 type t = { [any]: any }
 
@@ -126,12 +126,13 @@ const FCALL_SCAN_WORK: work = {}
 
 local FTTABLE: ttable
 
-const ttable: ttable = {
+const ttable: ttable = { 
 	combine = function(t0: any, t1: any): any
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return dummies.nullf()
 		end
-		if not stderr:assert(type(t1) == types.table, "t1 is not a table") then
+
+		if not std:assert(type(t1) == types.table, "t1 is not a table") then
 			return dummies.nullf()
 		end
 
@@ -144,7 +145,7 @@ const ttable: ttable = {
 	end,
 
 	fix = function(t0)
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return t0 :: { any }
 		end
 
@@ -188,7 +189,7 @@ const ttable: ttable = {
 	end,
 
 	toggle = function(t0: t, that): ()
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return
 		end
 
@@ -207,7 +208,7 @@ const ttable: ttable = {
 	end,
 
 	fixed = function(t0: t)
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return dummies.nullf()
 		end
 
@@ -231,7 +232,7 @@ const ttable: ttable = {
 	end,
 
 	dump = function(t0: t): { number }
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return dummies.nullf() :: { any }
 		end
 
@@ -255,7 +256,7 @@ const ttable: ttable = {
 	end,
 
 	holes = function(t0: t): number
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return 0
 		end
 
@@ -273,7 +274,7 @@ const ttable: ttable = {
 	end,
 
 	length = function(t0: t): number
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return 0
 		end
 		local max = 0
@@ -288,7 +289,7 @@ const ttable: ttable = {
 	end,
 
 	count = function(t0: t): number
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return 0
 		end
 
@@ -304,12 +305,12 @@ const ttable: ttable = {
 	end,
 
 	conflictable = function(t0: any, ...: any): boolean
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return false
 		end
 
 		for _, v in { ... } do
-			if not stderr:assert(type(v) == types.table, "value is not a table") then
+			if not std:assert(type(v) == types.table, "value is not a table") then
 				return false
 			end
 
@@ -324,7 +325,7 @@ const ttable: ttable = {
 	end,
 
 	find = function(t0: t, ...: any): ...boolean
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return table.unpack(table.create(select("#", ...), false))
 		end
 
@@ -349,7 +350,7 @@ const ttable: ttable = {
 	end,
 
 	copy = function(t0: t, root: t?): any
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return t0
 		end
 
@@ -383,7 +384,7 @@ const ttable: ttable = {
 	end,
 
 	scan = function(t0: t, root: t?): any
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return t0
 		end
 
@@ -457,12 +458,12 @@ const ttable: ttable = {
 	end,
 
 	equals = function(t0: any, ...: any): boolean
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return false
 		end
 
 		for i, v in { ... } do
-			if not stderr:assert(type(v) == types.table, "value is not a table") then
+			if not std:assert(type(v) == types.table, "value is not a table") then
 				return false
 			end
 
@@ -479,12 +480,12 @@ const ttable: ttable = {
 	end,
 
 	same = function(t0: t, ...: t): boolean
-		if not stderr:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(type(t0) == types.table, "t0 is not a table") then
 			return false
 		end
 
 		for _, v in { ... } do
-			if not stderr:assert(type(v) == types.table, "value is not a table") then
+			if not std:assert(type(v) == types.table, "value is not a table") then
 				return false
 			end
 

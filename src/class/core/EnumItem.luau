@@ -1,4 +1,10 @@
 --!strict
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
+
 const LuaObject = require("@class/core/LuaObject")
 const Cryptography = require("@import/Cryptography")
 
@@ -10,12 +16,12 @@ const class: enumitem = LuaObject:new({
 })
 
 class:host(function(new)
-	const new = new:as <<enumitem>> (class.type);
+	const new = new:as <<enumitem>> (class.type)
 	const tnew: any = new
 
 	tnew.hashlink = Cryptography.Hashing.Blake3.Digest(buffer.fromstring(new.name))
 
-	--#if ENUMITEM_FREEZE_NEW
+	--#if CORE_ENUMITEM_FREEZE
 	if not table.isfrozen(new) then
 		table.freeze(new)
 	end

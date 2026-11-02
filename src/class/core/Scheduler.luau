@@ -1,13 +1,17 @@
 --!strict
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const LuaObject = require("@class/core/LuaObject")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
-const stderr = require("@extension/stderr")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const ttable = require("@extension/ttable")
 const ftype = require("@static/ftype")
---#include <project.gpp>
+const dummies = require("@declare/dummies")
 
 const private = { type = "scheduler" }
 const class: scheduler = LuaObject:new {
@@ -15,7 +19,15 @@ const class: scheduler = LuaObject:new {
 
 	plan = ftype:write(function<T...>(self: scheduler, t: scheduler_teta<T...>, ...: T...): thread
 		const new = private.new_tar(t, ...)
-		table.insert(private.get_local(self).planned, new)
+		const loc = private.get_local(self)
+		const existing, location = private.find(loc, private.convert(t))
+
+		if existing then
+			-- clean up if we have foreign tar (pos 2, check scheduler:process())
+			table.remove(loc.planned, location)
+		end
+
+		table.insert(loc.planned, new)
 		return new.run
 	end, types.thread, private.type, ftype:uor(types.table, types["function"]), ftype:var_opt(mtypes.anyt)),
 
@@ -37,14 +49,53 @@ const class: scheduler = LuaObject:new {
 		return nil
 	end, ftype:opt(private.type), private.type, types.thread),
 
-	cancel = ftype:write(function(self: scheduler, c: thread): ()
+	cancel = ftype:write(function(self: scheduler, c: thread?): ()
 		const loc = private.get_local(self)
-		table.remove(loc.planned, table.find(loc.planned, private.find(loc, c)) or 0)
-	end, mtypes.never, private.type, types.thread),
+		local is_my_thread = false
+		local is_foreign = false
+		c = c or coroutine.running()
+
+		for i = #loc.planned, 1, -1 do
+			const tar = loc.planned[i]
+
+			if tar == nil then
+				table.remove(loc.planned, i)
+				continue
+			end
+
+			if tar.run == c then
+				table.remove(loc.planned, i)
+				is_my_thread = true
+				is_foreign = is_foreign ~= true and tar.foreign or false
+				continue
+			end
+		end
+
+		if is_my_thread then
+			--#if CORE_SCHEDULER_CANCEL_KILL_THREAD
+			if not is_foreign then
+				if coroutine.running() ~= c then
+					coroutine.close(c)
+				else
+					self:plan(coroutine.close :: any, c)
+					if (coroutine.isyieldable()) then
+						coroutine.yield()
+					else
+						return
+					end
+				end
+			end
+			--#endif
+		--#if DEBUG
+		else
+			std:outw("you're trying to cancel unknown thread")
+		--#endif
+		end
+	end, mtypes.never, private.type, ftype:opt(types.thread)),
 
 	is_planned = ftype:write(function(self: scheduler, a: thread?): boolean
 		if a ~= nil then
-			stderr:assert(type(a) == "thread", "this is not a coroutine thread")
+			std:assert(type(a) == "thread", "this is not a coroutine thread")
 			return private.find(private.get_local(self), a) ~= nil
 		end
 
@@ -53,18 +104,21 @@ const class: scheduler = LuaObject:new {
 
 	is_waiting = ftype:write(function(self: scheduler, c: thread?): boolean
 		if c == nil then
-			return self:is_waiting(coroutine.running())
-		else
-			const tar = private.find(private.get_local(self), c)
-			if not tar then
-				return false
-			end
-			if private.valid(self) then
-				return false
-			end
-
-			return tar.fwait or false
+			if private.valid(self) then	return false end
+			c = coroutine.running()
 		end
+
+		const tar = private.find(private.get_local(self), c :: thread)
+		return tar and tar.fwait or false
+	end, types.boolean, private.type, ftype:opt(types.thread)),
+
+	is_foreign = ftype:write(function (self: scheduler, c: thread?): boolean
+		if not c then return false end
+
+		const tar = private.find(private.get_local(self), c)
+		if not tar then return false end
+		
+		return tar.foreign or false
 	end, types.boolean, private.type, ftype:opt(types.thread)),
 
 	hold = ftype:write(function(self: scheduler, time: number?): ()
@@ -72,56 +126,104 @@ const class: scheduler = LuaObject:new {
 		const loc = private.get_local(self)
 		time = time or 0
 
-		--#if DEBUG
-		stderr:assert(run == loc.current, "cannot hold unplanned coroutine")
-		--#endif
+		if run ~= loc.current then
+			--#if DEBUG
+			std:oute "cannot hold"
+			--#endif
+			return
+		end
 
 		if loc.current_tar then
 			loc.current_tar.fwait = true
 			loc.current_tar.wait = (loc.current_tar.wait and loc.current_tar.wait + time) or (os.clock() + time)
-			loc.current_tar.yielded_by_us = true 
+			loc.current_tar.yielded_by_us = true
+
+			-- aka
+			--[===[
+				```luau
+					scheduler:hold(634)
+					-- ...some code
+					coroutine.yield()
+					-- ...after some time our coroutine start working
+				```
+			]===]
+
 			return
 		end
 
 		--#if DEBUG
-		stdout:oute(`something going wrong with {self.type}, current_tar does not exists`)
+		std:oute(`something going wrong with {self.type}, current_tar does not exists`)
 		--#endif
 	end, mtypes.never, private.type, ftype:opt(types.number)),
 
 	wait = ftype:write(function(self: scheduler, time: number?): ()
 		self:hold(time)
+		const loc = private.get_local(self)
+		const current_tar = loc.current_tar
+
+		if not current_tar then
+			--#if DEBUG
+			std:oute "tar is nil"
+			--#endif
+			return
+		end
+
+		current_tar.yielded_by_us = true
 		coroutine.yield()
 	end, mtypes.never, private.type, ftype:opt(types.number)),
 
 	last = ftype:write(function(self: scheduler, t: any, ...: any): ()
-		table.insert(private.get_local(self).planned, 1, private.new_tar(t, ...))
+		const loc = private.get_local(self)
+		const existing, location = private.find(loc, private.convert(t))
+		
+		if existing then
+			-- clean up if we have foreign tar (pos 2, check scheduler:process())
+			table.remove(loc.planned, location)
+		end
+
+		table.insert(loc.planned, 1, private.new_tar(t, ...))
 	end, mtypes.never, private.type, ftype:var_or(types.thread, types["function"], ftype:var(mtypes.anyt))),
 
 	next = ftype:write(function(self: scheduler, t: any, ...: any): ()
 		--#if DEBUG
-		stderr:assert(private.valid(self), "cannot plan next schedule, because this thread actually isn't planned thread")
+		std:assert(private.valid(self), "cannot plan next schedule, because this thread actually isn't planned thread")
 		--#endif
 
 		const loc = private.get_local(self)
-		const tar = stderr:assert(loc.current_tar, "current planned coroutine has a troubles")
-		const index = stderr:assert(table.find(loc.planned, tar), "cannot find this coroutine in plan list")
+		const tar = std:assert(loc.current_tar, "current planned coroutine has a troubles")
+		const index = std:assert(table.find(loc.planned, tar), "cannot find this coroutine in plan list")
 		const new = private.new_tar(t, ...)
+		const existing, location = private.find(loc, private.convert(t))
+		
+		if existing then
+			-- clean up if we have foreign tar (pos 2, check scheduler:process())
+			table.remove(loc.planned, location)
+		end
 
 		table.insert(loc.planned, index > 1 and index - 1 or 1, new)
 	end, mtypes.never, private.type, ftype:var_or(types.thread, types["function"], ftype:var(mtypes.anyt))),
 
 	process = ftype:write(function(self: scheduler): ()
 		const loc = private.get_local(self)
+		if coroutine.running() == loc.current then
+			--#if DEBUG
+			std:oute "you're trying to call scheduler:process() inside a planned coroutine"
+			--#endif
+			return
+		end
+		
 		const c = #loc.planned
+		const plan = table.clone(loc.planned)
+
+
 
 		for i = c, 1, -1 do
-			const tar = loc.planned[i]
-			if not tar then
-				continue
-			end
+			const tar = plan[i]
+			if not tar then continue end
+			if not tar.run then tar.run = dummies.thread_dead end
 
 			if coroutine.status(tar.run) == "dead" then
-				table.remove(loc.planned, i)
+				table.remove(loc.planned, table.find(loc.planned, tar) or 0)
 				continue
 			end
 
@@ -148,7 +250,7 @@ const class: scheduler = LuaObject:new {
 			loc.current_tar = nil
 
 			if not state then
-				table.remove(loc.planned, i)
+				table.remove(loc.planned, table.find(loc.planned, tar) or 0)
 				continue
 			end
 
@@ -157,9 +259,19 @@ const class: scheduler = LuaObject:new {
 			if status == "suspended" then
 				if not tar.yielded_by_us then
 					tar.foreign = true
+					
+					
+					-- for scheduler:whose() and another, we should never delete
+					-- this element, ever if he isn't controlled by us.
+					-- Code that controls our coroutine can return control to us
+					-- by scheduler:plan or something
+					
+					--#if CORE_SCHEDULER_REMOVE_FOREIGN_THREAD
+					table.remove(loc.planned, table.find(loc.planned, tar) or 0)
+					--#endif
 				end
 			elseif status == "dead" then
-				table.remove(loc.planned, i)
+				table.remove(loc.planned, table.find(loc.planned, tar) or 0)
 			end
 		end
 	end, mtypes.never, private.type),
@@ -177,73 +289,27 @@ class:host(function(new: luaobject)
 end)
 
 do
-	--[==[
-    Метаинформация о запланированной коррутине
-]==]
 	type tar = {
-		--[==[
-        Запланированная на запуск коррутина
-    ]==]
 		read run: thread,
-		--[==[
-        Передаваемые между вызовами аргументы
-    ]==]
 		read call: { unknown },
 
-		--[==[
-        Флаг, указывающий на то что ожидание коррутины вызвано вызовом функции планировщика,
-        а не через прямой `coroutine.yield()`
-
-        Этот флаг может быть установлен и в моменте когда коррутина запрашивает hold: она сама выберет
-        в какой конкретный момент ей остановиться. Это не влияет на поведение, так как асинхронности в
-        языке не существует в параллельном смысле.
-    ]==]
 		fwait: boolean?,
-
-		--[==[
-        Время, которое планировщик ждет для этой коррутины для запуска. В коде проверяется в основном оно,
-        потому что ожидается прохождение факта
-    ]==]
 		wait: number?,
-
-		--[==[
-			Yield коррутины был выполнен через этот scheduler
-		]==]
 		yielded_by_us: boolean?,
-
-		--[==[
-			Коррутина перехвачена чужим планировщиком или кодом
-		]==]
 		foreign: boolean?,
 	}
 
-	--[==[
-    Приватное состояние каждого объекта планировщика
-]==]
 	type loc = {
-		--[==[
-        Цель, которая сейчас выполняется. Кэш.
-    ]==]
 		current_tar: tar?,
-		--[==[
-        Коррутина цели, которая сейчас выполняется. Кэш.
-    ]==]
 		current: thread?,
-		--[==[
-        Лист запланированных к выполнению целей.
-    ]==]
 		read planned: { tar? },
 	}
 
 	private.mt = tables.__mode_ks
 	private.external_sources = setmetatable({} :: {(thread) -> scheduler?}, private.mt)
-	private.obj_mt = table.freeze({ __index = class })
-	private.loc = setmetatable(
-		{
-			[class] = { planned = {} },
-		} :: { [scheduler]: loc },
-		private.mt
-	)
+	private.loc = setmetatable({} :: { [scheduler]: loc }, private.mt)
+
+
 
 	private.convert = function<T...>(t: scheduler_teta<T...>): thread
 		const T = type(t)
@@ -255,7 +321,7 @@ do
 		elseif T == types["nil"] then
 			return coroutine.running()
 		else
-			return stdout:oute(`cannot create plan for this, expected function or coroutine thread, but got {typeof(t)}`)
+			return std:oute(`cannot create plan for this, expected function or coroutine thread, but got {typeof(t)}`)
 		end
 	end
 
@@ -275,7 +341,7 @@ do
 		}
 	end
 
-	private.find = function(loc: loc, cor: thread): tar?
+	private.find = function(loc: loc, cor: thread): (tar?, number)
 		const c = #loc.planned
 		for i = c, 1, -1 do
 			const tar = loc.planned[i]
@@ -284,12 +350,16 @@ do
 			end
 
 			if tar.run == cor then
-				return tar
+				return tar, i
 			end
 		end
 
-		return nil
+		return nil, 0
 	end
+
+	--#if CORE_CLASS_USEABLE
+	private.loc[class] = {planned = {}}
+	--#endif
 end
 
 return class

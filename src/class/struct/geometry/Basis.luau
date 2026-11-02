@@ -5,12 +5,11 @@ const Directions = require("@class/struct/geometry/Directions")
 const GeoVolume = require("@class/struct/geometry/GeoVolume")
 const types = require("@declare/types")
 const Quat = require("@import/Quat")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
 
+const tname = "basis"
 const class: basis = (GeoVolume :: geovolume<basis>):new({
-	type = "basis",
+	type = tname,
 	rotation = Directions:new(),
 	position = vector.zero,
 
@@ -31,7 +30,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
 		})
 
 		return clone
-	end, "basis", "basis"),
+	end, tname, tname),
 
 	euler_angles = ftype:write(function(self: basis): ...number
 		const right = self.rotation.right
@@ -51,7 +50,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
 		const yaw = math.atan2(-up.x, up.y)
 
 		return roll, pitch, yaw
-	end, ftype:var(types.number), "basis"),
+	end, ftype:var(types.number), tname),
 
     slerp = ftype:write(function(self: basis, to: basis, alpha: number) : basis
         const position = vector.lerp(self.position, to.position, alpha)
@@ -104,7 +103,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
                 front = front,
             }
         }
-    end, "basis", "basis", "basis", types.number),
+    end, tname, tname, tname, types.number),
 
     to_basis = function(self: basis, ...: CFrame): ...basis
         const result: { basis } = {}
@@ -142,7 +141,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
 			return pos.x, pos.y, pos.z, right.x, up.x, front.x, right.y, up.y, front.y, right.z, up.z, front.z
 		end,
 		ftype:var(types.number),
-		"basis"
+		tname
 	),
 
 	from_components = ftype:write(function(
@@ -168,7 +167,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
 				front = vector.create(rotation_front_x or 0, rotation_front_y or 0, rotation_front_z or 0),
 			}),
 		})
-	end, "basis", "basis",
+	end, tname, tname,
         ftype:opt(types.number),  ftype:opt(types.number),  ftype:opt(types.number),
         ftype:opt(types.number), ftype:opt(types.number), ftype:opt(types.number),
         ftype:opt(types.number), ftype:opt(types.number), ftype:opt(types.number),
@@ -190,7 +189,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
 				front = rotation_front,
 			}),
 		})
-	end, "basis", "basis",  ftype:opt(types.vector),  ftype:opt(types.vector),  ftype:opt(types.vector),  ftype:opt(types.vector)),
+	end, tname, tname,  ftype:opt(types.vector),  ftype:opt(types.vector),  ftype:opt(types.vector),  ftype:opt(types.vector)),
 
 	basis_to_world = ftype:write(function(self: basis, ...: basis): ...basis
 		const result: { basis } = {}
@@ -214,7 +213,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
 		end
 
 		return unpack(result)
-	end, ftype:var("basis"), "basis", ftype:var("basis")),
+	end, ftype:var(tname), tname, ftype:var(tname)),
 
 	basis_to_local = ftype:write(function(self: basis, ...: basis): ...basis
 		const result: { basis } = {}
@@ -237,7 +236,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
 		end
 
 		return unpack(result)
-	end, ftype:var("basis"), "basis", ftype:var("basis")),
+	end, ftype:var(tname), tname, ftype:var(tname)),
 
 	direction_to_world = ftype:write(function(self: basis, ...: vector): ...vector
         const right = self.rotation.right
@@ -250,7 +249,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
         end
 
         return unpack(result)
-    end, ftype:var(types.vector), "basis", ftype:var(types.vector)),
+    end, ftype:var(types.vector), tname, ftype:var(types.vector)),
 
     direction_to_local = ftype:write(function(self: basis, ...: vector): ...vector
         const right = self.rotation.right
@@ -263,7 +262,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
         end
 
         return unpack(result)
-    end, ftype:var(types.vector), "basis", ftype:var(types.vector)),
+    end, ftype:var(types.vector), tname, ftype:var(types.vector)),
 
     point_to_world = ftype:write(function(self: basis, ...: vector): ...vector
         const right = self.rotation.right
@@ -277,7 +276,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
         end
 
         return unpack(result)
-    end, ftype:var(types.vector), "basis", ftype:var(types.vector)),
+    end, ftype:var(types.vector), tname, ftype:var(types.vector)),
 
     point_to_local = ftype:write(function(self: basis, ...: vector): ...vector
         const right = self.rotation.right
@@ -293,7 +292,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
         end
 
         return unpack(result)
-    end, ftype:var(types.vector), "basis", ftype:var(types.vector)),
+    end, ftype:var(types.vector), tname, ftype:var(types.vector)),
 
     multiple_basis = ftype:write(function(self: basis, ...: basis): basis
         local result = self
@@ -343,7 +342,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
         end
 
         return result
-    end, "basis", "basis", ftype:var("basis")),
+    end, tname, tname, ftype:var(tname)),
 
 	divide_basis = ftype:write(function(self: basis, ...: basis): basis 
         local result = self
@@ -354,7 +353,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
         end
 
         return result
-    end, "basis", "basis", ftype:var("basis")),
+    end, tname, tname, ftype:var(tname)),
 
 	append_basis = ftype:write(function(self: basis, ...: basis): basis
         local result = self
@@ -365,7 +364,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
         end
 
         return result
-    end, "basis", "basis", ftype:var("basis")),
+    end, tname, tname, ftype:var(tname)),
 
 	substract_basis = ftype:write(function(self: basis, ...: basis): basis
         local result = self
@@ -375,7 +374,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
         end
 
         return result
-    end, "basis", "basis", ftype:var("basis")),
+    end, tname, tname, ftype:var(tname)),
 
 	inverse_basis = ftype:write(function(self: basis): basis
         const rotation = self.rotation
@@ -398,9 +397,7 @@ const class: basis = (GeoVolume :: geovolume<basis>):new({
                 front = front,
             }),
         })
-    end, "basis", "basis"),
+    end, tname, tname),
 })
-
-ctype:read(class):write_tag(ctags.geometry, ctags.struct)
 
 return class

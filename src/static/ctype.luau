@@ -1,12 +1,12 @@
 --!strict
 const dummies = require("@declare/dummies")
 const mtypes = require("@declare/mtypes")
-const stdout = require("@extension/stdout")
 const types = require("@declare/types")
 const ftype = require("@static/ftype")
 const tables = require("@declare/tables")
 const args = require("@static/mtargument")
 const outs = require("@static/mtout")
+const std = require("@extension/std")
 
 type argument = args.argument
 type tval = args.tval
@@ -358,7 +358,9 @@ const ctype: ctype = table.freeze({
 
 		for i, v in of do
 			if typeof(i) ~= types.string then
-				stdout:oute(`index {i} unsupported, skip`)
+				--#if DEBUG
+				std:oute(`index {i} unsupported, skip`)
+				--#endif
 				continue
 			end
 

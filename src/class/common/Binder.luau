@@ -4,14 +4,14 @@ const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
 const BinderNotification = require("@enums/notification/BinderNotification")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const datamodel = require("@platform/roblox/datamodel")
 const rbxtypes = require("@platform/roblox/rbxtypes")
 const ftype = require("@static/ftype")
 
-const private = {}
+const private = {type = "binder"}
 const class: binder = (Observer :: observer<enumitem_binder_notification>):new({
-	type = "binder",
+	type = private.type,
 	tag = "",
 	maker = nil :: any,
 	ancestors = nil :: { Instance }?,
@@ -33,7 +33,7 @@ const class: binder = (Observer :: observer<enumitem_binder_notification>):new({
 		for k, v in datamodel.get_tagged(self.tag) do
 			private.watch(self, v)
 		end
-	end, mtypes.never, "binder"),
+	end, mtypes.never, private.type),
 
 	stop = ftype:write(function(self: binder): ()
 		const connections = private.connections[self]
@@ -51,25 +51,24 @@ const class: binder = (Observer :: observer<enumitem_binder_notification>):new({
 		for k in table.clone(private.watching[self]) do
 			private.forget(self, k)
 		end
-	end, mtypes.never, "binder"),
+	end, mtypes.never, private.type),
 
 	is_started = ftype:write(function(self: binder): boolean
 		return private.connections[self] ~= nil
-	end, types.boolean, "binder"),
+	end, types.boolean, private.type),
 
 	get_object = ftype:write(function(self: binder, instance: Instance): any
 		return private.bound[self][instance]
-	end, ftype:opt(mtypes.anyt), "binder", rbxtypes.Instance),
+	end, ftype:opt(mtypes.anyt), private.type, rbxtypes.Instance),
 
 	get_objects = ftype:write(function(self: binder): { [Instance]: any }
 		return table.clone(private.bound[self])
-	end, types.table, "binder"),
+	end, types.table, private.type),
 })
 
 class:host(function(new)
 	const new = new:as <<binder>> (class.type)
 
-	-- Наследники получают копии, а не ссылки
 	if (type(new.ancestors) == types.table) then
 		new.ancestors = table.clone(new.ancestors)
 	end
@@ -140,7 +139,9 @@ do
 		const succ, result = pcall(private.make, that, instance)
 
 		if not succ then
-			stdout:outw(`binder "{that.tag}" cannot bind {instance:GetFullName()}:`, result)
+			--#if DEBUG
+			std:outw(`{class.type} "{that.tag}" cannot bind {instance:GetFullName()}:`, result)
+			--#endif
 			return
 		end
 

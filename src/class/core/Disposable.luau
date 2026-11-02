@@ -1,11 +1,14 @@
 --!strict
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const LuaObject = require("@class/core/LuaObject")
 const Scheduler = require("@class/core/Scheduler")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
 
 const private = { type = "disposable"}
@@ -55,10 +58,9 @@ class:host(function(new)
 end)
 
 do
-	private.meta = tables.__mode_ks
-	private.shadow_space = setmetatable({} :: { [disposable]: { [any]: any } }, private.meta)
+	private.shadow_space = setmetatable({} :: { [disposable]: { [any]: any } }, tables.__mode_ks)
 	private.objects = {} :: { [unknown]: disposable }
-	private.watch = setmetatable({} :: { [disposable]: { (disposable) -> () } }, private.meta)
+	private.watch = setmetatable({} :: { [disposable]: { (disposable) -> () } }, tables.__mode_ks)
 	private.free = function(that: disposable)
 		private.objects[that:iden()] = nil
 
@@ -69,8 +71,14 @@ do
 		table.clear(private.watch[that])
 		private.watch[that] = nil
 	end
-end
 
-ctype:read(class):write_tag(ctags.core)
+	--#if CORE_CLASS_USEABLE
+
+	private.shadow_space[class] = {};
+	private.objects[class:iden()] = class
+	private.watch[class] = {}
+
+	--endif
+end
 
 return class

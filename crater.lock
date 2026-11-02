@@ -1,6 +1,6 @@
 {
   "lock_version": 1,
-  "manifest_hash": "96640450e2a7ee1b931ad0a415f29c74a6fe2b8885b6106fb2c4d958ac63b666",
+  "manifest_hash": "9daba471c83d7fcae3e5b6a9cd0150fcf0b46b7d6487ba3a935194cb224032d0",
   "packages": [
     {
       "realm": "client",
@@ -22,6 +22,29 @@
       "links": [
         "SAT"
       ],
+      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
+      "sha256": "",
+      "dependencies": []
+    },
+    {
+      "realm": "client",
+      "name": "ifmnb/array-buffer",
+      "version": "2609.7.1",
+      "direct": true,
+      "links": [
+        "BufferedArrays"
+      ],
+      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
+      "sha256": "",
+      "dependencies": [
+        "BitMap:ifmnb/bitmap@2609.3.0"
+      ]
+    },
+    {
+      "realm": "client",
+      "name": "ifmnb/bitmap",
+      "version": "2609.3.0",
+      "direct": false,
       "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
       "sha256": "",
       "dependencies": []

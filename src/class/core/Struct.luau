@@ -1,20 +1,21 @@
 --!strict
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const LuaObject = require("@class/core/LuaObject")
 const types = require("@declare/types")
-const stdout = require("@extension/stdout")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
+const std = require("@extension/std")
 const ftype = require("@static/ftype")
-
-type indexed = struct & {[unknown]: unknown}
 
 const private = {type = "struct"}
 const class: struct = LuaObject:new({
     type = private.type,
 
     clone = ftype:write(function (self: struct, change: {[unknown]: unknown}?) : any
-        const base = self:base():as <<struct>> (private.type)
-        const reconv = table.clone(self) :: indexed
+        const base = std:assert(self:base()):as <<struct>> (private.type)
+        const reconv = table.clone(self) :: struct & {[unknown]: unknown}
 
         if change then
 
@@ -27,7 +28,7 @@ const class: struct = LuaObject:new({
 
         --#if DEBUG
         if base == nil then
-            stdout:oute "cannot take base, return self"
+            std:oute "cannot take base, return self"
         end
         --#endif
         return base and base:new(reconv) or self
@@ -71,7 +72,5 @@ do
         end
     end)
 end
-
-ctype:read(class):write_tag(ctags.struct, ctags.core)
 
 return class

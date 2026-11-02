@@ -2,13 +2,14 @@
 --!native
 --!optimize 2
 
+--#include <project.gpp>
+--#include <build.gpp>
+
 const CubeVolume = require("@class/struct/geometry/CubeVolume")
 const types = require("@declare/types")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const SAT = require("@import/SAT")
 const rbxtypes = require("@platform/roblox/rbxtypes")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
 
 const private = {}
@@ -27,7 +28,9 @@ const class: aabbvolume = CubeVolume:new({
 				const other_min, other_max = private.get_instance_bounds(instance)
 
 				if not other_min or not other_max then
-					stdout:oute("unsupported Instance in AABB is_inside")
+					--#if DEBUG
+					std:oute("unsupported Instance in AABB is_inside")
+					--#endif
 					return false
 				end
 
@@ -62,7 +65,9 @@ const class: aabbvolume = CubeVolume:new({
 				end
 
 			else
-				stdout:oute("unsupported geometry in AABB is_inside")
+				--#if DEBUG
+				std:oute("unsupported geometry in AABB is_inside")
+				--#endif
 				return false
 			end
 		end
@@ -88,7 +93,9 @@ const class: aabbvolume = CubeVolume:new({
 				const other_min, other_max = private.get_instance_bounds(instance)
 
 				if not other_min or not other_max then
-					stdout:oute("unsupported Instance in AABB is_intersection")
+					--#if DEBUG
+					std:oute("unsupported Instance in AABB is_intersection")
+					--#endif
 					return false
 				end
 
@@ -123,7 +130,9 @@ const class: aabbvolume = CubeVolume:new({
 				end
 
 			else
-				stdout:oute("unsupported geometry in AABB is_intersection")
+				--#if DEBUG
+				std:oute("unsupported geometry in AABB is_intersection")
+				--#endif
 				return false
 			end
 		end
@@ -151,7 +160,9 @@ const class: aabbvolume = CubeVolume:new({
 			const other_min, other_max = private.get_bounds(self, value)
 
 			if not other_min or not other_max then
-				stdout:oute("unsupported geometry in AABB from")
+				--#if DEBUG
+				std:oute("unsupported geometry in AABB from")
+				--#endif
 				return self:clone()
 			end
 
@@ -382,7 +393,9 @@ do
 			const other_min, other_max = private.get_bounds(self, value)
 
 			if not other_min or not other_max then
-				stdout:oute("unsupported geometry in AABB middle")
+				--#if DEBUG
+				std:oute("unsupported geometry in AABB middle")
+				--#endif
 				return self:clone()
 			end
 
@@ -404,7 +417,9 @@ do
 			const other_min, other_max = private.get_bounds(self, value)
 
 			if not other_min or not other_max then
-				stdout:oute("unsupported geometry in AABB cover")
+				--#if DEBUG
+				std:oute("unsupported geometry in AABB cover")
+				--#endif
 				return self:clone()
 			end
 
@@ -418,7 +433,5 @@ do
 		return self:clone(private.from_bounds(min, max))
 	end
 end
-
-ctype:read(class):write_tag(ctags.geometry, ctags.struct)
 
 return class

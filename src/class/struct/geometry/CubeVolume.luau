@@ -2,6 +2,9 @@
 --!native
 --!optimize 2
 
+--#include <project.gpp>
+--#include <build.gpp>
+
 const EnumItem = require("@class/core/EnumItem")
 const Basis = require("@class/struct/geometry/Basis")
 const Directions = require("@class/struct/geometry/Directions")
@@ -10,13 +13,12 @@ const Quad = require("@class/struct/geometry/Quad")
 const Triangle = require("@class/struct/geometry/Triangle")
 const types = require("@declare/types")
 const DirectionVariant = require("@enums/descriptor/DirectionVariant")
-const stdout = require("@extension/stdout")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
+const std = require("@extension/std")
 const ftype = require("@static/ftype")
 
+const tname = "cubevolume"
 const class: cubevolume = (GeoVolume :: geovolume<cubevolume>):new({
-	type = "cubevolume",
+	type = tname,
 
 	up = vector.zero,
 	bottom = vector.zero,
@@ -39,7 +41,7 @@ const class: cubevolume = (GeoVolume :: geovolume<cubevolume>):new({
 			self.left + self.bottom + self.front - center * 2,
 			self.left + self.bottom + self.back - center * 2,
 		}
-	end, types.table, "cubevolume"),
+	end, types.table, tname),
 
 	get_direction = ftype:write(function(self: cubevolume, direction: enumitem): vector
 		if direction == DirectionVariant.Right then
@@ -56,8 +58,10 @@ const class: cubevolume = (GeoVolume :: geovolume<cubevolume>):new({
 			return self.back
 		end
 
-		return stdout:oute("unsupported DirectionVariant item") or vector.zero
-	end, types.vector, "cubevolume", EnumItem.type),
+		
+
+		return --[[#if DEBUG]] std:oute("unsupported DirectionVariant item") or --[[#endif]] vector.zero
+	end, types.vector, tname, EnumItem.type),
 
 	get_axises = ftype:write(function(self: cubevolume): directions
 		return Directions:new({
@@ -65,7 +69,7 @@ const class: cubevolume = (GeoVolume :: geovolume<cubevolume>):new({
 			up = self:get_direction(DirectionVariant.Up),
 			front = self:get_direction(DirectionVariant.Front),
 		})
-	end, Directions.type, "cubevolume"),
+	end, Directions.type, tname),
 
 	get_sat_axises = ftype:write(function(self: cubevolume): { vector }
 		const axises = self:get_axises()
@@ -77,7 +81,7 @@ const class: cubevolume = (GeoVolume :: geovolume<cubevolume>):new({
 		result[3] = vector.normalize(axises.front - center)
 
 		return result
-	end, types.table, "cubevolume"),
+	end, types.table, tname),
 
 	get_quad = ftype:write(function(self: cubevolume, direction: enumitem): quad
 		if direction == DirectionVariant.Right then
@@ -160,25 +164,23 @@ const class: cubevolume = (GeoVolume :: geovolume<cubevolume>):new({
 			})
 		end
 
-		return stdout:oute "unsupported DirectionVariant item" or Quad
-	end, Quad.type, "cubevolume", EnumItem.type),
+		return --[[#if DEBUG]] std:oute "unsupported DirectionVariant item" or --[[#endif]] Quad
+	end, Quad.type, tname, EnumItem.type),
 
 	to_vector = ftype:write(function(self: cubevolume): vector
 		return vector.create(vector.magnitude(self.right), vector.magnitude(self.up), vector.magnitude(self.front))
-	end, types.vector, "cubevolume"),
+	end, types.vector, tname),
 
 	to_basis = ftype:write(function(self: cubevolume): basis
 		return Basis:new({
 			position = self:get_center(),
 			rotation = self:get_axises(),
 		})
-	end, types.vector, "cubevolume"),
+	end, types.vector, tname),
 
 	get_center = ftype:write(function(self: cubevolume): vector
 		return (self.up + self.bottom + self.left + self.right + self.front + self.back) / 6
-	end, types.vector, "cubevolume"),
+	end, types.vector, tname),
 })
-
-ctype:read(class):write_tag(ctags.geometry, ctags.struct)
 
 return class

@@ -15,7 +15,6 @@
 
   "path_to_main": "",
   "path_to_definition_files": [
-    "./src/tfunc.d.luau",
     "./src/core.d.luau"
   ],
   "package_files": {
@@ -26,7 +25,8 @@
   "import_client": [
     "Quat:wally#ifmnb/quat@2609.23.1",
     "SAT:wally#ifmnb/algorithm-sat@2609.7.0",
-    "Cryptography:wally#daily3014/cryptography@1.5.0"
+    "Cryptography:wally#daily3014/cryptography@1.5.0",
+    "BufferedArrays:wally#ifmnb/array-buffer"
   ],
   "import_server": [
     "ProfileStore:wally#lm-loleris/profilestore@1.0.3"

@@ -4,7 +4,7 @@ const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
 const OperationVariant = require("@enums/descriptor/OperationVariant")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const ftype = require("@static/ftype")
 
 const private = {}
@@ -42,7 +42,7 @@ const class: value = (Observer :: observer<enumitem_operation_variant>):new({
 			self:notificate(OperationVariant.Remove)
 		--#if VALUE_PRINT_ACT
 		else
-			stdout:outw("unexpected value behaviour, skip")
+			std:outw("unexpected value behaviour, skip")
 		--#endif
 		end
 

@@ -5,7 +5,7 @@ const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
 const OperationVariant = require("@enums/descriptor/OperationVariant")
-const stderr = require("@extension/stderr")
+const std = require("@extension/std")
 const Cryptography = require("@import/Cryptography")
 const ftype = require("@static/ftype")
 
@@ -27,7 +27,7 @@ const class: maybe = (Observer :: observer<enumitem_operation_variant>):new({
 	end, mtypes.anyt, "maybe", mtypes.anyt, types["function"]),
 
 	enactment = ftype:write(function (self: maybe, it: unknown, of: luaobject) : luaobject
-		if not stderr:assert(self:that(of, LuaObject.type), "unexpected obhect") then
+		if not std:assert(self:that(of, LuaObject.type), "unexpected obhect") then
 			return of
 		end
 

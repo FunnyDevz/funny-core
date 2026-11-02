@@ -1,4 +1,10 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const Maybe = require("@class/common/gc/Maybe")
 const IKR6Foot = require("@class/game/character/ik/r6/IKR6Foot")
 const IKR6Solver = require("@class/game/character/ik/r6/IKR6Solver")
@@ -11,28 +17,26 @@ const types = require("@declare/types")
 const IKLimbMode = require("@enums/mode/IKLimbMode")
 const ReferenceNotification = require("@enums/notification/ReferenceNotification")
 const IKLegsState = require("@enums/state/IKLegsState")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const engine = require("@platform/roblox/engine")
 const instance = require("@platform/roblox/instance")
 const worldspace = require("@platform/roblox/worldspace")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
 
-const private = {}
+const private = {type = "ikr6legs"}
 const class : ikr6legs = IKR6Solver:new {
-    type = "ikr6legs",
+    type = private.type,
     enabled = false,
     current_idle_time = 0,
     last_work_time = 0,
 
     get_left_leg = ftype:write(function (self: ikr6legs) : ikr6foot
         return private.maybe_left_legs:extract(self, private.create_left_ikr6foot)
-    end, IKR6Foot.type, "ikr6legs"),
+    end, IKR6Foot.type, private.type),
 
     get_right_leg = ftype:write(function (self: ikr6legs) : ikr6foot
         return private.maybe_right_legs:extract(self, private.create_right_ikr6foot)
-    end, IKR6Foot.type, "ikr6legs"),
+    end, IKR6Foot.type, private.type),
 
     get_active_cycle_leg_pair = ftype:write(function (self: ikr6legs) : (ikr6foot, ikr6foot)
         const left_leg = self:get_left_leg()
@@ -52,15 +56,15 @@ const class : ikr6legs = IKR6Solver:new {
             return right_leg, left_leg
         end
         return left_leg, right_leg
-    end, ftype:var(IKR6Foot.type), "ikr6legs"),
+    end, ftype:var(IKR6Foot.type), private.type),
 
     is_initiated = ftype:write(function (self: ikr6legs) : boolean
         return private.maybe_left_legs:exist(self) and private.maybe_right_legs:exist(self)
-    end, types.boolean, "ikr6legs"),
+    end, types.boolean, private.type),
 
     is_active = ftype:write(function (self: ikr6legs) : boolean
         return private.active[self] or false
-    end, types.boolean, "ikr6legs")
+    end, types.boolean, private.type)
 }
 
 do
@@ -248,8 +252,8 @@ do
         private.is_valid = function (ikr6foot: ikr6foot): boolean
             const reference_to_origin = ikr6foot:get_reference()
             if not reference_to_origin:is_instance_exists() then
-                --#if IKR6LEGS_PRINT_ACT
-                stdout:outm("cannot process leg fallback, because origin does not exists")
+                --#if DEBUG
+                std:outm("cannot process leg fallback, because origin does not exists")
                 --#endif
 
                 return false
@@ -257,8 +261,8 @@ do
 
             const reference_to_fake = ikr6foot:get_fake()
             if not reference_to_fake:is_instance_exists() then
-                --#if IKR6LEGS_PRINT_ACT
-                    stdout:outm("cannot process leg fallback, because fake does not exists")
+                --#if DEBUG
+                    std:outm("cannot process leg fallback, because fake does not exists")
                 --#endif
 
                 return false
@@ -276,8 +280,8 @@ do
                 const fake_leg = fake:get_instance()
                 foot.fallback_basis = Basis:to_basis(fake_leg.CFrame)
             else
-                --#if IKR6LEGS_PRINT_ACT
-                    stdout:outw("fake_leg does not exists, cannot create fallback basis, nothing to do")
+                --#if DEBUG
+                    std:outw("fake_leg does not exists, cannot create fallback basis, nothing to do")
                 --#endif
             end
 
@@ -503,8 +507,8 @@ do
             const reference_to_fake = foot:get_fake()
 
             if not reference_to_fake:is_instance_exists() then
-                --#if IKR6LEGS_PRINT_ACT
-                stdout:outw("RealFK: fake does not exist")
+                --#if DEBUG
+                std:outw("RealFK: fake does not exist")
                 --#endif
                 return
             end
@@ -555,8 +559,8 @@ do
                 const fake = ikr6foot:get_fake()
 
                 if not fake:is_instance_exists() then
-                    --#if IKR6LEGS_PRINT_ACT
-                        stdout:outw("cannot process null-reference fake-leg")
+                    --#if DEBUG
+                        std:outw("cannot process null-reference fake-leg")
                     --#endif
 
                     continue
@@ -657,8 +661,8 @@ do
         if not reference_to_humanoid:is_instance_exists() then 
             private.mark_unactive(ik)
 
-            --#if IKR6LEGS_PRINT_ACT
-                stdout:outw ('this solver has no humanoid, skip')
+            --#if DEBUG
+                std:outw ('this solver has no humanoid, skip')
             --#endif
 
             return
@@ -667,8 +671,8 @@ do
         if not reference_to_torso:is_instance_exists() then
             private.mark_unactive(ik) 
 
-            --#if IKR6LEGS_PRINT_ACT
-            stdout:outw('this solver has no torso, skip')
+            --#if DEBUG
+            std:outw('this solver has no torso, skip')
             --#endif
 
             return
@@ -753,10 +757,9 @@ do
 
     private.signal:Connect(private.world_solver)
 
-    ctype:read(class):write_tag(ctags.immersiveness, ctags.inverse_kinematic, ctags.solver, ctags.class, ctags.game)
     class:host(private.register_new)
 
-    --#if LUAOBJECT_SELF_REG
+    --#if ALL_CLASS_USEABLE
     private.register_new(class)
     --#endif   
 end

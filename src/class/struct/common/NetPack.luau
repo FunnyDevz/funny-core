@@ -1,18 +1,19 @@
 --!strict
+const EnumItem = require("@class/core/EnumItem")
 const Struct = require("@class/core/Struct")
 const mtypes = require("@declare/mtypes")
 const types = require("@declare/types")
 const NetSource = require("@enums/descriptor/NetSource")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const engine = require("@platform/roblox/engine")
 const players = require("@platform/roblox/players")
 const rbxtypes = require("@platform/roblox/rbxtypes")
 const net = require("@setting/SharedNetPref")
 const ftype = require("@static/ftype")
 
-const private = {}
+const private = {type = "netpack"}
 const class: netpack = Struct:new({
-	type = "netpack",
+	type = private.type,
 	loaded = {} :: { any },
 	count = 0,
 	to = {} :: { number },
@@ -26,7 +27,7 @@ const class: netpack = Struct:new({
 			loaded = { ... },
 			count = select("#", ...),
 		}) :: any
-	end, "netpack", "netpack", ftype:opt(types.table), ftype:var_opt(mtypes.anyt)),
+	end, private.type, private.type, ftype:opt(types.table), ftype:var_opt(mtypes.anyt)),
 
 	from_flat = ftype:write(function(self: netpack, flat: unknown): netpack?
 		if type(flat) ~= types.table then
@@ -59,11 +60,11 @@ const class: netpack = Struct:new({
 			sender = if type(raw.sender) == types.number then raw.sender else nil,
 			rpc = raw.rpc == true,
 		}) :: any
-	end, ftype:opt("netpack"), "netpack", mtypes.anyt),
+	end, ftype:opt(private.type), private.type, mtypes.anyt),
 
 	payload = ftype:write(function(self: netpack): ...any
 		return table.unpack(self.loaded, 1, self.count)
-	end, ftype:var_opt(mtypes.anyt), "netpack"),
+	end, ftype:var_opt(mtypes.anyt), private.type),
 
 	get_flat = ftype:write(function(self: netpack): netpack_flat
 		return {
@@ -74,7 +75,7 @@ const class: netpack = Struct:new({
 			sender = self.sender,
 			rpc = self.rpc,
 		}
-	end, types.table, "netpack"),
+	end, types.table, private.type),
 
 	get_players = ftype:write(function(self: netpack): { Player }
 		const result = {}
@@ -84,17 +85,19 @@ const class: netpack = Struct:new({
 
 			if player then
 				table.insert(result, player)
+			--#if DEBUG
 			else
-				stdout:out(`netpack target {v} isn't in the game`)
+				std:out(`netpack target {v} isn't in the game`)
+			--#endif
 			end
 		end
 
 		return result
-	end, types.table, "netpack"),
+	end, types.table, private.type),
 
 	get_source = ftype:write(function(self: netpack): enumitem_net_source?
 		return NetSource:get_enum_by_name(self.from) :: any
-	end, ftype:opt("enumitem"), "netpack"),
+	end, ftype:opt(EnumItem.type), private.type),
 
 	is_me_sender = ftype:write(function(self: netpack): boolean
 		if engine.is_server then
@@ -102,7 +105,7 @@ const class: netpack = Struct:new({
 		end
 
 		return self.sender == private.local_user_id() and self.from ~= NetSource.FromServer.name
-	end, types.boolean, "netpack"),
+	end, types.boolean, private.type),
 })
 
 class:host(function(new)
@@ -125,7 +128,7 @@ class:host(function(new)
 		elseif type(v) == types.number then
 			table.insert(to, v :: number)
 		else
-			stdout:out("unexpected netpack target", v)
+			std:out("unexpected netpack target", v)
 		end
 	end
 	this.to = to

@@ -1,7 +1,5 @@
 --!strict
 const Struct = require("@class/core/Struct")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 
 const class: ikr6limbinfo = Struct:new {
     type = "ikr6limbinfo",
@@ -26,7 +24,5 @@ const class: ikr6limbinfo = Struct:new {
 	limb_preffer_to_origin_clone = true,
 	limb_torso_relative_alpha = 0.05
 }
-
-ctype:read(class):write_tag(ctags.game, ctags.immersiveness, ctags.inverse_kinematic, ctags.struct)
 
 return class

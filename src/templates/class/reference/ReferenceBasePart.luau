@@ -5,8 +5,6 @@
 const Reference = require("@class/common/Reference")
 const ConnectionVariant = require("@enums/descriptor/ConnectionVariant")
 const ReferenceNotification = require("@enums/notification/ReferenceNotification")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 
 const private = {}
 --[==[
@@ -38,8 +36,6 @@ do
 	--#if LUAOBJECT_SELF_REG
 	private.register(class)
 	--#endif
-
-	ctype:read(class):write_tag(ctags.class, ctags.common, ctags.template)
 end
 
 return class

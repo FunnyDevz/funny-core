@@ -1,7 +1,7 @@
 --!strict
 
-const stdout = require("@extension/stdout")
 const types = require("@declare/types")
+const std = require("@extension/std")
 const args = require("@static/mtargument")
 const outs = require("@static/mtout")
 
@@ -236,15 +236,17 @@ const ftype: ftype = table.freeze({
 
 			if argument.var then
 				if has_var then
-					stdout:oute("ftype args with .var already exists, skip")
-
+					--#if DEBUG
+					std:oute("ftype args with .var already exists, skip")
+					--#endif
 					continue
 				end
 
 				has_var = true
 			elseif has_var then
-				stdout:oute("ftype args after .var is not allowed, skip")
-
+				--#if DEBUG
+				std:oute("ftype args after .var is not allowed, skip")
+				--#endif
 				continue
 			end
 

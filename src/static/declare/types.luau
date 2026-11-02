@@ -52,7 +52,7 @@ export type types = {
 	read buffer: "buffer",
 }
 
-const types: types = {
+const types: types = table.freeze {
 	["nil"] = "nil" :: "nil",
 	["number"] = "number" :: "number",
 	["string"] = "string" :: "string",
@@ -65,5 +65,4 @@ const types: types = {
 	["buffer"] = "buffer" :: "buffer",
 }
 
-table.freeze(types)
 return types

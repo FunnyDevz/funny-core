@@ -1,31 +1,31 @@
 --!strict
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
+
 const dummies = require("@declare/dummies")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
 const utypes = require("@declare/utypes")
-const stderr = require("@extension/stderr")
-const stdout = require("@extension/stdout")
-const stdrun = require("@extension/stdrun")
+const std = require("@extension/std")
 const ttable = require("@extension/ttable")
-const ctags = require("@static/ctags")
 const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
-
---#include <project.gpp>
---#include <build.gpp>
 
 const private = {type = "luaobject"}
 const class: luaobject = {
 	type = private.type,
 
 	new = ftype:write(function<T, U>(self: T, that: U?): any
-		if not stderr:assert(type(self) == types.table, "unexpected self argument") then
+		if not std:assert(type(self) == types.table, "unexpected self argument") then
 			return dummies.nullf()
 		end
 
 		if that ~= nil then
-			if not stderr:assert(type(that) == types.table, "unexpected that argument, ingoring") then
+			if not std:assert(type(that) == types.table, "unexpected that argument, ingoring") then
 				that = nil
 			end
 		end
@@ -109,7 +109,7 @@ const class: luaobject = {
 	end, mtypes.never, private.type, types["function"]),
 
 	as = ftype:write(function<T>(self: luaobject, as: string): T
-		const cast = stderr:assert(self:is(as), "cannot convert this luaobject to required type")
+		const cast = std:assert(self:is(as), "cannot convert this luaobject to required type")
 
 		if not cast then
 			return dummies.voidf()
@@ -127,7 +127,7 @@ const class: luaobject = {
 	end, ftype:opt(private.type), private.type, mtypes.anyt),
 
 	iden = ftype:write(function(self: luaobject): string
-		return stdrun:get_luau_universal_name(tostring(self))
+		return std:get_luau_universal_name(tostring(self))
 	end, types.string, private.type),
 
 	finally = ftype:write(function(self: luaobject, f: object_finally_type?): ()
@@ -171,7 +171,7 @@ const class: luaobject = {
 
 		if func == nil then
 			--#if DEBUG
-			stdout:outm(`tcall: function "{name}" not registered on "{self.type}"`)
+			std:outm(`tcall: function "{name}" not registered on "{self.type}"`)
 			--#endif
 			return
 		end
@@ -180,7 +180,7 @@ const class: luaobject = {
 
 		if ffunc_self == nil then
 			--#if DEBUG
-			stdout:outm([[
+			std:outm([[
                     (!*) The difference of meta information at the class level.
 
                     Apparently, the function is unexpectedly nil, although it is expected to exist.
@@ -199,7 +199,7 @@ const class: luaobject = {
 					end
 				else
 					--#if DEBUG
-					stdout:outm(
+					std:outm(
 						[[
                             (!*) tcall couldn't reach the function because it's not in the base or in the object itself.
                             This probably indicates that there is misinformation in the class metadata.]]
@@ -223,7 +223,7 @@ const class: luaobject = {
 		for ai = 1, args.n do
 			if si > #sigs then
 				--#if DEBUG
-				stdout:outm(`tcall: too many arguments for "{name}" (got {args.n}, expected {#sigs})`)
+				std:outm(`tcall: too many arguments for "{name}" (got {args.n}, expected {#sigs})`)
 				--#endif
 				return
 			end
@@ -232,7 +232,7 @@ const class: luaobject = {
 
 			if not private.matches_argument(args[ai], sig) then
 				--#if DEBUG
-				stdout:outm(`tcall: argument #{ai} doesn't match signature of "{name}"`)
+				std:outm(`tcall: argument #{ai} doesn't match signature of "{name}"`)
 				--#endif
 				return
 			end
@@ -246,7 +246,7 @@ const class: luaobject = {
 			const sig = sigs[si]
 			if not (sig.opt or sig.var) then
 				--#if DEBUG
-				stdout:outm(`tcall: missing required argument #{si} for "{name}"`)
+				std:outm(`tcall: missing required argument #{si} for "{name}"`)
 				--#endif
 				return
 			end
@@ -338,7 +338,7 @@ do
 				const state, err = pcall(v, of)
 
 				if not state then
-					stdout:outm(of.type, ttable.find(private.host_list, host) or "*missed-luaobject*", err)
+					std:oute(of.type, ttable.find(private.host_list, host) or "*missed-luaobject*", err)
 				end
 			end
 		end
@@ -373,19 +373,11 @@ do
 		return false
 	end
 
-	--#if DEBUG && LUAOBJECT_PRINT_NEW
+	--#if DEBUG && ALL_LOG_MISC_INFO
 	class:host(function(new: luaobject)
-		stdout:out(string.format("luaobject::new %s", new.type))
+		std:out(string.format("luaobject::new %s", new.type))
 	end)
 	--#endif
-
-	ctype:write(
-		class,
-		ctype:generate_metainfo(class, {
-			ctags.core,
-			ctags.common,
-		}, class.type)
-	)
 end
 
 return class

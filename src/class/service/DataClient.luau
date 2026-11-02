@@ -10,7 +10,7 @@ const SharedNetLink = require("@enums/descriptor/SharedNetLink")
 const DataNotification = require("@enums/notification/DataNotification")
 const NetNotification = require("@enums/notification/NetNotification")
 const DataState = require("@enums/state/DataState")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const ftype = require("@static/ftype")
 
 type data_event = event<enumitem_data_notification, ...any>
@@ -107,7 +107,9 @@ do
 			node = node[segments[k]]
 
 			if type(node) ~= types.table then
-				stdout:oute(`bad replicated path {table.concat(segments, "/")}`)
+				--#if DEBUG
+				std:oute(`bad replicated path {table.concat(segments, "/")}`)
+				--#endif
 				return
 			end
 		end

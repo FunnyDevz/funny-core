@@ -3,133 +3,130 @@
 --!optimize 2
 const Struct = require("@class/core/Struct")
 const Triangle = require("@class/struct/geometry/Triangle")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
+const types = require("@declare/types")
+const ftype = require("@static/ftype")
 
-
-
+const tname = "quad"
 const class: quad = Struct:new({
-	type = "quad",
+	type = tname,
 
 	left = Triangle:new(),
 	right = Triangle:new(),
 
-	get_center = function(self: quad): vector
+	get_center = ftype:write(function(self: quad): vector
 		return (self.left:get_center() + self.right:get_center()) / 2
-	end,
+	end, types.vector, tname),
 
-	get_normal_interpolated = function(self: quad): vector
+	get_normal_interpolated = ftype:write(function(self: quad): vector
 		return vector.normalize((self.left:get_normal_interpolated() + self.right:get_normal_interpolated()))
-	end,
+	end, types.vector, tname),
 
-	get_normal_geometric = function(self: quad): vector
+	get_normal_geometric = ftype:write(function(self: quad): vector
 		return vector.normalize((self.left:get_normal_geometric() + self.right:get_normal_geometric()))
-	end,
+	end, types.vector, tname),
 
-	absolute = function(self: quad): quad
+	absolute = ftype:write(function(self: quad): quad
 		const clone = self:clone({
 			right = self.right:absolute(),
 			left = self.left:absolute(),
 		})
 
 		return clone
-	end,
+	end, tname, tname),
 
-	null = function(self: quad): quad
+	null = ftype:write(function(self: quad): quad
 		const clone = self:clone({
 			right = self.right:null(),
 			left = self.left:null(),
 		})
 
 		return clone
-	end,
+	end, tname, tname),
 
-	substract = function(self: quad, with: number): quad
+	substract = ftype:write(function(self: quad, with: number): quad
 		const clone = self:clone({
 			right = self.right:substract(with),
 			left = self.left:substract(with),
 		})
 
 		return clone
-	end,
+	end, tname, tname, types.number),
 
-	append = function(self: quad, with: number): quad
+	append = ftype:write(function(self: quad, with: number): quad
 		const clone = self:clone({
 			right = self.right:append(with),
 			left = self.left:append(with),
 		})
 
 		return clone
-	end,
+	end, tname, tname, types.number),
 
-	multiple = function(self: quad, with: number): quad
+	multiple = ftype:write(function(self: quad, with: number): quad
 		const clone = self:clone({
 			right = self.right:multiple(with),
 			left = self.left:multiple(with),
 		})
 
 		return clone
-	end,
+	end, tname, tname, types.number),
 
-	divide = function(self: quad, with: number): quad
+	divide = ftype:write(function(self: quad, with: number): quad
 		const clone = self:clone({
 			right = self.right:divide(with),
 			left = self.left:divide(with),
 		})
 
 		return clone
-	end,
+	end, tname, tname, types.number),
 
-	invert = function(self: quad): quad
+	invert = ftype:write(function(self: quad): quad
 		const clone = self:clone({
 			right = self.right:invert(),
 			left = self.left:invert(),
 		})
 
 		return clone
-	end,
+	end, tname, tname),
 
-	negation = function(self: quad): quad
+	negation = ftype:write(function(self: quad): quad
 		const clone = self:clone({
 			right = self.right:negation(),
 			left = self.left:negation(),
 		})
 
 		return clone
-	end,
+	end, tname, tname),
 
-	lerp = function(self: quad, to: quad, alpha: number): quad
+	lerp = ftype:write(function(self: quad, to: quad, alpha: number): quad
 		const clone = self:clone({
 			right = self.right:lerp(to.right, alpha),
 			left = self.left:lerp(to.left, alpha),
 		})
 
 		return clone
-	end,
+	end, tname, tname, tname, types.number),
 
-	fuzzy_eq = function (self: quad, to: quad, epsilon: number?) : boolean
+	fuzzy_eq = ftype:write(function (self: quad, to: quad, epsilon: number?) : boolean
 		return self.left:fuzzy_eq(to.left, epsilon) and self.right:fuzzy_eq(to.right, epsilon)
-	end,
+	end, types.boolean, tname, tname, ftype:opt(types.number)),
 
-	normalize = function(self: quad): quad
+	normalize = ftype:write(function(self: quad): quad
 		const clone = self:clone({
 			right = self.right:normalize(),
 			left = self.left:normalize(),
 		})
 
 		return clone
-	end,
+	end, tname, tname),
 
-	infinity = function(self: quad): quad
+	infinity = ftype:write(function(self: quad): quad
 		const clone = self:clone({
 			right = self.right:infinity(),
 			left = self.left:infinity(),
 		})
 
 		return clone
-	end,
+	end, tname, tname),
 })
-
-ctype:read(class):write_tag(ctags.geometry, ctags.struct)
 
 return class

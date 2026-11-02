@@ -1,12 +1,16 @@
 --!strict
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const EnumItem = require("@class/core/EnumItem")
 const LuaObject = require("@class/core/LuaObject")
 const mtypes = require("@declare/mtypes")
+const tables = require("@declare/tables")
 const types = require("@declare/types")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const Cryptography = require("@import/Cryptography")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
 
 type indexed = enumobject & { [unknown]: unknown }
@@ -93,7 +97,7 @@ const class: enumobject = LuaObject:new({
 
 		--#if !DEBUG
         else
-			stdout:oute("unexpected that for enumitem")
+			std:oute("unexpected that for enumitem")
 		--#endif
         end
 
@@ -105,12 +109,14 @@ class:host(function(new)
 	const new = new:as <<enumobject>> (class.type)
     const tnew = new :: any
 
+
+
 	for i, v: enumitem in new:get_enums_list() do
 		const name = tostring(i)
 		local item_var: any = v
 
 
-        --#if ENUMOBJECT_FREEZE_NEW
+        --#if CORE_ENUMITEM_FREEZE
 
         item_var = EnumItem:new({
             name = name,
@@ -133,8 +139,7 @@ class:host(function(new)
         --#if DEBUG
         const collision: enumitem? = private.item_builded[v.hashlink]
         if collision then
-            --#if ENUMBOJECT_PRINT_ACT
-            stdout:outm(
+            std:outm(
                 string.format(
                     "enumitem hashlink collision with: \n\n %s (%s) \n %s (%s) \n\n parents: \n\n %s \n %s  ",
                     item_var.name,
@@ -145,20 +150,22 @@ class:host(function(new)
                     collision.enum and collision.enum.name or mtypes.never :: any
                 )
             )
-            --#endif
         end
         --#endif
 
 		tnew[name] = item_var
 		private.item_builded[v.hashlink] = v
 	end
+
+	--#if CORE_ENUMOBJECT_FREEZE
+	if not table.isfrozen(new) then
+		table.freeze(new)
+	end
+	--#endif
 end)
 
 do
-	private.item_builded = setmetatable({} :: { [string]: enumitem }, table.freeze({ __mode = "vs" }))
+	private.item_builded = setmetatable({} :: { [string]: enumitem }, tables.__mode_vs)
 end
-
-
-ctype:read(class):write_tag(ctags.core)
 
 return class

@@ -1,17 +1,22 @@
 --!strict
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
+
 const LuaObject = require("@class/core/LuaObject")
 const mtypes = require("@declare/mtypes")
-const stderr = require("@extension/stderr")
 const ftype = require("@static/ftype")
 const types = require("@declare/types")
-const ctype = require("@static/ctype")
-const ctags = require("@static/ctags")
+const std = require("@extension/std")
+const tables = require("@declare/tables")
 
-const private = {}
+const private = {type = "pointer"}
 const class: pointer = LuaObject:new({
-	type = "pointer",
+	type = private.type,
 	set_point = ftype:write(function<Y>(self: pointer, to: Y, hard: boolean?): ()
-		if stderr:assert(private.points_set[self] == nil, "cannot reload existed Pointer to new value, abort") then
+		if std:assert(private.points_set[self] == nil, "cannot reload existed Pointer to new value, abort") then
 			return
 		end
 		private.points_set[self] = true
@@ -21,7 +26,7 @@ const class: pointer = LuaObject:new({
 		else
 			private.points[self] = to
 		end
-	end, mtypes.never, "pointer", mtypes.anyt, ftype:opt(types.boolean)),
+	end, mtypes.never, private.type, mtypes.anyt, ftype:opt(types.boolean)),
 
 	get_pointed = ftype:write(function(self: pointer): unknown
 		if private.points_set[self] ~= true then
@@ -33,24 +38,23 @@ const class: pointer = LuaObject:new({
 		end
 
 		return private.points[self]
-	end, ftype:opt(mtypes.anyt), "pointer"),
+	end, ftype:opt(mtypes.anyt), private.type),
 
 	is_pointed_hard = ftype:write(function(self: pointer): boolean
 		return private.points_hard[self] ~= nil
-	end, types.boolean, "pointer"),
+	end, types.boolean, private.type),
 
 	is_pointed_exists = ftype:write(function(self: pointer): boolean
 		return private.points_set[self] == true and (private.points[self] ~= nil or self:is_pointed_hard())
-	end, types.boolean, "pointer"),
+	end, types.boolean, private.type),
 })
 
 do
 	type list<T = unknown> = { [pointer]: T }
 
-	private.meta = table.freeze({ __mode = "ks" })
-	private.points_set = setmetatable({} :: list<boolean>, private.meta)
-	private.points_hard = setmetatable({} :: list<unknown>, private.meta)
-	private.points = setmetatable({} :: list<unknown>, table.freeze({ __mode = "kvs" }))
+	private.points_set = setmetatable({} :: list<boolean>, tables.__mode_ks)
+	private.points_hard = setmetatable({} :: list<unknown>, tables.__mode_ks)
+	private.points = setmetatable({} :: list<unknown>, tables.__mode_kvs)
 end
 
 return class

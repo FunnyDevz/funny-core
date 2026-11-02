@@ -1,5 +1,11 @@
 --!strict
 
+-- TFUNC
+
+type function neg (t) return types.negationof(t) end
+export type truthful = neg<false>
+export type exist = neg<nil>
+
 --- CORE
 
 --[==[
@@ -82,7 +88,7 @@ export type luaobject = {
         Состояние родителя не влияет на ребенка, и даже если родитель уже невалиден и освобожден, то
         ребенок будет продолжать всегда ссылаться на него. Это все конечно зависит от контекста.
     ]==]
-	read base: (self: luaobject) -> luaobject,
+	read base: (self: luaobject) -> luaobject?,
 
 	--[==[
         Host представляет функцию для инициализации нового объекта. По сути это замена функции конструктора,
@@ -276,9 +282,10 @@ export type struct = extend<{
 }, luaobject>
 
 --[==[
-    Represents a typed runtime variable containing a value and the time at which the variable was created
+    Объект который представляет переменную.
 
-    Variable is generic over the stored value type T
+    Поскольку это объект, он имеет ссылочный тип. Это значит, что можно передавать наружу объект переменной
+    и изменить его значение, если это возможно.
 ]==]
 export type variable<T = unknown> = extend<{
     --[==[
@@ -309,7 +316,8 @@ export type pointer<T = unknown> = extend<
         Это одноразовая операция установки объекта, на который указывает указатель. Дальше будут ошибки.
     ]==]
 		read set_point: (self: pointer<T>, to: T, hard: boolean?) -> (),
-		--[==[
+
+    --[==[
         `Deprecated`, в будущих патчах это будет удалено.
 
         Указатель может иметь жесткую ссылку на объекты на которые указывает.
@@ -328,10 +336,114 @@ export type pointer<T = unknown> = extend<
 		--[==[
         Возвращает режимы работы всех полученных состояний для этого указателя.
     ]==]
-		-- read get_mode: (self: pointer<T>, ...enumitem_pointer_mode) -> ...boolean
+		-- read get_mode: (self: pointer<T>, ...ernumitem_pointer_mode) -> ...boolean
 	},
 	luaobject
 >
+
+--[==[
+    Объект, представляющий собой путь к экземпляру, который может быть абсолютным или относительным.
+
+    Используется как способ поиска объектов в иерархии. Выгодней иметь прямую ссылку на экземпляр, чем
+    такой объект, если только нужно получить экземпляр. Если же экземпляр необязателен, то следует использовать
+    этот объект
+]==]
+export type path = extend<{
+    --[==[
+        Может быть абсолютным или относительным.
+    ]==]
+    path_to_instance_parent: string?,
+
+    --[==[
+        Если объявлен `path.is_path_strict` как `true`, то объект будет проверять, что полученный
+        экземпляр имеет ровно это имя
+    ]==]
+    expected_instance_name: string?,
+
+    --[==[
+        Объект при получении экземпляра будет сверять, что данный экземпляр является
+        именно указанным классом.
+    ]==]
+    expected_instance_class: string?,
+
+    --[==[
+        Для обычных методов получения того или иного объекта делает спуфинг, если включено. То есть
+        подменяет отсутствующий экземпляр на тот, что по идее нужно было получить.
+    ]==]
+    spoof: boolean,
+
+    --[==[
+        При спуфинге заставляет брать любой экземпляр у которого один и тот же класс, что и с ожидаемым.
+        Если включен `path.is_path_strict`, то это не будет работать, потому что ожидаемый экземпляр
+        должен иметь строго определенное имя.
+    ]==]
+    spoof_takes_any_similar_instance: boolean,
+   
+    --[==[
+        Путь ведет строго к определенному объекту, он обязан существовать.
+
+        В таком случае путь указывается с именем объекта.
+    ]==]
+    is_path_strict: boolean,
+
+    --[==[
+        Путь будет интерпретироваться как абсолютный путь, если is_path_absolute установлен в true. 
+    ]==]
+    is_path_absolute: boolean,
+
+    --[==[
+        Вернет экземпляр по абсолютному пути. Выбрасывает ошибку при отсутствии экземпляра либо
+        спуфит, если включено такое свойство в объекте.
+    ]==]
+    read get_by_absolute_path: (self: path) -> Instance,
+
+    --[==[
+        Вернет экземпляр по относительному пути. Выбрасывает ошибку при отсутсвии экземпляра либо
+        спуфит, если включено такое свойство в объекте.
+    ]==]
+    read get_by_relative_path: (self: path, root: Instance|path) -> Instance,
+
+    --[==[
+        Подбирает нужный способ получить экземпляр при помощи инстанса. Выбрасывает ошибку при отсутствии экземпляра либо
+        спуфит, если включено такое свойство в объекте. Требует root, чтобы гарантировать инвариант поиска.
+    ]==]
+    read get_by_path: (self: path, root: Instance|path) -> Instance,
+
+    --[==[
+        Вернет экземпляр по абсолютному пути, либо вернет `nil`. Ошибки не кидает.
+    ]==]
+    read get_by_absolute_path_or_nil: (self: path) -> Instance?,
+
+    --[==[
+        Вернет экземпляр по относительному пути через root экземпляр или путь, либо вернет `nil`. 
+        Ошибки не кидает.
+    ]==]
+    read get_by_relative_path_or_nil: (self: path, root: Instance|path|nil) -> Instance?,
+
+    --[==[
+        Вернет экземпляр с автоматическим поиском нужного метода. Требует root, если понадобится. Либо
+        вернет `nil`. Ошибки не кидает.
+    ]==]
+    read get_by_path_or_nil: (self: path, root: Instance|path|nil) -> Instance?,
+
+    --[==[
+        Устанавливает абсолютный путь к экземпляру. Автоматически изменяет настройки пути,
+        корректируя его `path.is_absolute_path` на `true`.
+    ]==]
+    read set_absolute_path_to: (self: path, to: Instance|path) -> (),
+
+    --[==[
+        Устанавливает относительный путь к экземпляру. Автоматически изменяет настройки пути,
+        корректируя его `path.is_absolute_path` на `false`.
+    ]==]
+    read set_relative_path_to: (self: path, root: Instance|path, to: Instance|path) -> (),
+
+    --[==[
+        Проверяет, существует ли экземпляр вообще
+    ]==]
+    read has_instance: (self: path) -> boolean,
+}, luaobject>
+
 
 --[==[
     Представляет типизированный наблюдатель уведомлений, который управляет подписками на уведомления enumitem и enumobject.
@@ -446,7 +558,7 @@ export type scheduler_teta<T... = ...any> = thread | (T...) -> ()
 --[==[
     Объект для управления задачами внутри самого Luau вне зависимости от Host приложения.
 
-    По сути это универсальная task библиотека в виде объекта, вынесенная за рамки обычного роблокса.
+    По сути это универсальная `task` библиотека в виде объекта, вынесенная за рамки обычного роблокса.
 ]==]
 export type scheduler = extend<{
 	--[==[
@@ -467,7 +579,7 @@ export type scheduler = extend<{
         Отменяет коррутину из планировщика. Функция безопасна для вызова, она тихо проигнорирует
         если эта коррутина не была запланирована.
     ]==]
-	read cancel: (self: scheduler, c: thread) -> (),
+	read cancel: (self: scheduler, c: thread?) -> (),
 
 	--[==[
         Проверяет, является ли эта коррутина запланированной для выполнения
@@ -478,6 +590,11 @@ export type scheduler = extend<{
         Проверяет, является ли эта коррутина в процессе ожидания или холда.
     ]==]
 	read is_waiting: (self: scheduler, c: thread?) -> boolean,
+
+    --[==[
+        Проверяет, не была ли эта коррутина перехвачена извне?
+    ]==]
+    read is_foreign: (self: scheduler, c: thread?) -> boolean,
 
 	--[==[
         Ставит текущую выполняемую коррутину на паузу до момента, когда не будет достигнуто указанное время
@@ -522,76 +639,10 @@ export type scheduler = extend<{
         планировщика этой библиотеки, либо ничего. Если передать уже зарегистрированную функцию, то она будет
         убрана с регистрации. Работает как `toggle`.
 
-        Для поиска и идентификации коррутин используется внутреннее хранилище объекта. Но класс позволяет
-        на всю иерархию зарегистрировать внешний источник, в котором будет искаться коррутина. Это реализовано
-        для того чтобы провайдеры могли регистрироваться в системе планировщика и точно указывать информацию для
-        него.
+        Регистрируется на вообще весь класс.
     ]==]
 	read external_source: (fn: (thread) -> scheduler?) -> (),
 }, luaobject>
-
---[==[
-    Агент используемый для запуска N функционала из пула доступных функций по enum идентификатору.
-]==]
-export type agent = extend<{
-    --[==[
-        Возвращает источник, из которого был загружен агент. Это может быть модуль или скрипт.
-    ]==]
-    read get_agent_source: (self: agent) -> string?,
-
-    --[==[
-        Устанавливает строку на источник
-    ]==]
-    read set_agent_source: (self: agent, to: string?) -> (),
-
-    --[==[
-        Включает этого агента, всегда создавая полностью с нуля новую среду с новым агентом и 
-        его загрузкой. Это позволяет перезапускать модули или запускать скрипты без любой проблемы.
-    ]==]
-    read start: (self: agent) -> (),
-
-    --[==[
-        Выключает этого агента, путем полного его удаления, включая внутреннего исполнителя.
-    ]==]
-    read shutdown: (self: agent) -> (),
-
-    --[==[
-        Перезагружает агента.
-    ]==]
-    read reboot: (self: agent) -> (),
-
-    --[==[
-        Возвращает основную шину, через которую с агентом можно общаться.
-    ]==]
-    read get_agent_message_bus: (self: agent) -> event<enumitem<any>>,
-
-    --[==[
-        Возвращает текущий статус агента в системе
-    ]==]
-    read get_agent_status: (self: agent) -> enumitem_state,
-
-    --[==[
-        Возвращает ивент, сообщающий об изменениях состояния агента.
-    ]==]
-    read get_agent_status_changed_event: (self: agent) -> event<enumitem_state>,
-
-    --[==[
-        Возвращает релевантного этому объекту агента, если он вообще есть для него.
-
-        Действует только в рамках 1 виртуальной машины, параллельные экземпляры не будут работать
-    ]==]
-    read get_agent_of: (self: agent, script: Script|Actor) -> agent?,
-
-    --[==[
-        Является ли этот объект агентом?
-    ]==]
-    read is_agent: (self: agent, that: Script|Actor) -> boolean
-}, disposable>
-
-
-
-
-
 
 
 
@@ -678,8 +729,20 @@ export type event<T = enumitem<any>, U... = ...unknown> = extend<{
         Возвращает все релевантные 
     ]==]
     read get_all_connections: (self: event<T,U...>, which_is_a: enumitem_connection_variant?) -> ...connection<T, U...>,
+    
+    --[==[
+        Копирует соединения из одного ивента в другой. 
+    ]==]
     read copy_connections_from: (self: event<T, U...>, which_is_a: enumitem_connection_variant?, ...event) -> (),
+    
+    --[==[
+        Удаляет соединение из ивента, если оно конечно есть. 
+    ]==]
     read disconnect_connection: (self: event<T,U...>, ...connection) -> (),
+    
+    --[==[
+        Удаляет все соединения из ивента, если они конечно есть. Может удалить соединения определенного типа.  
+    ]==]
     read disconnect_all_connections: (self: event<T,U...>, which_is_a: enumitem_connection_variant?) -> (),
 }, observer<T>>
 
@@ -750,6 +813,10 @@ export type signal<T... = ...unknown> = extend<{
 
 --[==[
     Аналог `variable`. Не имеет истории, однако уведомляет об операциях с ним.
+
+    Этот объект представляется как именно значение с getter/setter, а не как `variable` в полном смысле.
+    Да они по сути выполняют одну и ту же роль. Используйте `variable` в случаях когда вы передаете что-то наружу,
+    что по сути является ссылочным типом данных (ака &var name)
 ]==]
 export type value<T = unknown> = extend<{
 	--[==[
@@ -967,8 +1034,7 @@ export type netpack = extend<{
     поэтому на клиенте `get_event` блокирует поток. Пакеты приходят через
     `NetNotification.Received` Клиент приславший пакет с пометкой FromServer, кикается ez
 ]==]
-export type sharednet = extend<
-	{
+export type sharednet = extend<{
 		timeout: number,
 		emitted: number,
 		errors: number,
@@ -1189,61 +1255,7 @@ export type profile<T = enumitem> = extend<{
 	read is_in_server: (self: profile<T>) -> boolean,
 } & referenceable<profile<T>, Player?>, observer<enumitem_user_notification>>
 
-export type localuser = extend<{
-	read uid: number,
-	read get_player: (self: localuser) -> Player,
-
-	read require_get_configuration: (self: localuser, of: enumitem) -> result,
-	read require_save_configuration: (self: localuser, of: enumitem, ...unknown) -> (),
-
-	read get_user: (self: localuser) -> profile,
-}, luaobject>
-
---[==[
-    Объект, представляющий геометрическое пространство
-
-    В обычном случае такие объекты представляются синглтон-пространствами
-    внутри самого физического движка и не представляет собой какие-либо
-    объекты. В контексте конкретно этой архитектуры он полезен именно
-    как реестр для `geovolume` структур
-
-
-]==]
-export type world = extend<{
-	--[==[
-        Выполняет операцию рейкаста в мире
-    ]==]
-	read raycast: (self: world, from: vector, to: vector, info: rayinfo?) -> ...unknown,
-
-	--[==[
-        Проверяет, какие другие возможные `volume` могут иметь коллизии с этим
-        конкретным объектом
-    ]==]
-	read volumecast: (self: world, at: unknown) -> ...unknown,
-
-	read insert_volume: (self: world, ...unknown) -> (),
-	read remove_volume: (self: world, ...unknown) -> (),
-
-	read get_grid: (self: world) -> { [number]: { [number]: { [number]: geometry_check } } },
-	read get_grid_size: (self: world) -> number,
-	read set_grid_size: (self: world, to: number) -> (),
-} & collidable<world>, observer>
-
 -- Game
-
-type collidable_instance = Instance
-type collidable_ref = reference<collidable>
-
---[==[
-    Объект, представляющий группу коллизий
-]==]
-export type collision = extend<{
-	read get_collision: (self: collision) -> ...reference<Instance>,
-	read set_collision: (self: collision, ...collidable_ref | collidable_instance) -> (),
-	read rem_collision: (self: collision, ...collidable_ref | collidable_instance) -> (),
-	read set_name: (self: collision, to: string) -> (),
-	read get_name: (self: collision) -> string,
-}, disposable>
 
 --[==[
     Объект, представляющий доменную логику раунда и дающий возможность структурно управлять игрой
@@ -1339,7 +1351,7 @@ export type character = extend<
 		--[==[
         Получить текущий токен персонажа
 
-        Токен - специальный ключ, по которому для этого персонажа могут быть
+        Токе�� - специальный ключ, по которому для этого персонажа могут быть
         подобраны подходящие ему предметы, способности, снаряжение или
         модели
 
@@ -1408,7 +1420,7 @@ export type inventory = extend<{
 	--[==[
         Это размер инвентаря. Сюда влезет только столько элементов, сколько указано в этом поле.
 
-        Если внезапно разм���� поменяется и старые предметы уже не смогут влезть, то инвентарь лишь
+        Если внезапно размер инвентаря поменяется и старые предметы уже не смогут влезть, то инвентарь лишь
         уведомит об этом событии.
     ]==]
 	max: number,
@@ -1439,7 +1451,7 @@ export type iteminstance = extend<{
 export type itemobject = extend<{}, iteminstance>
 
 --[==[
-    Объект стопки для хранен��я неуникального `Item`. По сути это эстетика майкнрафт-подобного вида предметов.
+    Объект стопки для хранения неуникального `Item`. По сути это эстетика майкнрафт-подобного вида предметов.
 ]==]
 export type itemstack = extend<list_checks<itemstack> & list_operations<itemstack, itemstack>, iteminstance>
 
@@ -1554,7 +1566,6 @@ export type ability<T... = ...unknown> = extend<
 		read cooldown: (self: ability<T...>) -> timer,
 	}
 	& informable<ability<T...>, abilityinfo>
-	& collidable<ability<T...>>
 	& stateable<ability<T...>, enumitem_round_state>,
 	observer<enumitem_ability_notification>
 >
@@ -2254,132 +2265,32 @@ export type characterinfo = extend<{
 	read revives: number,
 }, struct>
 
---[==[
-    Объект, представляющий набор информации для геометрических фигур
-]==]
-export type rayinfo = extend<{
-	--[==[
-        Первый попавшийся объект будет возвращен, и только он
-    ]==]
-	read only_one_output: boolean,
 
-	--[==[
-        Рейкаст будет создаваться не только в локальном пространстве, но и в
-        пространстве игры, в которой работает
-    ]==]
-	read engine_hit: boolean,
 
-	--[==[
-        Попадание будет создавать `world:volumecast()` для всех, в кого
-        оно было зарегистрировано. Если `self.only_one_output`, то это
-        свойство его игнорирует, - будут возвращены все кто попал в `world:volemucast()`
-    ]==]
-	read volume_hit: boolean,
-}, struct>
 
--- Struct
 
-export type raycast_hit = {
-	read position: vector,
-	read normal: vector,
-	read distance: number,
-	read hit: boolean,
-	read native: unknown?,
-}
 
-export type provider = extend<
-	{
-		--[==[
-        Название платформы.
-    ]==]
-		read name: string, -- "roblox" | "love2d" | "defold" | "generic" | ...
 
-		--[==[
-        Версия платформы.
-    ]==]
-		read version: string?, -- версия платформы (для отчётов/телеметрии)
 
-		--[==[
-        Идентификатор сервера. Смотря как использовать.
-    ]==]
-		read session_id: string?, -- идентификатор сервера / сессии
 
-		--[==[
-        Канонический планировщик платформы. Создается при `init` по первому запросу либо по другим причинам,
-        смотря как хост определит.
 
-        `Обязательно` ленивая загрузка. Ядро читает этот объект во время бустрапа и по другим причинам, `нельзя`
-        просто взять и оставлять `scheduler` наружу.
-    ]==]
-		read get_global_scheduler: () -> scheduler,
 
-		--[==[
-        Монотонные секунды (os.clock или свое, смотря как выбрать)
-    ]==]
-		read get_time_now: () -> number,
-		read get_network_channel: (name: string) -> unknown?,
-		read get_player_entities_in_game_now: () -> unknown,
-		read get_player_entity_name: (e: unknown) -> string,
-		read get_player_entity_id: (e: unknown) -> string,
-		read get_player_entity_by_id: (id: string) -> unknown?,
-		read get_attribute: (node: unknown, name: string) -> unknown?,
-		read get_tagged: (tag: string) -> { unknown },
 
-		read set_attribute: (node: unknown, name: string, value: unknown) -> (),
 
-		read do_raycast: (origin: vector, direction: vector, ignore: { string | unknown }) -> raycast_hit?,
-		read do_overlap_sphere: (position: vector, radius: number) -> { unknown }?,
-		read do_overlap_box: (position: vector, size: vector) -> { unknown }?,
-		read do_defer: (task: thread | (...any) -> ()) -> (),
-		read do_spawn: (task: thread | (...any) -> ()) -> (),
-		read do_delay: (time: number?, task: thread | (...any) -> ()) -> (),
-		read do_wait: (seconds: number?) -> (),
-		read do_kick_player_entity: (e: unknown, reason: string) -> (),
-		read do_fire_network_channel: (ch: unknown, targets: { unknown }?, ...any) -> (),
 
-		read toggle_on_player_entity_added: (f: (e: unknown) -> ()) -> (),
-		read toggle_on_player_entity_removed: (f: (e: unknown) -> ()) -> (),
-		read toggle_on_engine_frame: (f: (dt: number) -> ()) -> (),
-		read toggle_on_engine_render: (f: (dt: number) -> ()) -> (),
-		read toggle_on_engine_pre_physics: (f: (dt: number) -> ()) -> (),
-		read toggle_on_engine_post_physics: (f: (dt: number) -> ()) -> (),
-		read toggle_on_engine_shutdown: (f: (...unknown) -> ()) -> (),
-		read toggle_network_channel_listening: (ch: unknown, f: (sender: unknown?, ...any) -> ()) -> (),
-		read toggle_on_attribute_changed: (node: unknown, name: string, f: (v: unknown) -> ()) -> (),
-		read toggle_tag: (node: unknown, tag: string) -> (),
-		read toggle_on_tag_added: (tag: string, f: (n: unknown) -> ()) -> (),
-		read toggle_on_tag_removed: (tag: string, f: (n: unknown) -> ()) -> (),
 
-		read is_local_channel: (ch: unknown) -> boolean,
-		read is_network_channel: (i: unknown) -> boolean,
-		read is_player_entity: (i: unknown) -> boolean,
-		read is_player_entity_in_game: (e: unknown) -> boolean,
-		read is_player_entity_in_game_by_id: (id: string) -> boolean,
-		read is_server: boolean,
-		read is_client: boolean,
-		read is_native: (that: unknown) -> boolean,
 
-		--[==[
-        Это приватная сессия? 
-    ]==]
-		read is_private: boolean,
 
-		--[==[
-        Та же семантика что и у роблокса: сервер выделенный, доступ только по приглашению через ключ-код,
-        иначе никак сюда не попадешь.
-    ]==]
-		read is_reserved: boolean,
 
-		--[==[
-        Платформа в тестовом режиме? Просто полезная информация.
-    ]==]
-		read is_test: boolean, -- headless test / CI
 
-		read supports: (feature: string) -> boolean,
-		read type_of: (native: unknown) -> string?,
-	},
-	struct
->
+
+
+
+
+
+
+
+
 
 --[==[
     Объект, представляющий унифицированный результат выполнения той или иной операции
@@ -2646,6 +2557,9 @@ export type basis = extend<
 		read append_basis: (self: basis, ...basis) -> basis,
 		read substract_basis: (self: basis, ...basis) -> basis,
 		read slerp: (self: basis, to: basis, alpha: number) -> basis,
+
+        read to_basis: (self: basis, ...CFrame) -> ...basis,
+        read to_cframe: (self: basis, ...basis) -> ...CFrame,
 
 		--[==[
         Особый случай инвертирования `basis` относительно его компонентов,
@@ -3591,25 +3505,6 @@ export type rotateable<T = unknown> = {
 	rotation: directions,
 }
 
---[==[
-    Тип так или иначе заставляет взаимодействовать с определенными группами коллизий
-]==]
-export type collidable<T = unknown> = {
-	--[==[
-        Возвращает все коллизии, с которыми доступно взаимодействие
-    ]==]
-	read get_collision: (self: T) -> ...collision,
-
-	--[==[
-        Добавляет указанные коллизии в список, с которыми доступно взаимодействие
-    ]==]
-	read add_collision: (self: T, ...collision) -> (),
-
-	--[==[
-        Удаляет указанные коллизии из списка доступных взаимодействий
-    ]==]
-	read rem_collision: (self: T, ...collision) -> (),
-}
 
 --[==[
     Этот объект может преобразовывать данные в нормали

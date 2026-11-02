@@ -1,10 +1,5 @@
 --!strict
 const IKR6LimbInfo = require("@class/struct/game/ik/IKR6LimbInfo")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
-
--- TODO
--- planted_speed min/max
 
 const class: ikr6leginfo = IKR6LimbInfo:new({
 	type = "ikr6leginfo",
@@ -17,7 +12,5 @@ const class: ikr6leginfo = IKR6LimbInfo:new({
 	leg_stand_forward = 0.1,
 	leg_idle_step_forward = 0.01,
 })
-
-ctype:read(class):write_tag(ctags.game, ctags.immersiveness, ctags.inverse_kinematic, ctags.struct)
 
 return class

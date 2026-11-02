@@ -11,7 +11,7 @@ const SharedNetLink = require("@enums/descriptor/SharedNetLink")
 const DataNotification = require("@enums/notification/DataNotification")
 const NetNotification = require("@enums/notification/NetNotification")
 const DataState = require("@enums/state/DataState")
-const stderr = require("@extension/stderr")
+const std = require("@extension/std")
 const ProfileStore = require("@include/ProfileStore")
 const engine = require("@platform/roblox/engine")
 const players = require("@platform/roblox/players")
@@ -77,7 +77,7 @@ const class: dataserver = Service:new({
 	get_value = ftype:write(function<T>(self: dataserver, player: Player, path: data_path): T
 		const snapshot = self:get_data(player)
 
-		if not stderr:check(snapshot, `{player.Name}'s data isn't loaded`) then
+		if not std:check(snapshot, `{player.Name}'s data isn't loaded`) then
 			return nil :: any
 		end
 
@@ -89,7 +89,7 @@ const class: dataserver = Service:new({
 		function(self: dataserver, player: Player, path: data_path, to: unknown): ()
 			const snapshot = self:get_data(player)
 
-			if not stderr:check(snapshot, `{player.Name}'s data isn't loaded`) then
+			if not std:check(snapshot, `{player.Name}'s data isn't loaded`) then
 				return
 			end
 

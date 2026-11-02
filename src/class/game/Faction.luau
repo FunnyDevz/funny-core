@@ -4,7 +4,6 @@ const Character = require("@class/game/character/Character")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
-const Cryptography = require("@import/Cryptography")
 const ftype = require("@static/ftype")
 
 const private = {}
@@ -55,7 +54,7 @@ class:host(function(new)
 end)
 
 do
-    private.key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring("Faction_Key_Unique"))
+    private.key = newproxy()
     private.get = function (self: faction)
         return self:get <<{character}>>(private.key)
     end

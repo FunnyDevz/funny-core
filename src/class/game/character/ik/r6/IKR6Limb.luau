@@ -1,4 +1,10 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const Reference = require("@class/common/Reference")
 const StateMachine = require("@class/common/StateMachine")
 const Maybe = require("@class/common/gc/Maybe")
@@ -12,12 +18,10 @@ const ConnectionVariant = require("@enums/descriptor/ConnectionVariant")
 const IKLimbMode = require("@enums/mode/IKLimbMode")
 const ReferenceNotification = require("@enums/notification/ReferenceNotification")
 const IKLegsState = require("@enums/state/IKLegsState")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const Cryptography = require("@import/Cryptography")
 const engine = require("@platform/roblox/engine")
 const worldspace = require("@platform/roblox/worldspace")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
 const ReferenceBasePart = require("@templates/class/reference/ReferenceBasePart")
 
@@ -318,7 +322,7 @@ do
             if reference_of_origin:is_instance_exists() then
                 new = reference_of_origin:get_instance():Clone()
             else
-                stdout:outm("cannot create clone of origin, because origin does not exists. Fallback to default part")
+                std:outm("cannot create clone of origin, because origin does not exists. Fallback to default part")
 
                 new = Instance.new "Part"
                 new.Size = worldspace.to_vector3(info.limb_size)
@@ -433,7 +437,7 @@ do
             if reference:get_instance() ~= new then
                 reference:set_instance(new)
                 --#if IKR6LIMB_PRINT_ACT
-                stdout:outw("changing Part instance of R6Foot fake_leg isn't allowed, change aborted")
+                std:outw("changing Part instance of R6Foot fake_leg isn't allowed, change aborted")
                 --#endif
             end
         end)
@@ -451,8 +455,8 @@ do
             new.CFrame = origin_instance.CFrame
             new.Parent = origin_instance
         else
-            --#if IKR6LIMB_PRINT_ACT
-            stdout:outw("origin does not exists, fallback to workspace")
+            --#if DEBUG
+            std:outw("origin does not exists, fallback to workspace")
             --#endif
 
             new.Parent = workspace
@@ -462,7 +466,6 @@ do
     end
 
     class:set_info(private.default_info)
-    ctype:read(class):write_tag(ctags.immersiveness, ctags.inverse_kinematic, ctags.class, ctags.game)
 end
 
 return class

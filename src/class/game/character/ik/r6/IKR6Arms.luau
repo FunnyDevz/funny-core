@@ -3,8 +3,6 @@ const Maybe = require("@class/common/gc/Maybe")
 const IKR6Arm = require("@class/game/character/ik/r6/IKR6Arm")
 const IKR6Solver = require("@class/game/character/ik/r6/IKR6Solver")
 const types = require("@declare/types")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
 
 const private = {}
@@ -31,8 +29,6 @@ do
     private.create_arm = function ()
         return IKR6Arm:new()
     end
-
-    ctype:read(class):write_tag(ctags.immersiveness, ctags.inverse_kinematic, ctags.solver, ctags.class, ctags.game)
 end
 
 return class

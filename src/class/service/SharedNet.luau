@@ -8,7 +8,7 @@ const NetSource = require("@enums/descriptor/NetSource")
 const SharedNetLink = require("@enums/descriptor/SharedNetLink")
 const SharedNetVariant = require("@enums/descriptor/SharedNetVariant")
 const NetNotification = require("@enums/notification/NetNotification")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const engine = require("@platform/roblox/engine")
 const network = require("@platform/roblox/network")
 const players = require("@platform/roblox/players")
@@ -36,7 +36,7 @@ const class: sharednet = Service:new({
 
 			if not SharedNetLink:is_my_enumitem(link) or not SharedNetVariant:is_my_enumitem(kind) then
 				self.errors += 1
-				stdout:oute("unexpected SharedNetLink or SharedNetVariant")
+				std:oute("unexpected SharedNetLink or SharedNetVariant")
 				return Event:new() :: any
 			end
 
@@ -66,7 +66,7 @@ const class: sharednet = Service:new({
 
 		if not metadata then
 			self.errors += 1
-			stdout:oute("unknown event, take it from SharedNet:get_event")
+			std:oute("unknown event, take it from SharedNet:get_event")
 			return
 		end
 
@@ -108,7 +108,7 @@ do
 		end
 
 		that.errors += 1
-		stdout:oute(`{name} wasn't created by the server, replaced with a local event`)
+		std:oute(`{name} wasn't created by the server, replaced with a local event`)
 		return network.create_remote(nil, name, "BindableEvent")
 	end
 

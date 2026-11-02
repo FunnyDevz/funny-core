@@ -8,9 +8,6 @@ const CharacterInfo = require("@class/struct/game/CharacterInfo")
 const mtypes = require("@declare/mtypes")
 const types = require("@declare/types")
 const DefaultVariant = require("@enums/descriptor/DefaultVariant")
-const Cryptography = require("@import/Cryptography")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
 
 const private = {}
@@ -83,17 +80,15 @@ end)
 
 do
     private.default_character_info = CharacterInfo:new()
-    private.info_key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "character_info_key")
-    private.maybe_key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "character_maybe_key")
-    private.token_key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "character_token_key")
+    private.info_key = newproxy()
+    private.maybe_key = newproxy()
+    private.token_key = newproxy()
     private.maybe_hum = Maybe:new() :: maybe<reference<Humanoid>, character>
     private.maybe_model = Maybe:new() :: maybe<reference<Model>, character>
     
     private.get_maybe = function (self: character)
         return self:get <<maybe<value<number>, enumitem>>>(private.maybe_key)
     end
-
-    ctype:read(class):write_tag(ctags.game)
 end
 
 return class
