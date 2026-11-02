@@ -107,6 +107,8 @@ export type ttable = {
 		Ищет и удаляет указанный элемент. Если успешно, то вернет true.
 	]==]
 	read frem: (t0: t, ...any) -> ...boolean,
+
+	read merge: <T, U>(t0: T, t1: U) -> T & U,
 }
 
 type work = {
@@ -497,6 +499,30 @@ const ttable: ttable = {
 		end
 
 		return true
+	end,
+
+	merge = function(t0: any, t1: any): any
+		if not std:assert(type(t0) == types.table and type(t1) == types.table, "t0 or t1 is not a table") then
+			return t0
+		end
+
+		const result = table.clone(t0)
+
+		for k, v in t1 do
+			const current = result[k]
+
+			if type(current) == types.table and type(v) == types.table and getmetatable(current) == nil and getmetatable(v) == nil then
+				result[k] = FTTABLE.merge(current, v)
+			else
+				result[k] = v
+			end
+		end
+
+		if table.isfrozen(t0) then
+			table.freeze(result)
+		end
+
+		return result
 	end,
 }
 

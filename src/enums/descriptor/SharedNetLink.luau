@@ -6,6 +6,7 @@ const class: enum_shared_net_link = EnumObject:new({
 	name = script.Name,
 
 	Data = EnumItem:new() :: enumitem<any>,
+	Profile = EnumItem:new() :: enumitem<any>,
 })
 
 return class

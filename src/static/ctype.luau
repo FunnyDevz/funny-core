@@ -216,6 +216,7 @@ export type ctype = {
 	read generate_metainfo: (self: ctype, of: tbl, tags: { string }, classname: string) -> metainfo,
 	read is_registered: (self: ctype, of: tbl) -> boolean,
 	read all: (self: ctype) -> { metainfo },
+	read validate: (self: ctype, of: tbl, classname: string?) -> boolean,
 }
 
 const private = {}
@@ -398,6 +399,40 @@ const ctype: ctype = table.freeze({
 			table.insert(result, v)
 		end
 		return result
+	end,
+
+	validate = function(self: ctype, of: tbl, classname: string?): boolean
+		if type(of) ~= types.table then
+			return false
+		end
+
+		if classname ~= nil then
+			if not args.is_luaobject(of) then
+				return false
+			end
+
+			const succ, result = pcall(of.is, of, classname)
+
+			if not succ or result ~= true then
+				return false
+			end
+		end
+
+		const info = self:read(of)
+
+		for k, v in info.fields do
+			if not args.match(v.type, of[v.name]) then
+				return false
+			end
+		end
+
+		for k, v in info.funcs do
+			if type(of[v.name]) ~= types["function"] then
+				return false
+			end
+		end
+
+		return true
 	end,
 })
 

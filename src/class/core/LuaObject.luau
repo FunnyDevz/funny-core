@@ -216,44 +216,14 @@ const class: luaobject = {
 			return
 		end
 
-		const args = table.pack(...)
-		const sigs = func.type.arguments_types
-		local si = 1
-
-		for ai = 1, args.n do
-			if si > #sigs then
-				--#if DEBUG
-				std:outm(`tcall: too many arguments for "{name}" (got {args.n}, expected {#sigs})`)
-				--#endif
-				return
-			end
-
-			const sig = sigs[si]
-
-			if not private.matches_argument(args[ai], sig) then
-				--#if DEBUG
-				std:outm(`tcall: argument #{ai} doesn't match signature of "{name}"`)
-				--#endif
-				return
-			end
-
-			if not sig.var then
-				si += 1
-			end
+		if not ftype:validate(ffunc_self, self, ...) then
+			--#if DEBUG
+			std:outm(`tcall: arguments dont match signature of "{name}"`)
+			--#endif
+			return
 		end
 
-		while si <= #sigs do
-			const sig = sigs[si]
-			if not (sig.opt or sig.var) then
-				--#if DEBUG
-				std:outm(`tcall: missing required argument #{si} for "{name}"`)
-				--#endif
-				return
-			end
-			si += 1
-		end
-
-		return (ffunc_self :: any)(...)
+		return (ffunc_self :: any)(self, ...)
 	end, ftype:var_opt(mtypes.anyt), private.type, types.string, ftype:var_opt(mtypes.anyt)),
 
 	ttype = ftype:write(function(self: luaobject | unknown): string?
@@ -342,35 +312,6 @@ do
 				end
 			end
 		end
-	end
-
-	private.matches_argument = function(value: any, sig): boolean
-		if value == nil and (sig.opt or sig.var) then
-			return true
-		end
-
-		const utype = utypes.utype(value)
-
-		for _, tv in sig.tval or dummies.table do
-			if type(tv) == types.string then
-				if tv == mtypes.anyt or tv == utype then
-					return true
-				end
-
-				if value ~= nil and type((value :: any).is) == types["function"] then
-					local ok, res = pcall((value :: any).is, value, tv)
-					if ok and res == true then
-						return true
-					end
-				end
-			else
-				if private.matches_argument(value, tv) then
-					return true
-				end
-			end
-		end
-
-		return false
 	end
 
 	--#if DEBUG && ALL_LOG_MISC_INFO

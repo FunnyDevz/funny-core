@@ -19,7 +19,8 @@ class:host(function(new)
 	const new = new:as <<enumitem>> (class.type)
 	const tnew: any = new
 
-	tnew.hashlink = Cryptography.Hashing.Blake3.Digest(buffer.fromstring(new.name))
+	const enum = new.enum :: enumobject?
+	tnew.hashlink = Cryptography.Hashing.Blake3.Digest(buffer.fromstring(if enum then `{enum.name}.{new.name}` else new.name))
 
 	--#if CORE_ENUMITEM_FREEZE
 	if not table.isfrozen(new) then

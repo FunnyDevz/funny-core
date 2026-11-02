@@ -12,14 +12,12 @@ const DataNotification = require("@enums/notification/DataNotification")
 const NetNotification = require("@enums/notification/NetNotification")
 const DataState = require("@enums/state/DataState")
 const std = require("@extension/std")
+const ttable = require("@extension/ttable")
 const ProfileStore = require("@include/ProfileStore")
 const engine = require("@platform/roblox/engine")
 const players = require("@platform/roblox/players")
 const rbxtypes = require("@platform/roblox/rbxtypes")
-const DataServerPref = require("@setting/DataServerPref")
 const ftype = require("@static/ftype")
-
-const REPLICATING = DataServerPref.replicating :: { [string]: boolean }
 
 type profile = any
 type data_event = event<enumitem_data_notification, ...any>
@@ -34,8 +32,15 @@ const class: dataserver = Service:new({
 			return
 		end
 
+		const succ, store = std:check(private.env.store, "DataServer env.store isn't set, call DataServer:set_env before start")
+
+		if not succ then
+			return
+		end
+
 		self.enabled = true
-		private.store = ProfileStore.New(DataServerPref.store, DataServerPref.template :: any)
+		private.template = private.env.template
+		private.store = ProfileStore.New(store :: string, private.template :: any)
 
 		const event = SharedNet:get_event(SharedNetLink.Data)
 		private.net = event
@@ -56,6 +61,32 @@ const class: dataserver = Service:new({
 			task.spawn(private.player_added, v)
 		end
 	end, mtypes.never, "dataserver"),
+
+	set_env = ftype:write(function(self: dataserver, env: any): dataserver_env
+		if not std:check(engine.is_server, "DataServer env can be set only on the server") then
+			return private.env
+		end
+
+		if not std:check(not self.enabled, "DataServer env can't be changed after start") then
+			return private.env
+		end
+
+		if type(env) == types["function"] then
+			const succ, result = pcall(env, ttable.copy(private.env))
+
+			if std:check(succ and type(result) == types.table, `DataServer env function must return a table, got {result}`) then
+				private.env = result
+			end
+		elseif std:check(type(env) == types.table, "DataServer env must be a table or a function") then
+			private.env = ttable.merge(private.env, env)
+		end
+
+		return private.env
+	end, types.table, "dataserver", ftype:uor(types.table, types["function"])),
+
+	get_env = ftype:write(function(self: dataserver): dataserver_env
+		return private.env
+	end, types.table, "dataserver"),
 
 	get_state = ftype:write(function(self: dataserver, player: Player): enumitem_data_state
 		return private.states[player] or DataState.ProfileReleased
@@ -125,14 +156,14 @@ const class: dataserver = Service:new({
 			return false
 		end
 
-		profile.Data = private.deep_copy(DataServerPref.template)
+		profile.Data = private.deep_copy(private.template)
 		private.send_snapshot(player)
 		return true
 	end, types.boolean, "dataserver", rbxtypes.Instance),
 
 	send_message = ftype:write(function(self: dataserver, user_id: number, message: { [string]: any }): boolean
 		const store = private.get_store()
-		const succ, err = pcall(store.MessageAsync, store, DataServerPref.key(user_id), message)
+		const succ, err = pcall(store.MessageAsync, store, private.env.key(user_id), message)
 
 		if not succ then
 			warn(`data failed to send a message to {user_id}:`, err)
@@ -147,6 +178,28 @@ const class: dataserver = Service:new({
 })
 
 do
+	private.env = {
+		key = function(id: number): string
+			return `player_{id}`
+		end,
+		template = {
+			user = {
+				joined_at = 0,
+				last_seen_at = 0,
+				previous_seen_at = 0,
+				last_server_id = "",
+				sessions = 0,
+				played_time = 0,
+				permissions = {},
+				restrictions = {},
+				platforms = {},
+				configurated = {},
+			},
+		},
+		replicating = {},
+		studio = { mock = false },
+	} :: dataserver_env
+	private.template = {} :: data_snapshot
 	private.meta = tables.__mode_ks
 	private.store = nil :: any
 	private.net = nil :: event<enumitem_net_notification, netpack>?
@@ -158,7 +211,7 @@ do
 	function private.get_store(): any
 		const store = assert(private.store, "DataServer isn't started")
 
-		if engine.is_studio and DataServerPref.studio.mock then
+		if engine.is_studio and private.env.studio.mock then
 			return store.Mock
 		end
 
@@ -177,7 +230,7 @@ do
 
 		private.set_state(player, DataState.ProfileLoading)
 
-		const profile: profile? = private.get_store():StartSessionAsync(DataServerPref.key(player.UserId), {
+		const profile: profile? = private.get_store():StartSessionAsync(private.env.key(player.UserId), {
 			Cancel = function()
 				return not players.is_in_game(player)
 			end,
@@ -213,13 +266,14 @@ do
 		if type(user) == types.table then
 			const now = os.time()
 
-			if user.joined_at == 0 then
+			if (user.joined_at or 0) == 0 then
 				user.joined_at = now
 			end
 
+			user.previous_seen_at = if (user.last_seen_at or 0) == 0 then now else user.last_seen_at
 			user.last_seen_at = now
 			user.last_server_id = engine.job_id
-			user.sessions += 1
+			user.sessions = (user.sessions or 0) + 1
 		end
 
 		profile:MessageHandler(function(message: unknown, processed: () -> ())
@@ -244,7 +298,7 @@ do
 			const user = profile.Data.user
 			if type(user) == types.table then
 				const now = os.time()
-				user.played_time += now - user.last_seen_at
+				user.played_time = (user.played_time or 0) + now - (user.last_seen_at or now)
 				user.last_seen_at = now
 			end
 			profile:EndSession()
@@ -298,7 +352,7 @@ do
 	function private.snapshot(snapshot: data_snapshot): data_snapshot
 		const result = {}
 
-		for k in REPLICATING do
+		for k in private.env.replicating do
 			result[k] = snapshot[k]
 		end
 
@@ -314,7 +368,7 @@ do
 	end
 
 	function private.replicate(player: Player, segments: { string }, to: unknown)
-		if not REPLICATING[segments[1]] or not private.ready[player] or not private.net then
+		if not private.env.replicating[segments[1]] or not private.ready[player] or not private.net then
 			return
 		end
 

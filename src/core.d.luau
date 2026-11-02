@@ -10,7 +10,7 @@ export type exist = neg<nil>
 
 --[==[
     Неправильно настроенные типы могут привести к типовой деградации нижнего уровня (самого luaobject). Появление
-    *error-type* типов внутри типа - признак неправильной настройки. 
+    *error-type* типов внутри типа - признак неправильной настройки.
 ]==]
 
 --[==[
@@ -83,7 +83,7 @@ export type luaobject = {
 
 	--[==[
         Возвращает суперкласс этого класса, то есть его базу, то есть его родителя из которого
-        этот объект вообще произошел. 
+        этот объект вообще произошел.
 
         Состояние родителя не влияет на ребенка, и даже если родитель уже невалиден и освобожден, то
         ребенок будет продолжать всегда ссылаться на него. Это все конечно зависит от контекста.
@@ -146,7 +146,7 @@ export type luaobject = {
 
 	--[==[
         Typeless caller. Используется когда информации о типе объекта недостаточно, и недостаточно информации в
-        в общем о том что может быть у объекта. Конкретно в этом случае это предназначено для вызова у объекта 
+        в общем о том что может быть у объекта. Конкретно в этом случае это предназначено для вызова у объекта
         каких-либо функций.
 
         Каллер проверяет метаданные классы и метаданные функции. Некорректные данные он просто отбросит и умолчит.
@@ -174,7 +174,7 @@ export type object_finally_type = (self: luaobject, base: object_finally_type?) 
     Таким образом, EnumObject действует как пространство имен и как владелец своих значений перечисления.
 
     Типичное использование:
-    
+
     ```luau
     local value = ExampleEnumObject.SomeValue
     local items = ExampleEnumObject:get_enums_list()
@@ -251,7 +251,7 @@ export type enumobject = extend<{
 export type enumitem<T = enumobject?> = extend<{
 	--[==[
         Уникальная строка, которая генерируется из `.name` и `.enum.name`.
-        
+
         Используйте ее для проверки валидности.
     ]==]
 	read hashlink: string,
@@ -378,7 +378,7 @@ export type path = extend<{
         должен иметь строго определенное имя.
     ]==]
     spoof_takes_any_similar_instance: boolean,
-   
+
     --[==[
         Путь ведет строго к определенному объекту, он обязан существовать.
 
@@ -387,7 +387,7 @@ export type path = extend<{
     is_path_strict: boolean,
 
     --[==[
-        Путь будет интерпретироваться как абсолютный путь, если is_path_absolute установлен в true. 
+        Путь будет интерпретироваться как абсолютный путь, если is_path_absolute установлен в true.
     ]==]
     is_path_absolute: boolean,
 
@@ -415,7 +415,7 @@ export type path = extend<{
     read get_by_absolute_path_or_nil: (self: path) -> Instance?,
 
     --[==[
-        Вернет экземпляр по относительному пути через root экземпляр или путь, либо вернет `nil`. 
+        Вернет экземпляр по относительному пути через root экземпляр или путь, либо вернет `nil`.
         Ошибки не кидает.
     ]==]
     read get_by_relative_path_or_nil: (self: path, root: Instance|path|nil) -> Instance?,
@@ -564,14 +564,14 @@ export type scheduler = extend<{
 	--[==[
         Планирует коррутину в любое удобное время для планировщика. Коррутина будет вызвана
         в следующем `scheduler:process()` либо в этом же цикле, если уже запланированная
-        коррутина подала запрос. 
+        коррутина подала запрос.
     ]==]
 	read plan: <T...>(self: scheduler, t: scheduler_teta<T...>, T...) -> thread,
 
 	--[==[
         Пробует найти в каком именно обработчике зарегистрирована эта коррутина. Если не найдет,
         значит она вообще не зарегистрирована в `scheduler` классе и его наследниках. Скорее всего
-        она либо создана 
+        она либо создана
     ]==]
 	read whose: (self: scheduler, c: thread?) -> scheduler?,
 
@@ -600,8 +600,8 @@ export type scheduler = extend<{
         Ставит текущую выполняемую коррутину на паузу до момента, когда не будет достигнуто указанное время
         в реальном `os.clock()` времени. После истечения времени ожидания в течении какого-то периода вызовет
         ожидавшую коррутину обратно.
-        
-        Функционал ожидания для кадрового (тикового) времени смотрите в 
+
+        Функционал ожидания для кадрового (тикового) времени смотрите в
         других функциях, либо он может быть не реализован.
     ]==]
 	read wait: (self: scheduler, time: number?) -> (),
@@ -695,7 +695,7 @@ export type scheduler = extend<{
     доставки уведомлений и управления соединениями.
 
     Стандартный `observer` покрывает практически любую ситуацию связанную с подписчиками и уведомлениями, но
-    этот класс специально разбит на несколько элементов и частей, которые почти не зависят друг от друга и 
+    этот класс специально разбит на несколько элементов и частей, которые почти не зависят друг от друга и
     предоставляют более явные инструменты управления.
 ]==]
 export type event<T = enumitem<any>, U... = ...unknown> = extend<{
@@ -726,22 +726,22 @@ export type event<T = enumitem<any>, U... = ...unknown> = extend<{
     read invoke_deferred: (self: event<T, U...>, on: T, U...) -> (),
 
     --[==[
-        Возвращает все релевантные 
+        Возвращает все релевантные
     ]==]
     read get_all_connections: (self: event<T,U...>, which_is_a: enumitem_connection_variant?) -> ...connection<T, U...>,
-    
+
     --[==[
-        Копирует соединения из одного ивента в другой. 
+        Копирует соединения из одного ивента в другой.
     ]==]
     read copy_connections_from: (self: event<T, U...>, which_is_a: enumitem_connection_variant?, ...event) -> (),
-    
+
     --[==[
-        Удаляет соединение из ивента, если оно конечно есть. 
+        Удаляет соединение из ивента, если оно конечно есть.
     ]==]
     read disconnect_connection: (self: event<T,U...>, ...connection) -> (),
-    
+
     --[==[
-        Удаляет все соединения из ивента, если они конечно есть. Может удалить соединения определенного типа.  
+        Удаляет все соединения из ивента, если они конечно есть. Может удалить соединения определенного типа.
     ]==]
     read disconnect_all_connections: (self: event<T,U...>, which_is_a: enumitem_connection_variant?) -> (),
 }, observer<T>>
@@ -749,9 +749,9 @@ export type event<T = enumitem<any>, U... = ...unknown> = extend<{
 --[==[
     Универсальный объект-соединение, который используется в ситуациях когда требуется поддержка полноценной системы
     доставки уведомлений и управления соединениями.
-    
+
     Стандартный `observer` покрывает практически любую ситуацию связанную с подписчиками и уведомлениями, но
-    этот класс специально разбит на несколько элементов и частей, которые почти не зависят друг от друга и 
+    этот класс специально разбит на несколько элементов и частей, которые почти не зависят друг от друга и
     предоставляют более явные инструменты управления.
 ]==]
 export type connection<T = enumitem, U... = ()> = extend<{
@@ -934,7 +934,7 @@ export type reference<T = unknown> = extend<{
     doors:start()
     ```
 ]==]
-export type binder<T = unknown> = extend<{ 
+export type binder<T = unknown> = extend<{
 	--[==[
         То, к чему выполняется привязка
     ]==]
@@ -949,7 +949,7 @@ export type binder<T = unknown> = extend<{
 	--[==[
         Объект создается через `maker`, когда тег появился на инстансе внутри `ancestors`
         (по умолчанию workspace), и освобождается, когда тег сняли, инстанс удалили или
-        он ушел из `ancestors`. 
+        он ушел из `ancestors`.
     ]==]
 	ancestors: { Instance }?,
 
@@ -1034,6 +1034,16 @@ export type netpack = extend<{
     поэтому на клиенте `get_event` блокирует поток. Пакеты приходят через
     `NetNotification.Received` Клиент приславший пакет с пометкой FromServer, кикается ez
 ]==]
+export type sharednet_env = {
+	max_network_packages: number,
+	deploy_placement_name: string,
+}
+
+export type sharednet_env_patch = {
+	max_network_packages: number?,
+	deploy_placement_name: string?,
+}
+
 export type sharednet = extend<{
 		timeout: number,
 		emitted: number,
@@ -1041,10 +1051,14 @@ export type sharednet = extend<{
 
 		read get_event: (
 			self: sharednet,
-			link: enumitem_shared_net_link,
+			link: enumitem,
 			variant: enumitem_shared_net_variant?
 		) -> event<enumitem_net_notification, netpack>,
+		read register_links: (self: sharednet, ...enumobject) -> (),
+		read has_link: (self: sharednet, link: enumitem) -> boolean,
 		read emit_event: (self: sharednet, event: event<enumitem_net_notification, netpack>, pack: netpack) -> (),
+		read set_env: (self: sharednet, env: sharednet_env_patch | (env: sharednet_env) -> sharednet_env) -> sharednet_env,
+		read get_env: (self: sharednet) -> sharednet_env,
 	},
 	service
 >
@@ -1063,8 +1077,26 @@ export type data_snapshot = { [string]: any }
     `DataNotification.DataLoaded` / `DataReleased` (player, data), `DataStateChanged` (player, state),
     `DataMessage` (player, message, processed)
 ]==]
+export type dataserver_env = {
+	store: string?,
+	key: (id: number) -> string,
+	template: data_snapshot,
+	replicating: { [string]: boolean },
+	studio: { mock: boolean },
+}
+
+export type dataserver_env_patch = {
+	store: string?,
+	key: ((id: number) -> string)?,
+	template: data_snapshot?,
+	replicating: { [string]: boolean }?,
+	studio: { mock: boolean? }?,
+}
+
 export type dataserver = extend<{
 	read start: (self: dataserver) -> (),
+	read set_env: (self: dataserver, env: dataserver_env_patch | (env: dataserver_env) -> dataserver_env) -> dataserver_env,
+	read get_env: (self: dataserver) -> dataserver_env,
 	read get_state: (self: dataserver, player: Player) -> enumitem_data_state,
 	read get_data: (self: dataserver, player: Player) -> data_snapshot?,
 	read wait_data: (self: dataserver, player: Player) -> data_snapshot?,
@@ -1225,6 +1257,36 @@ export type statemachine<T = enumitem> = extend<{
 	read blacklist: (self: statemachine<T>, ...T) -> (),
 }, observer<enumitem_statemachine_notification>>
 
+-- Physics
+
+export type kinematiccontroller<T = number> = extend<{
+	proportional: number,
+	output_limit: number,
+
+	read apply_error: (self: kinematiccontroller<T>, error: T, delta: number) -> T,
+	read apply_measurement: (self: kinematiccontroller<T>, setpoint: T, measurement: T, delta: number) -> T,
+	read get_output: (self: kinematiccontroller<T>) -> T?,
+	read get_error: (self: kinematiccontroller<T>) -> T?,
+	read reset: (self: kinematiccontroller<T>) -> (),
+}, luaobject>
+
+export type pcontroller<T = number> = extend<{}, kinematiccontroller<T>>
+
+export type picontroller<T = number> = extend<{
+	integral: number,
+	integral_limit: number,
+}, kinematiccontroller<T>>
+
+export type pdcontroller<T = number> = extend<{
+	derivative: number,
+}, kinematiccontroller<T>>
+
+export type pidcontroller<T = number> = extend<{
+	integral: number,
+	integral_limit: number,
+	derivative: number,
+}, kinematiccontroller<T>>
+
 -- Component
 
 export type profile<T = enumitem> = extend<{
@@ -1232,26 +1294,30 @@ export type profile<T = enumitem> = extend<{
 
 	read get_inlined: (self: profile<T>, uid: number) -> profile<T>,
 	read get_player: (self: profile<T>) -> Player?,
-	read get_configurated: <Y>(self: profile<T>, of: enumitem) -> variable<Y>,
+	read get_configurated: <Y>(self: profile<T>, of: enumitem) -> Y?,
 	read get_joined_at: (self: profile<T>) -> number,
-	read get_last_seen_at: (self: profile<T>) -> number?,
+	read get_last_seen_at: (self: profile<T>) -> number,
+	read get_previous_seen_at: (self: profile<T>) -> number,
+	read get_days_since_previous_seen: (self: profile<T>) -> number,
 	read get_last_server_id: (self: profile<T>) -> string?,
-	read get_permissions: (self: profile<T>) -> { enumitem },
-	read get_restrictions: (self: profile<T>) -> { enumitem },
+	read get_played_time: (self: profile<T>) -> number,
+	read get_sessions: (self: profile<T>) -> number,
+	read get_permissions: (self: profile<T>, of: enumobject) -> { T },
+	read get_restrictions: (self: profile<T>, of: enumobject) -> { T },
 
-	read set_configurated: <Y>(self: profile<T>, of: enumitem, ...unknown) -> (),
-	read set_permissions: (self: profile<T>, to: boolean, ...enumitem) -> (),
-	read set_restrictions: (self: profile<T>, to: boolean, ...enumitem) -> (),
+	read set_configurated: (self: profile<T>, of: enumitem, to: unknown) -> (),
+	read set_permissions: (self: profile<T>, to: boolean, ...T) -> (),
+	read set_restrictions: (self: profile<T>, to: boolean, ...T) -> (),
 	read set_platform: (self: profile<T>, to: boolean, ...enumitem_user_machine_variant) -> (),
 
-	read has_platform: (self: profile<T>, ...enumitem_user_machine_variant) -> boolean,
-	read has_restricitions: (self: profile<T>, ...enumitem) -> ...boolean,
-	read has_permissions: (self: profile<T>, ...enumitem) -> ...boolean,
+	read request_data: (self: profile<T>) -> (),
+	read wait_loaded: (self: profile<T>) -> (),
 
-	read is_banned: (self: profile<T>) -> boolean,
-	read is_kicked: (self: profile<T>) -> boolean,
-	read is_out: (self: profile<T>) -> boolean,
-	read is_in_place: (self: profile<T>) -> boolean,
+	read has_platform: (self: profile<T>, ...enumitem_user_machine_variant) -> boolean,
+	read has_restrictions: (self: profile<T>, ...T) -> ...boolean,
+	read has_permissions: (self: profile<T>, ...T) -> ...boolean,
+
+	read is_loaded: (self: profile<T>) -> boolean,
 	read is_in_server: (self: profile<T>) -> boolean,
 } & referenceable<profile<T>, Player?>, observer<enumitem_user_notification>>
 
@@ -1410,6 +1476,30 @@ export type character = extend<
 	} & informable<character, characterinfo>,
 	observer
 >
+
+--ENTITY
+export type entity = extend<{
+	move_direction: vector,
+	jump: boolean,
+	walk_speed: number,
+	jump_power: number,
+	hip_height: number,
+	floor_reach: number,
+	auto_rotate: boolean,
+	lock_rotation_x: boolean,
+	lock_rotation_y: boolean,
+	lock_rotation_z: boolean,
+
+	read is_grounded: (self: entity) -> boolean,
+	read get_floor_normal: (self: entity) -> vector,
+	read get_floor_distance: (self: entity) -> number?,
+	read get_movement_controller: (self: entity) -> kinematiccontroller<vector>,
+	read get_height_controller: (self: entity) -> kinematiccontroller<number>,
+	read get_rotation_controller: (self: entity) -> kinematiccontroller<vector>,
+	read set_movement_controller: (self: entity, to: kinematiccontroller<vector>) -> (),
+	read set_height_controller: (self: entity, to: kinematiccontroller<number>) -> (),
+	read set_rotation_controller: (self: entity, to: kinematiccontroller<vector>) -> (),
+} & switchable & referenceable<entity, PVInstance?>, disposable>
 
 --[==[
     Объект инвентаря, хранящий в себе `ItemStack` элементы.
@@ -2833,6 +2923,7 @@ export type enum_data_state = extend<{
 export type enumitem_shared_net_link = enumitem<enum_shared_net_link>
 export type enum_shared_net_link = extend<{
 	read Data: enumitem_shared_net_link,
+	read Profile: enumitem_shared_net_link,
 }, enumobject>
 
 export type enumitem_shared_net_variant = enumitem<enum_shared_net_variant>
@@ -2933,9 +3024,8 @@ export type enumitem_user_notification = enumitem<enum_user_notification>
 export type enum_user_notification = extend<{
 	read ServerJoin: enumitem_user_notification,
 	read ServerExit: enumitem_user_notification,
-	read ServerBan: enumitem_user_notification,
-	read ServerKick: enumitem_user_notification,
 	read ServerDataRequest: enumitem_user_notification,
+	read ServerDataChanged: enumitem_user_notification,
 }, enumobject>
 
 export type enumitem_action_map_variant = enumitem<enum_action_map_variant>

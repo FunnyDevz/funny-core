@@ -41,6 +41,14 @@ return table.freeze {
         return remote
     end,
 
+    set_shared_attribute = function (name: string, value: unknown) : ()
+        ReplicatedStorage:SetAttribute(name, value)
+    end,
+
+    get_shared_attribute = function (name: string) : unknown
+        return ReplicatedStorage:GetAttribute(name)
+    end,
+
     is_local = function (remote: Instance) : boolean
         return remote:IsA("BindableEvent")
     end,

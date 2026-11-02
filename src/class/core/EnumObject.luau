@@ -131,15 +131,15 @@ class:host(function(new)
 
         item_var.enum = new
         item_var.name = name
-        item_var.hashlink = Cryptography.Hashing.Blake3.Digest(buffer.fromstring(name))
+        item_var.hashlink = Cryptography.Hashing.Blake3.Digest(buffer.fromstring(`{new.name}.{name}`))
 
         --#endif
 
 
         --#if DEBUG
-        const collision: enumitem? = private.item_builded[v.hashlink]
-        if collision then
-            std:outm(
+        const collision: enumitem? = private.item_builded[item_var.hashlink]
+        if collision and collision ~= item_var and collision.enum ~= new then
+            std:outw(
                 string.format(
                     "enumitem hashlink collision with: \n\n %s (%s) \n %s (%s) \n\n parents: \n\n %s \n %s  ",
                     item_var.name,
@@ -154,7 +154,7 @@ class:host(function(new)
         --#endif
 
 		tnew[name] = item_var
-		private.item_builded[v.hashlink] = v
+		private.item_builded[item_var.hashlink] = item_var
 	end
 
 	--#if CORE_ENUMOBJECT_FREEZE
