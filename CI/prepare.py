@@ -76,15 +76,18 @@ class Preprocessor:
                 stack.append((active and cond, cond, active))
                 active = active and cond
             elif name == "elif":
+                if not stack: raise ValueError("Встречен --#elif без открывающего --#if")
                 _, taken, parent = stack.pop()
                 cond = not taken and self.truthy(arg)
                 stack.append((parent and cond, taken or cond, parent))
                 active = parent and cond
             elif name == "else":
+                if not stack: raise ValueError("Встречен --#else без открывающего --#if")
                 _, taken, parent = stack.pop()
                 stack.append((parent and not taken, True, parent))
                 active = parent and not taken
             elif name == "endif":
+                if not stack: raise ValueError("Встречен --#endif без открывающего --#if")
                 _, _, active = stack.pop()
             elif not active:
                 continue
