@@ -13,7 +13,7 @@ const ControllerState = require("@enums/state/ControllerState")
 const ftype = require("@static/ftype")
 
 
-const private = {type = ""}
+const private = {type = "timer"}
 const class : timer = (Observer :: observer<enumitem_tick_notification>):new {
 	type = private.type,
 	iterate = 1,
