@@ -108,7 +108,7 @@ const class: obbvolume = CubeVolume:new({
 			const volume = private.convert(value :: any)
 
 			if not volume then
-				--if DEBUG
+				--#if DEBUG
 				std:oute("unsupported geometry in OBB is_inside")
 				--#endif
 				return false
