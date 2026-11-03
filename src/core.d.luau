@@ -1037,11 +1037,17 @@ export type netpack = extend<{
 export type sharednet_env = {
 	max_network_packages: number,
 	deploy_placement_name: string,
+	rate_limit: number,
+	rate_burst: number,
+	rate_kick: number,
 }
 
 export type sharednet_env_patch = {
 	max_network_packages: number?,
 	deploy_placement_name: string?,
+	rate_limit: number?,
+	rate_burst: number?,
+	rate_kick: number?,
 }
 
 export type sharednet = extend<{
@@ -1467,7 +1473,12 @@ export type character = extend<
         Возвращает инвентарь конкретного персонажа и то чем он сейчас
         обладает
     ]==]
-		read get_inventory: (self: character) -> unknown, -- TODO
+		read get_inventory: (self: character) -> inventory,
+		read get_equipped: (self: character) -> iteminstance?,
+		read set_equipped: (self: character, to: iteminstance?) -> (),
+		read take_item: (self: character, ...iteminstance) -> (),
+		read drop_item: (self: character, ...iteminstance) -> (),
+		read use_item: (self: character, context: enumitem_item_context, delta: number) -> (),
 
 		--[==[
         Возвращает референс на модель персонажа
@@ -1519,7 +1530,11 @@ export type inventory = extend<{
         Возвращает все стаки которые есть в этом инвентаре.
     ]==]
 	read get_stacks: (self: inventory) -> ...iteminstance,
-} & list_checks<inventory> & list_operations<inventory, itemstack>, observer>
+
+	read set_replication: (self: inventory, key: string?, ...Player) -> (),
+	read get_replicated: (self: inventory, key: string) -> inventory?,
+	read is_replica: (self: inventory) -> boolean,
+} & list_checks<inventory> & list_operations<inventory, iteminstance>, observer<enumitem_list_notification>>
 
 --[==[
     Поведение предмета здесь не реализуется, и в принципе класс не следует использовать в игровой логике. Он предназначен
@@ -1529,8 +1544,8 @@ export type iteminstance = extend<{
 	--[==[
         Возвращает описание предмета на который ссылается этот объект.
     ]==]
-	read get_item: (self: itemstack) -> variable<item?>,
-}, observer>
+	read get_item: (self: iteminstance) -> variable<item?>,
+}, observer<enumitem_list_notification>>
 
 --[==[
     Это уникальное представление какого-либо объекта. В принципе проект поддерживает создание как экземпляров майкнрафтовского
@@ -1571,27 +1586,27 @@ export type itembehavior = extend<{
 	--[==[
         Какую операцию делать когда пользователь экипирует предмет.
     ]==]
-	read on_equip: (self: itembehavior, context: itemcontext) -> (),
+	read on_equip: ((self: itembehavior, context: itemcontext) -> ())?,
 
 	--[==[
         Какую операцию делать когда пользователь убирает предмет из рук в инвентарь.
     ]==]
-	read on_unequip: (self: itembehavior, context: itemcontext) -> (),
+	read on_unequip: ((self: itembehavior, context: itemcontext) -> ())?,
 
 	--[==[
         Какую операцию делать когда пользователь поднимает предмет с пола.
     ]==]
-	read on_take: (self: itembehavior, context: itemcontext) -> (),
+	read on_take: ((self: itembehavior, context: itemcontext) -> ())?,
 
 	--[==[
         Какую операцию делать когда пользователь выбрасывает предмет с инвентаря или рук.
     ]==]
-	read on_drop: (self: itembehavior, context: itemcontext) -> (),
+	read on_drop: ((self: itembehavior, context: itemcontext) -> ())?,
 
 	--[==[
         Это главное действие предмета. Оно выполняет что-то в зависимости от полученного контекста.
     ]==]
-	read action: (self: itembehavior, context: itemcontext, delta: number) -> (),
+	read action: ((self: itembehavior, context: itemcontext, delta: number) -> ())?,
 }, struct>
 
 --[==[
@@ -1624,6 +1639,8 @@ export type item = extend<{
         Сразу создает `ItemStack` этого предмета с указанным количеством.
     ]==]
 	read get_stack: (self: item, count: number) -> itemstack,
+
+	read get_by_name: (self: item, name: string) -> item?,
 } & nameable, struct>
 
 --[==[
@@ -2353,6 +2370,7 @@ export type characterinfo = extend<{
 	read run_cooldown: number,
 	read jump_cooldown: number,
 	read revives: number,
+	read inventory_max: number,
 }, struct>
 
 
@@ -2924,6 +2942,7 @@ export type enumitem_shared_net_link = enumitem<enum_shared_net_link>
 export type enum_shared_net_link = extend<{
 	read Data: enumitem_shared_net_link,
 	read Profile: enumitem_shared_net_link,
+	read Inventory: enumitem_shared_net_link,
 }, enumobject>
 
 export type enumitem_shared_net_variant = enumitem<enum_shared_net_variant>

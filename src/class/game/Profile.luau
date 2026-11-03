@@ -222,6 +222,10 @@ do
 	private.booted = false
 	private.net = nil :: net_event?
 	private.queue = {} :: { number }
+	private.request_limit = 64
+	private.request_cooldown = 0.25
+	private.flushing = false :: boolean
+	private.requested = setmetatable({} :: { [Player]: number }, tables.__mode_ks)
 	private.profiles = setmetatable({} :: { [number]: profile }, private.meta)
 	private.online = {} :: { [number]: profile }
 	private.ready = setmetatable({} :: { [Player]: true }, tables.__mode_ks)
@@ -374,17 +378,59 @@ do
 		end
 	end
 
+	private.flush = nil :: any
+
 	private.request = function(uids: { number }?)
 		const net = private.net
 
-		if not net then
-			if uids then
-				table.move(uids, 1, #uids, #private.queue + 1, private.queue)
+		if uids == nil then
+			if net then
+				SharedNet:emit_event(net, NetPack:pack(nil, "request", nil))
 			end
 			return
 		end
 
-		SharedNet:emit_event(net, NetPack:pack(nil, "request", uids))
+		for k, v in uids do
+			if not table.find(private.queue, v) then
+				table.insert(private.queue, v)
+			end
+		end
+
+		if net and not private.flushing then
+			private.flushing = true
+			private.plan(private.flush)
+		end
+	end
+
+	private.flush = function()
+		const net = private.net
+
+		if not net or #private.queue == 0 then
+			private.flushing = false
+			return
+		end
+
+		const batch: { number } = {}
+
+		for k = 1, math.min(#private.queue, private.request_limit) do
+			table.insert(batch, table.remove(private.queue, 1) :: number)
+		end
+
+		SharedNet:emit_event(net, NetPack:pack(nil, "request", batch))
+
+		if #private.queue > 0 then
+			task.delay(private.request_cooldown, private.flush)
+		else
+			private.flushing = false
+		end
+	end
+
+	private.send_exit = function(to: Player, uid: number)
+		const net = private.net
+
+		if net and private.ready[to] then
+			SharedNet:emit_event(net, NetPack:pack({ to }, "exit", uid))
+		end
 	end
 
 	private.server = table.freeze({
@@ -415,23 +461,48 @@ do
 					return
 				end
 
-				private.ready[sender] = true
-
-				if type(uids) == types.table then
-					for k, v in uids :: { unknown } do
-						if k > private.request_limit then
-							break
-						end
-
-						if type(v) == types.number then
-							const of = private.inline(v :: number)
-							of:notificate(UserNotification.ServerDataRequest, sender)
-							private.send(sender, of)
-						end
+				if uids == nil then
+					if private.ready[sender] then
+						return
 					end
-				else
+
+					private.ready[sender] = true
+
 					for k, v in private.online do
 						private.send(sender, v)
+					end
+
+					return
+				end
+
+				if not private.ready[sender] or type(uids) ~= types.table then
+					return
+				end
+
+				const now = os.clock()
+
+				if now - (private.requested[sender] or -math.huge) < private.request_cooldown then
+					return
+				end
+
+				private.requested[sender] = now
+
+				const list = uids :: { unknown }
+
+				for k = 1, math.min(#list, private.request_limit) do
+					const v = list[k]
+
+					if type(v) ~= types.number or v ~= math.floor(v :: number) or (v :: number) <= 0 then
+						continue
+					end
+
+					const of = private.online[v :: number]
+
+					if of then
+						of:notificate(UserNotification.ServerDataRequest, sender)
+						private.send(sender, of)
+					else
+						private.send_exit(sender, v :: number)
 					end
 				end
 			end)
@@ -503,10 +574,9 @@ do
 			private.net = net
 			private.request(nil)
 
-			if #private.queue > 0 then
-				const queue = table.clone(private.queue)
-				table.clear(private.queue)
-				private.request(queue)
+			if #private.queue > 0 and not private.flushing then
+				private.flushing = true
+				task.delay(private.request_cooldown, private.flush)
 			end
 		end,
 
@@ -548,7 +618,6 @@ do
 		read exit: (uid: number) -> (),
 	}
 
-	private.request_limit = 64
 	private.DataServer = if engine.is_server then require("@class/service/DataServer") else nil :: never
 	private.source = if engine.is_server then private.server else private.client :: source
 

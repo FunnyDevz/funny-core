@@ -48,7 +48,7 @@ const class: dataserver = Service:new({
 		event:connect(NetNotification.Received, function(pack: netpack)
 			const player = if pack.sender then players.get_by_user_id(pack.sender) else nil
 
-			if player and pack:payload() == "ready" then
+			if player and not private.ready[player] and pack:payload() == "ready" then
 				private.ready[player] = true
 				private.send_snapshot(player)
 			end

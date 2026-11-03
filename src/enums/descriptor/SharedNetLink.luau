@@ -7,6 +7,7 @@ const class: enum_shared_net_link = EnumObject:new({
 
 	Data = EnumItem:new() :: enumitem<any>,
 	Profile = EnumItem:new() :: enumitem<any>,
+	Inventory = EnumItem:new() :: enumitem<any>,
 })
 
 return class

@@ -19,6 +19,13 @@ const players = require("@platform/roblox/players")
 const ftype = require("@static/ftype")
 
 type net_event = event<enumitem_net_notification, netpack>
+type bucket = {
+	tokens: number,
+	time: number,
+	dropped: number,
+	window: number,
+}
+
 type metadata = {
 	variant: enumitem_shared_net_variant,
 	link: enumitem,
@@ -54,7 +61,7 @@ const class: sharednet = Service:new({
 
 			private.events[name] = event
 			private.metadata[event] = { variant = kind, link = link, instance = instance }
-			private.setup_behaviour(event, instance)
+			private.setup_behaviour(event, instance, name)
 
 			return event
 		end,
@@ -146,7 +153,11 @@ do
 	private.env = {
 		max_network_packages = 4,
 		deploy_placement_name = "shared_net_placement",
+		rate_limit = 60,
+		rate_burst = 120,
+		rate_kick = 600,
 	} :: sharednet_env
+	private.buckets = setmetatable({} :: { [Player]: { [string]: bucket } }, tables.__mode_ks)
 	private.replicated = nil :: sharednet_env?
 	private.links = { SharedNetLink } :: { enumobject }
 	private.events = {} :: { [string]: net_event }
@@ -218,7 +229,42 @@ do
 		return pack
 	end
 
-	function private.setup_behaviour(event: net_event, instance: Instance)
+	function private.allow(sender: Player, name: string): boolean
+		const env = private.get_env()
+		const now = os.clock()
+		const buckets = private.buckets[sender] or {}
+		private.buckets[sender] = buckets
+
+		local bucket = buckets[name]
+
+		if not bucket then
+			bucket = { tokens = env.rate_burst, time = now, dropped = 0, window = now }
+			buckets[name] = bucket
+		end
+
+		bucket.tokens = math.min(env.rate_burst, bucket.tokens + (now - bucket.time) * env.rate_limit)
+		bucket.time = now
+
+		if bucket.tokens >= 1 then
+			bucket.tokens -= 1
+			return true
+		end
+
+		if now - bucket.window >= 1 then
+			bucket.window = now
+			bucket.dropped = 0
+		end
+
+		bucket.dropped += 1
+
+		if env.rate_kick > 0 and bucket.dropped >= env.rate_kick then
+			players.kick(sender, "Too many network packets")
+		end
+
+		return false
+	end
+
+	function private.setup_behaviour(event: net_event, instance: Instance, name: string)
 		network.listen(instance, function(sender: Player?, flat: unknown)
 			if not sender then
 				const pack = private.limit(NetPack:from_flat(flat))
@@ -226,6 +272,10 @@ do
 				if pack then
 					event:invoke(NetNotification.Received, pack)
 				end
+				return
+			end
+
+			if not private.allow(sender, name) then
 				return
 			end
 
