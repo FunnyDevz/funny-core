@@ -154,7 +154,7 @@ const class: observer = LuaObject:new({
 
     get = ftype:write(function <Y> (self: observer, label: unknown) : Y
         return private.shadow_space[self][label]
-    end, ftype:opt(mtypes.anyt)), private.type, mtypes.anyt,
+    end, ftype:opt(mtypes.anyt), private.type, mtypes.anyt),
 
     set = ftype:write(function <Y> (self: observer, label: unknown, to: Y) : ()
         private.shadow_space[self][label] = to
