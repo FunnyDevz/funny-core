@@ -33,6 +33,17 @@ REQUIRE = re.compile(r"""require\(\s*(["'])@(\w+)(/[^"']*)?\1\s*\)""")
 class Preprocessor:
     def __init__(self, defines: dict[str, str]):
         self.defines = dict(defines)
+        self.included: set[str] = set()
+
+    def include(self, argument: str) -> None:
+        name = argument.strip().strip("<>\"")
+        if not name or name in self.included:
+            return
+        path = SOURCE / name
+        if not path.is_file():
+            raise ValueError(f"cannot include {name}: {path} does not exist")
+        self.included.add(name)
+        self.run(path.read_text("utf-8"))
 
     def truthy(self, expr: str) -> bool:
         def atom(token: str) -> bool:
@@ -101,7 +112,7 @@ class Preprocessor:
             elif name == "undef":
                 self.defines.pop(arg, None)
             elif name == "include":
-                pass
+                self.include(arg)
             else:
                 raise ValueError(f"unsupported directive --#{name}")
 
