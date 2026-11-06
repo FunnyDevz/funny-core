@@ -1,7 +1,7 @@
 --!strict
 
-const stdout = require("@extension/stdout")
 const types = require("@declare/types")
+const std = require("@extension/std")
 const args = require("@static/mtargument")
 const outs = require("@static/mtout")
 
@@ -216,6 +216,8 @@ type ftype = {
 		match one of the specified type alternatives.
 	]==]
 	read or_opt: (self: ftype, ...tval) -> argument,
+
+	read validate: (self: ftype, func: func, ...any) -> boolean,
 }
 
 const packed = setmetatable(
@@ -236,15 +238,17 @@ const ftype: ftype = table.freeze({
 
 			if argument.var then
 				if has_var then
-					stdout:oute("ftype args with .var already exists, skip")
-
+					--#if DEBUG
+					std:oute("ftype args with .var already exists, skip")
+					--#endif
 					continue
 				end
 
 				has_var = true
 			elseif has_var then
-				stdout:oute("ftype args after .var is not allowed, skip")
-
+				--#if DEBUG
+				std:oute("ftype args after .var is not allowed, skip")
+				--#endif
 				continue
 			end
 
@@ -408,6 +412,42 @@ const ftype: ftype = table.freeze({
 
 	or_opt = function(_self: ftype, ...: tval): argument
 		return args.new(table.freeze({ ... }), true, false, true)
+	end,
+
+	validate = function(_self: ftype, func: func, ...: any): boolean
+		const out = packed[func]
+
+		if not out then
+			return true
+		end
+
+		const values = table.pack(...)
+		const signatures = out.arguments_types
+		local position = 1
+
+		for k = 1, values.n do
+			const signature = signatures[position]
+
+			if not signature or not args.match(signature, values[k]) then
+				return false
+			end
+
+			if not signature.var then
+				position += 1
+			end
+		end
+
+		while position <= #signatures do
+			const signature = signatures[position]
+
+			if not (signature.opt or signature.var) then
+				return false
+			end
+
+			position += 1
+		end
+
+		return true
 	end,
 })
 

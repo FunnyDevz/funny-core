@@ -1,19 +1,28 @@
 {
   "$schema": "https://raw.githubusercontent.com/TheExeDEV/crater/main/schemas/crater.settings.schema.json",
   "client": {
-    "path": "Packages",
-    "alias": "import"
+    "path": "",
+    "alias": ""
   },
   "server": {
-    "path": "ServerPackages",
-    "alias": "include"
+    "path": "",
+    "alias": ""
   },
   "develop": {
     "path": "DevPackages",
     "alias": "internal"
   },
+
+  "vendor": {
+    "client": { "path": "src/vendor/import", "alias": "import" },
+    "server": { "path": "src/vendor/include", "alias": "include" },
+    "develop": { "path": "", "alias": "" }
+  },
+
   "luaurc": ".luaurc",
   "vscode_definitions": true,
   "confirm": true,
-  "link_style": "string"
+  "link_style": "string",
+  "darklua": true,
+  "sync": "auto"
 }

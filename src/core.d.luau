@@ -1,10 +1,21 @@
 --!strict
 
+-- TFUNC
+
+type function neg (t) return types.negationof(t) end
+export type truthful = neg<false>
+export type exist = neg<nil>
+
+--[==[
+    Тип гарантированно является пустой `userdata`.
+]==]
+export type userdata = {read [never]: never}
+
 --- CORE
 
 --[==[
     Неправильно настроенные типы могут привести к типовой деградации нижнего уровня (самого luaobject). Появление
-    *error-type* типов внутри типа - признак неправильной настройки. 
+    *error-type* типов внутри типа - признак неправильной настройки.
 ]==]
 
 --[==[
@@ -77,12 +88,12 @@ export type luaobject = {
 
 	--[==[
         Возвращает суперкласс этого класса, то есть его базу, то есть его родителя из которого
-        этот объект вообще произошел. 
+        этот объект вообще произошел.
 
         Состояние родителя не влияет на ребенка, и даже если родитель уже невалиден и освобожден, то
         ребенок будет продолжать всегда ссылаться на него. Это все конечно зависит от контекста.
     ]==]
-	read base: (self: luaobject) -> luaobject,
+	read base: (self: luaobject) -> luaobject?,
 
 	--[==[
         Host представляет функцию для инициализации нового объекта. По сути это замена функции конструктора,
@@ -118,7 +129,12 @@ export type luaobject = {
         Его можно перезаписать, а все предыдущие финализаторы можно вызвать из финализатора. При этом вызван будет
         самый верхний финализатор
     ]==]
-	read finally: <T>(self: luaobject, f: object_finally_type?) -> (),
+	read seal: <T>(self: luaobject, f: object_finally_type?) -> (),
+
+    --[==[
+        Вытаскивает объект по его идентификатору.
+    ]==]
+    read fetch: (self: luaobject, ...string) -> ...luaobject?,
 
 	--[==[
         Typeless getter. Используется когда информации о типе объекта недостаточно, и недостаточно информации
@@ -140,7 +156,7 @@ export type luaobject = {
 
 	--[==[
         Typeless caller. Используется когда информации о типе объекта недостаточно, и недостаточно информации в
-        в общем о том что может быть у объекта. Конкретно в этом случае это предназначено для вызова у объекта 
+        в общем о том что может быть у объекта. Конкретно в этом случае это предназначено для вызова у объекта
         каких-либо функций.
 
         Каллер проверяет метаданные классы и метаданные функции. Некорректные данные он просто отбросит и умолчит.
@@ -159,6 +175,28 @@ export type luaobject = {
 export type object_finally_type = (self: luaobject, base: object_finally_type?) -> ()
 
 --[==[
+    Объект, позволяющий отслеживать удаление других объектов из своего пула.
+
+    Реализация копирует и модифицирует работу Арсения Капулкина (zeux) `GCTracker` по
+    ссылке https://gist.github.com/zeux/99c0ede2680d1aad565cb37e0d0f076d
+]==]
+export type heap = extend<{
+    --[==[
+        Регистрирует этот объект на наблюдение
+    ]==]
+    read register: (self: heap, ...luaobject|{[any]: any}) -> userdata,
+    --[==[
+        Убирает этот объект и его финализаторы с наблюдения.
+    ]==]
+    read unregister: (self: heap, ...userdata) -> (), 
+
+    --[==[
+        Добавляет финализаторы-деструкторы на эти объекты.
+    ]==]
+    read finally: (self: heap, to: userdata, ...(luaobject_identity: string) -> ()) -> ()
+}, luaobject>
+
+--[==[
     Представляет собой перечисление и содержит его значения EnumItem
 
     EnumObject определяет именованный набор связанных элементов перечисления.
@@ -168,7 +206,7 @@ export type object_finally_type = (self: luaobject, base: object_finally_type?) 
     Таким образом, EnumObject действует как пространство имен и как владелец своих значений перечисления.
 
     Типичное использование:
-    
+
     ```luau
     local value = ExampleEnumObject.SomeValue
     local items = ExampleEnumObject:get_enums_list()
@@ -179,6 +217,12 @@ export type enumobject = extend<{
         Имя в объекте енамов используется для идентификации.
     ]==]
 	read name: string,
+
+    --[==[
+        Объект метка, использующийся для построения `enumitem`. Объект строит предмет только по такой метке,
+        иначе в енам попадет то что попадет.
+    ]==]
+    read build_enumitem_mark: any,
 
 	--[==[
         Возвращает список всех релевантных этому `enumobject` объектов `enumitem`.
@@ -245,7 +289,7 @@ export type enumobject = extend<{
 export type enumitem<T = enumobject?> = extend<{
 	--[==[
         Уникальная строка, которая генерируется из `.name` и `.enum.name`.
-        
+
         Используйте ее для проверки валидности.
     ]==]
 	read hashlink: string,
@@ -276,9 +320,10 @@ export type struct = extend<{
 }, luaobject>
 
 --[==[
-    Represents a typed runtime variable containing a value and the time at which the variable was created
+    Объект который представляет переменную.
 
-    Variable is generic over the stored value type T
+    Поскольку это объект, он имеет ссылочный тип. Это значит, что можно передавать наружу объект переменной
+    и изменить его значение, если это возможно.
 ]==]
 export type variable<T = unknown> = extend<{
     --[==[
@@ -309,7 +354,8 @@ export type pointer<T = unknown> = extend<
         Это одноразовая операция установки объекта, на который указывает указатель. Дальше будут ошибки.
     ]==]
 		read set_point: (self: pointer<T>, to: T, hard: boolean?) -> (),
-		--[==[
+
+    --[==[
         `Deprecated`, в будущих патчах это будет удалено.
 
         Указатель может иметь жесткую ссылку на объекты на которые указывает.
@@ -328,10 +374,114 @@ export type pointer<T = unknown> = extend<
 		--[==[
         Возвращает режимы работы всех полученных состояний для этого указателя.
     ]==]
-		-- read get_mode: (self: pointer<T>, ...enumitem_pointer_mode) -> ...boolean
+		-- read get_mode: (self: pointer<T>, ...ernumitem_pointer_mode) -> ...boolean
 	},
 	luaobject
 >
+
+--[==[
+    Объект, представляющий собой путь к экземпляру, который может быть абсолютным или относительным.
+
+    Используется как способ поиска объектов в иерархии. Выгодней иметь прямую ссылку на экземпляр, чем
+    такой объект, если только нужно получить экземпляр. Если же экземпляр необязателен, то следует использовать
+    этот объект
+]==]
+export type path = extend<{
+    --[==[
+        Может быть абсолютным или относительным.
+    ]==]
+    path_to_instance_parent: string?,
+
+    --[==[
+        Если объявлен `path.is_path_strict` как `true`, то объект будет проверять, что полученный
+        экземпляр имеет ровно это имя
+    ]==]
+    expected_instance_name: string?,
+
+    --[==[
+        Объект при получении экземпляра будет сверять, что данный экземпляр является
+        именно указанным классом.
+    ]==]
+    expected_instance_class: string?,
+
+    --[==[
+        Для обычных методов получения того или иного объекта делает спуфинг, если включено. То есть
+        подменяет отсутствующий экземпляр на тот, что по идее нужно было получить.
+    ]==]
+    spoof: boolean,
+
+    --[==[
+        При спуфинге заставляет брать любой экземпляр у которого один и тот же класс, что и с ожидаемым.
+        Если включен `path.is_path_strict`, то это не будет работать, потому что ожидаемый экземпляр
+        должен иметь строго определенное имя.
+    ]==]
+    spoof_takes_any_similar_instance: boolean,
+
+    --[==[
+        Путь ведет строго к определенному объекту, он обязан существовать.
+
+        В таком случае путь указывается с именем объекта.
+    ]==]
+    is_path_strict: boolean,
+
+    --[==[
+        Путь будет интерпретироваться как абсолютный путь, если is_path_absolute установлен в true.
+    ]==]
+    is_path_absolute: boolean,
+
+    --[==[
+        Вернет экземпляр по абсолютному пути. Выбрасывает ошибку при отсутствии экземпляра либо
+        спуфит, если включено такое свойство в объекте.
+    ]==]
+    read get_by_absolute_path: (self: path) -> Instance,
+
+    --[==[
+        Вернет экземпляр по относительному пути. Выбрасывает ошибку при отсутсвии экземпляра либо
+        спуфит, если включено такое свойство в объекте.
+    ]==]
+    read get_by_relative_path: (self: path, root: Instance|path) -> Instance,
+
+    --[==[
+        Подбирает нужный способ получить экземпляр при помощи инстанса. Выбрасывает ошибку при отсутствии экземпляра либо
+        спуфит, если включено такое свойство в объекте. Требует root, чтобы гарантировать инвариант поиска.
+    ]==]
+    read get_by_path: (self: path, root: Instance|path) -> Instance,
+
+    --[==[
+        Вернет экземпляр по абсолютному пути, либо вернет `nil`. Ошибки не кидает.
+    ]==]
+    read get_by_absolute_path_or_nil: (self: path) -> Instance?,
+
+    --[==[
+        Вернет экземпляр по относительному пути через root экземпляр или путь, либо вернет `nil`.
+        Ошибки не кидает.
+    ]==]
+    read get_by_relative_path_or_nil: (self: path, root: Instance|path|nil) -> Instance?,
+
+    --[==[
+        Вернет экземпляр с автоматическим поиском нужного метода. Требует root, если понадобится. Либо
+        вернет `nil`. Ошибки не кидает.
+    ]==]
+    read get_by_path_or_nil: (self: path, root: Instance|path|nil) -> Instance?,
+
+    --[==[
+        Устанавливает абсолютный путь к экземпляру. Автоматически изменяет настройки пути,
+        корректируя его `path.is_absolute_path` на `true`.
+    ]==]
+    read set_absolute_path_to: (self: path, to: Instance|path) -> (),
+
+    --[==[
+        Устанавливает относительный путь к экземпляру. Автоматически изменяет настройки пути,
+        корректируя его `path.is_absolute_path` на `false`.
+    ]==]
+    read set_relative_path_to: (self: path, root: Instance|path, to: Instance|path) -> (),
+
+    --[==[
+        Проверяет, существует ли экземпляр вообще
+    ]==]
+    read has_instance: (self: path) -> boolean,
+}, luaobject>
+
 
 --[==[
     Представляет типизированный наблюдатель уведомлений, который управляет подписками на уведомления enumitem и enumobject.
@@ -425,20 +575,19 @@ export type disposable = extend<{
 
     ```luau
     value:free() -- GC will be able to collect this value later
-    value:free(true) -- The GC will be able to collect this value at the end of the loop
     ```
     ]==]
-	read free: (self: disposable, deffered: boolean?) -> (),
+	read free: (self: disposable) -> (),
 
 	--[==[
         Returns the state of the luaobject at the current time of the request
     ]==]
-	read released: (self: disposable) -> boolean,
+	read is_releasing: (self: disposable) -> boolean,
 
 	--[==[
         Connects an outside observer to the moment of release
     ]==]
-	read watch: <T>(self: disposable, ...(self: disposable) -> ()) -> (),
+	read finally: <T>(self: disposable, ...((luaobject_identity: string) -> ())|disposable) -> (),
 } & private_storage<disposable>, luaobject>
 
 export type scheduler_teta<T... = ...any> = thread | (T...) -> ()
@@ -446,20 +595,20 @@ export type scheduler_teta<T... = ...any> = thread | (T...) -> ()
 --[==[
     Объект для управления задачами внутри самого Luau вне зависимости от Host приложения.
 
-    По сути это универсальная task библиотека в виде объекта, вынесенная за рамки обычного роблокса.
+    По сути это универсальная `task` библиотека в виде объекта, вынесенная за рамки обычного роблокса.
 ]==]
 export type scheduler = extend<{
 	--[==[
         Планирует коррутину в любое удобное время для планировщика. Коррутина будет вызвана
         в следующем `scheduler:process()` либо в этом же цикле, если уже запланированная
-        коррутина подала запрос. 
+        коррутина подала запрос.
     ]==]
 	read plan: <T...>(self: scheduler, t: scheduler_teta<T...>, T...) -> thread,
 
 	--[==[
         Пробует найти в каком именно обработчике зарегистрирована эта коррутина. Если не найдет,
         значит она вообще не зарегистрирована в `scheduler` классе и его наследниках. Скорее всего
-        она либо создана 
+        она либо создана
     ]==]
 	read whose: (self: scheduler, c: thread?) -> scheduler?,
 
@@ -467,7 +616,7 @@ export type scheduler = extend<{
         Отменяет коррутину из планировщика. Функция безопасна для вызова, она тихо проигнорирует
         если эта коррутина не была запланирована.
     ]==]
-	read cancel: (self: scheduler, c: thread) -> (),
+	read cancel: (self: scheduler, c: thread?) -> (),
 
 	--[==[
         Проверяет, является ли эта коррутина запланированной для выполнения
@@ -479,12 +628,17 @@ export type scheduler = extend<{
     ]==]
 	read is_waiting: (self: scheduler, c: thread?) -> boolean,
 
+    --[==[
+        Проверяет, не была ли эта коррутина перехвачена извне?
+    ]==]
+    read is_foreign: (self: scheduler, c: thread?) -> boolean,
+
 	--[==[
         Ставит текущую выполняемую коррутину на паузу до момента, когда не будет достигнуто указанное время
         в реальном `os.clock()` времени. После истечения времени ожидания в течении какого-то периода вызовет
         ожидавшую коррутину обратно.
-        
-        Функционал ожидания для кадрового (тикового) времени смотрите в 
+
+        Функционал ожидания для кадрового (тикового) времени смотрите в
         других функциях, либо он может быть не реализован.
     ]==]
 	read wait: (self: scheduler, time: number?) -> (),
@@ -522,76 +676,10 @@ export type scheduler = extend<{
         планировщика этой библиотеки, либо ничего. Если передать уже зарегистрированную функцию, то она будет
         убрана с регистрации. Работает как `toggle`.
 
-        Для поиска и идентификации коррутин используется внутреннее хранилище объекта. Но класс позволяет
-        на всю иерархию зарегистрировать внешний источник, в котором будет искаться коррутина. Это реализовано
-        для того чтобы провайдеры могли регистрироваться в системе планировщика и точно указывать информацию для
-        него.
+        Регистрируется на вообще весь класс.
     ]==]
 	read external_source: (fn: (thread) -> scheduler?) -> (),
 }, luaobject>
-
---[==[
-    Агент используемый для запуска N функционала из пула доступных функций по enum идентификатору.
-]==]
-export type agent = extend<{
-    --[==[
-        Возвращает источник, из которого был загружен агент. Это может быть модуль или скрипт.
-    ]==]
-    read get_agent_source: (self: agent) -> string?,
-
-    --[==[
-        Устанавливает строку на источник
-    ]==]
-    read set_agent_source: (self: agent, to: string?) -> (),
-
-    --[==[
-        Включает этого агента, всегда создавая полностью с нуля новую среду с новым агентом и 
-        его загрузкой. Это позволяет перезапускать модули или запускать скрипты без любой проблемы.
-    ]==]
-    read start: (self: agent) -> (),
-
-    --[==[
-        Выключает этого агента, путем полного его удаления, включая внутреннего исполнителя.
-    ]==]
-    read shutdown: (self: agent) -> (),
-
-    --[==[
-        Перезагружает агента.
-    ]==]
-    read reboot: (self: agent) -> (),
-
-    --[==[
-        Возвращает основную шину, через которую с агентом можно общаться.
-    ]==]
-    read get_agent_message_bus: (self: agent) -> event<enumitem<any>>,
-
-    --[==[
-        Возвращает текущий статус агента в системе
-    ]==]
-    read get_agent_status: (self: agent) -> enumitem_state,
-
-    --[==[
-        Возвращает ивент, сообщающий об изменениях состояния агента.
-    ]==]
-    read get_agent_status_changed_event: (self: agent) -> event<enumitem_state>,
-
-    --[==[
-        Возвращает релевантного этому объекту агента, если он вообще есть для него.
-
-        Действует только в рамках 1 виртуальной машины, параллельные экземпляры не будут работать
-    ]==]
-    read get_agent_of: (self: agent, script: Script|Actor) -> agent?,
-
-    --[==[
-        Является ли этот объект агентом?
-    ]==]
-    read is_agent: (self: agent, that: Script|Actor) -> boolean
-}, disposable>
-
-
-
-
-
 
 
 
@@ -644,7 +732,7 @@ export type agent = extend<{
     доставки уведомлений и управления соединениями.
 
     Стандартный `observer` покрывает практически любую ситуацию связанную с подписчиками и уведомлениями, но
-    этот класс специально разбит на несколько элементов и частей, которые почти не зависят друг от друга и 
+    этот класс специально разбит на несколько элементов и частей, которые почти не зависят друг от друга и
     предоставляют более явные инструменты управления.
 ]==]
 export type event<T = enumitem<any>, U... = ...unknown> = extend<{
@@ -675,20 +763,32 @@ export type event<T = enumitem<any>, U... = ...unknown> = extend<{
     read invoke_deferred: (self: event<T, U...>, on: T, U...) -> (),
 
     --[==[
-        Возвращает все релевантные 
+        Возвращает все релевантные
     ]==]
     read get_all_connections: (self: event<T,U...>, which_is_a: enumitem_connection_variant?) -> ...connection<T, U...>,
+
+    --[==[
+        Копирует соединения из одного ивента в другой.
+    ]==]
     read copy_connections_from: (self: event<T, U...>, which_is_a: enumitem_connection_variant?, ...event) -> (),
+
+    --[==[
+        Удаляет соединение из ивента, если оно конечно есть.
+    ]==]
     read disconnect_connection: (self: event<T,U...>, ...connection) -> (),
+
+    --[==[
+        Удаляет все соединения из ивента, если они конечно есть. Может удалить соединения определенного типа.
+    ]==]
     read disconnect_all_connections: (self: event<T,U...>, which_is_a: enumitem_connection_variant?) -> (),
 }, observer<T>>
 
 --[==[
     Универсальный объект-соединение, который используется в ситуациях когда требуется поддержка полноценной системы
     доставки уведомлений и управления соединениями.
-    
+
     Стандартный `observer` покрывает практически любую ситуацию связанную с подписчиками и уведомлениями, но
-    этот класс специально разбит на несколько элементов и частей, которые почти не зависят друг от друга и 
+    этот класс специально разбит на несколько элементов и частей, которые почти не зависят друг от друга и
     предоставляют более явные инструменты управления.
 ]==]
 export type connection<T = enumitem, U... = ()> = extend<{
@@ -750,6 +850,10 @@ export type signal<T... = ...unknown> = extend<{
 
 --[==[
     Аналог `variable`. Не имеет истории, однако уведомляет об операциях с ним.
+
+    Этот объект представляется как именно значение с getter/setter, а не как `variable` в полном смысле.
+    Да они по сути выполняют одну и ту же роль. Используйте `variable` в случаях когда вы передаете что-то наружу,
+    что по сути является ссылочным типом данных (ака &var name)
 ]==]
 export type value<T = unknown> = extend<{
 	--[==[
@@ -867,7 +971,7 @@ export type reference<T = unknown> = extend<{
     doors:start()
     ```
 ]==]
-export type binder<T = unknown> = extend<{ 
+export type binder<T = unknown> = extend<{
 	--[==[
         То, к чему выполняется привязка
     ]==]
@@ -882,7 +986,7 @@ export type binder<T = unknown> = extend<{
 	--[==[
         Объект создается через `maker`, когда тег появился на инстансе внутри `ancestors`
         (по умолчанию workspace), и освобождается, когда тег сняли, инстанс удалили или
-        он ушел из `ancestors`. 
+        он ушел из `ancestors`.
     ]==]
 	ancestors: { Instance }?,
 
@@ -967,18 +1071,37 @@ export type netpack = extend<{
     поэтому на клиенте `get_event` блокирует поток. Пакеты приходят через
     `NetNotification.Received` Клиент приславший пакет с пометкой FromServer, кикается ez
 ]==]
-export type sharednet = extend<
-	{
+export type sharednet_env = {
+	max_network_packages: number,
+	deploy_placement_name: string,
+	rate_limit: number,
+	rate_burst: number,
+	rate_kick: number,
+}
+
+export type sharednet_env_patch = {
+	max_network_packages: number?,
+	deploy_placement_name: string?,
+	rate_limit: number?,
+	rate_burst: number?,
+	rate_kick: number?,
+}
+
+export type sharednet = extend<{
 		timeout: number,
 		emitted: number,
 		errors: number,
 
 		read get_event: (
 			self: sharednet,
-			link: enumitem_shared_net_link,
+			link: enumitem,
 			variant: enumitem_shared_net_variant?
 		) -> event<enumitem_net_notification, netpack>,
+		read register_links: (self: sharednet, ...enumobject) -> (),
+		read has_link: (self: sharednet, link: enumitem) -> boolean,
 		read emit_event: (self: sharednet, event: event<enumitem_net_notification, netpack>, pack: netpack) -> (),
+		read set_env: (self: sharednet, env: sharednet_env_patch | (env: sharednet_env) -> sharednet_env) -> sharednet_env,
+		read get_env: (self: sharednet) -> sharednet_env,
 	},
 	service
 >
@@ -997,8 +1120,26 @@ export type data_snapshot = { [string]: any }
     `DataNotification.DataLoaded` / `DataReleased` (player, data), `DataStateChanged` (player, state),
     `DataMessage` (player, message, processed)
 ]==]
+export type dataserver_env = {
+	store: string?,
+	key: (id: number) -> string,
+	template: data_snapshot,
+	replicating: { [string]: boolean },
+	studio: { mock: boolean },
+}
+
+export type dataserver_env_patch = {
+	store: string?,
+	key: ((id: number) -> string)?,
+	template: data_snapshot?,
+	replicating: { [string]: boolean }?,
+	studio: { mock: boolean? }?,
+}
+
 export type dataserver = extend<{
 	read start: (self: dataserver) -> (),
+	read set_env: (self: dataserver, env: dataserver_env_patch | (env: dataserver_env) -> dataserver_env) -> dataserver_env,
+	read get_env: (self: dataserver) -> dataserver_env,
 	read get_state: (self: dataserver, player: Player) -> enumitem_data_state,
 	read get_data: (self: dataserver, player: Player) -> data_snapshot?,
 	read wait_data: (self: dataserver, player: Player) -> data_snapshot?,
@@ -1060,37 +1201,64 @@ export type stack<T = unknown> = extend<{
 }, luaobject>
 
 --[==[
-    Объект, представляющий аналог `Janitor`/`Maid`. Он используется в качестве очищающего объекта, хотя
-    и не так полезен по сути.
+    Объект, представляющий типичнейшую очередь.
 ]==]
-export type maid = extend<{
+export type queue<T = unknown> = extend<{
 	--[==[
-        Добавить объект который нужно будет очистить когда потребуется.
-
-        Сильная ссылка будет держать объект даже если на него не останется референсов, либо они все будут слабые.
+        Максимальная длина.
     ]==]
-	read add_object: (self: maid, that: any, strong: boolean?) -> (),
+	max: number,
 
 	--[==[
-        Добавит таблицу и ключ, который нужно в ней очистить.
+        Забрать из начала очереди.
     ]==]
-	read add_key: <T>(self: maid, of: { [T]: unknown }, key: T) -> (),
+	read pick: (self: queue<T>) -> T?,
 
 	--[==[
-        Удаляет объект из отслеживаемых.
+        Положить в конец очереди.
     ]==]
-	read remove_object: (self: maid, that: any) -> (),
+	read put: (self: queue<T>, value: T) -> (),
 
 	--[==[
-        Удаляет ключ таблицы из отслеживаемых.
+        Выдать количество элементов в очереди.
     ]==]
-	read remove_key: <T>(self: maid, of: { [T]: unknown }, key: T) -> (),
+	read count: (self: queue<T>) -> number,
+}, luaobject>
 
-	--[==[
-        Не все данные фактически поддерживаются `maid`, поэтому объект сам может сказать что он будет есть, а что нет.
+--[==[
+    Объект, представляющий собой канонический способ очистки вообще кого угодно
+]==]
+export type maid = extend<list_operations<maid, Instance|disposable|path|reference|RBXScriptConnection|connection|event>, disposable>
+
+--[==[
+    Объект, представляющий ленивое шаблонное хранилище
+]==]
+export type template <T = unknown, U = unknown> = extend<{
+    --[==[
+        Возвращает установочный шаблон, применяемый для всех новых значений в хранилище
     ]==]
-	read is_supported: (self: maid, that: unknown) -> boolean,
-}, disposable>
+	read get_template: (self: template) -> { [unknown]: unknown } & T,
+
+    --[==[
+        Устанавливает новый шаблон. Не меняет старые данные. Некорректный шаблон отбрасывается и не меняется.
+    ]==]
+	read set_template: (self: template, to: {[unknown]: unknown} & T) -> (),
+
+    --[==[
+        Принудительно освобождает ключ от значения.
+    ]==]
+	read free_for: (self: template, key: U) -> (),
+
+    --[==[
+        Создает по текущему шаблону новое значение, либо возвращает его если оно есть
+    ]==]
+	read allocate_for: (self: template, key: U) -> { [unknown]: unknown } & T,
+
+    --[==[
+        Проверяет, существует ли значение или нет в хранилище
+    ]==]
+    read exist_for: (self: template, key: U) -> boolean
+}, observer<enumitem_operation_variant>>
 
 --[==[
     Объект, представляющий ленивое хранилище
@@ -1136,114 +1304,259 @@ export type quant <T = unknown> = extend<{
     этот объект представляет из себя реестр состояний, которые могут быть активны в данный момент. Это не мешает
     превратить его в конечный автомат.
 ]==]
-export type statemachine<T = enumitem> = extend<{
+export type stateregistry<T = enumitem> = extend<{
 
 	--[==[
         Получает текущее состояние для указанных элементов. Если хотя бы один отсутствует, то вернется ложь.
 
         Элементы которые никогда не были в машине, то есть `nil` в ней, - учитываются как `false` состояния.
     ]==]
-	read get_state: (self: statemachine<T>, ...T) -> boolean,
+	read get_state: (self: stateregistry<T>, ...T) -> boolean,
 
 	--[==[
         Поставить состояние на указанные элементы. Можно даже удалить их из объекта.
     ]==]
-	read set_state: (self: statemachine<T>, to: boolean?, ...T) -> (),
+	read set_state: (self: stateregistry<T>, to: boolean?, ...T) -> (),
 
 	--[==[
         Черный список состояний, элементы в котором никогда не будут становиться тем, что указали
-        через `statemachine:set_state(to, ...)`. Объект будет игнорировать эти операции.
+        через `stateregistry:set_state(to, ...)`. Объект будет игнорировать эти операции.
 
         Работает как `toggle`. Добавляет если не было, удаляет если был.
     ]==]
-	read blacklist: (self: statemachine<T>, ...T) -> (),
+	read blacklist: (self: stateregistry<T>, ...T) -> (),
 }, observer<enumitem_statemachine_notification>>
+
+-- Physics
+
+--[==[
+    Общий абстрактный тип для пропорционально-интегрально-дифференциальных регуляторов,
+    работающих с векторами или числами.
+    
+    Используется в физических контроллерах (entity, движение/высота/вращение) для превращения «ошибки» 
+    (насколько текущее состояние отличается от желаемого) в «управляющее воздействие» (ускорение, лифт, угловая скорость).
+]==]
+export type kinematiccontroller<T = number> = extend<{
+	--[==[ 
+        Пропорциональный коэффициент: выход += proportional * error.
+        Определяет «жёсткость» реакции на ошибку.
+	]==]
+	proportional: number,
+
+	--[==[ 
+        Ограничение модуля выхода. Контроллер клиппит результат в [-output_limit, output_limit].
+        Защищает физику от рывков при больших ошибках.
+	]==]
+	output_limit: number,
+
+	--[==[ 
+        Подаёт на вход уже готовую ошибку `error` (setpoint - measurement) и возвращает управляющее воздействие.
+        Вызывается раз в кадр с `delta` — контроллер использует его для интеграла/производной.
+	]==]
+	read apply_error: (self: kinematiccontroller<T>, error: T, delta: number) -> T,
+
+	--[==[ 
+        Удобная обёртка над `apply_error`: принимает `setpoint` и `measurement`, считает ошибку внутри.
+        Возвращает то же управляющее воздействие.
+	]==]
+	read apply_measurement: (self: kinematiccontroller<T>, setpoint: T, measurement: T, delta: number) -> T,
+
+	--[==[ 
+	    Последнее вычисленное управляющее воздействие. `nil` если контроллер ещё не вызывался или был сброшен.
+	]==]
+	read get_output: (self: kinematiccontroller<T>) -> T?,
+
+	--[==[ 
+	    Последняя ошибка (setpoint - measurement) с момента последнего вызова. `nil` до первого вызова или после `reset`.
+	]==]
+	read get_error: (self: kinematiccontroller<T>) -> T?,
+
+	--[==[ 
+        Сбрасывает внутреннее состояние контроллера (накопленный интеграл, предыдущую ошибку, выход).
+        Нужно вызывать при телепортации, респавне или смене цели, чтобы не тащить «историю» в новый режим.
+	]==]
+	read reset: (self: kinematiccontroller<T>) -> (),
+}, luaobject>
+
+--[==[ 
+    Только пропорциональная составляющая: output = clamp(proportional * error, ±output_limit).
+    Простой и предсказуемый; может давать «перелёт» без демпфирования.
+]==]
+export type pcontroller<T = number> = extend<{}, kinematiccontroller<T>>
+
+--[==[ 
+    Пропорционально-интегральный контроллер. Дополнительно накапливает ошибку во времени —
+    компенсирует постоянное внешнее сопротивление (трение, скольжение).
+]==]
+export type picontroller<T = number> = extend<{
+	--[==[ 
+        Коэффициент интегральной составляющей: накопленная ошибка * integral.
+        Устраняет статическую ошибку, но легко «разгоняется» при долгой ошибке одного знака.
+	]==]
+	integral: number,
+
+	--[==[ 
+	    Ограничение модуля накопленного интеграла. Защищает от windup — «залип��ния» интеграла после насыщения.
+	]==]
+	integral_limit: number,
+}, kinematiccontroller<T>>
+
+--[==[ 
+    Пропорционально-дифференциальный контроллер. D-составляющая реагирует на скорость изменения ошибки —
+    гасит колебания и перелёт, делает отклик более «вязким».
+]==]
+export type pdcontroller<T = number> = extend<{
+	--[==[ 
+        Коэффициент дифференциальной составляющей: derivative * (error - previous_error) / delta.
+        Чем выше — тем сильнее демпфирование, но и чувствительнее к ��уму/низкому FPS.
+	]==]
+	derivative: number,
+}, kinematiccontroller<T>>
+
+--[==[ 
+    Полный PID-контроллер: пропорциональная + интегральная + дифференциальная составляющие.
+    Максимальная гибкость настройки, но и больше параметров, которые надо подбирать.
+]==]
+export type pidcontroller<T = number> = extend<{
+	--[==[ 
+	    Коэффициент интегральной составляющей. Устраняет статическую ошибку.
+	]==]
+	integral: number,
+
+	--[==[ 
+	    Ограничение модуля накопленного интеграла. Защита от windup.
+	]==]
+	integral_limit: number,
+
+	--[==[ 
+	    Коэффициент дифференциальной составляющей. Демпфирует колебания и перелёт.
+	]==]
+	derivative: number,
+}, kinematiccontroller<T>>
 
 -- Component
 
 export type profile<T = enumitem> = extend<{
 	read uid: number,
 
+	--[==[ 
+        Возвращает инстанс профиля по `uid`, создавая его при необходимости (inline-кэш).
+	    На клиенте для нового `uid` автоматически отправляет запрос на сервер. 
+    ]==]
 	read get_inlined: (self: profile<T>, uid: number) -> profile<T>,
-	read get_player: (self: profile<T>) -> Player?,
-	read get_configurated: <Y>(self: profile<T>, of: enumitem) -> variable<Y>,
-	read get_joined_at: (self: profile<T>) -> number,
-	read get_last_seen_at: (self: profile<T>) -> number?,
-	read get_last_server_id: (self: profile<T>) -> string?,
-	read get_permissions: (self: profile<T>) -> { enumitem },
-	read get_restrictions: (self: profile<T>) -> { enumitem },
 
-	read set_configurated: <Y>(self: profile<T>, of: enumitem, ...unknown) -> (),
-	read set_permissions: (self: profile<T>, to: boolean, ...enumitem) -> (),
-	read set_restrictions: (self: profile<T>, to: boolean, ...enumitem) -> (),
+	--[==[ 
+        Возвращает `Player` с этим `uid`, если он сейчас в сервере, иначе `nil`. 
+    ]==]
+	read get_player: (self: profile<T>) -> Player?,
+
+	--[==[ 
+        Возвращает сохранённое значение пользовательской настройки по `of`. `nil` если не задано. 
+    ]==]
+	read get_configurated: <Y>(self: profile<T>, of: enumitem) -> Y?,
+
+	--[==[ 
+        Unix-время первого захода пользователя. `0` если данных нет. 
+    ]==]
+	read get_joined_at: (self: profile<T>) -> number,
+
+	--[==[ 
+        Unix-время последнего онлайна. `0` если данных нет. 
+    ]==]
+	read get_last_seen_at: (self: profile<T>) -> number,
+
+	--[==[ 
+        Unix-время онлайна перед последним (предыдущая сессия). `0` если данных нет. 
+    ]==]
+	read get_previous_seen_at: (self: profile<T>) -> number,
+
+	--[==[ 
+        Количество полных дней между предыдущей и последней сессиями. `0` если данных нет. 
+    ]==]
+	read get_days_since_previous_seen: (self: profile<T>) -> number,
+
+	--[==[ 
+        ID последнего сервера, где был пользователь. `nil` если неизвестен. 
+    ]==]
+	read get_last_server_id: (self: profile<T>) -> string?,
+
+	--[==[ 
+        Суммарное время в игре в секундах, включая текущую сессию если пользователь онлайн. 
+    ]==]
+	read get_played_time: (self: profile<T>) -> number,
+
+	--[==[ 
+        Количество сессий (заходов) пользователя. 
+    ]==]
+	read get_sessions: (self: profile<T>) -> number,
+
+	--[==[ 
+        Возвращает список выданных permissions из перечисления `of`. 
+    ]==]
+	read get_permissions: (self: profile<T>, of: enumobject) -> { T },
+
+	--[==[ 
+        Возвращает список активных restrictions из перечисления `of`. 
+    ]==]
+	read get_restrictions: (self: profile<T>, of: enumobject) -> { T },
+
+	--[==[ 
+        Устанавливает пользовательскую настройку. Только на сервере; на клиенте — no-op. 
+    ]==]
+	read set_configurated: (self: profile<T>, of: enumitem, to: unknown) -> (),
+
+	--[==[ 
+        Включает (`to = true`) или выключает указанные permissions. Только на сервере. 
+    ]==]
+	read set_permissions: (self: profile<T>, to: boolean, ...T) -> (),
+
+	--[==[ 
+        Включает (`to = true`) или выключает указанные restrictions. Только на сервере. 
+    ]==]
+	read set_restrictions: (self: profile<T>, to: boolean, ...T) -> (),
+
+	--[==[ 
+        Включает (`to = true`) или выключает указанные платформы (machine variant). Только на сервере. 
+    ]==]
 	read set_platform: (self: profile<T>, to: boolean, ...enumitem_user_machine_variant) -> (),
 
-	read has_platform: (self: profile<T>, ...enumitem_user_machine_variant) -> boolean,
-	read has_restricitions: (self: profile<T>, ...enumitem) -> ...boolean,
-	read has_permissions: (self: profile<T>, ...enumitem) -> ...boolean,
+	--[==[ 
+        Запрашивает данные с сервера. На сервере — no-op. 
+    ]==]
+	read request_data: (self: profile<T>) -> (),
 
-	read is_banned: (self: profile<T>) -> boolean,
-	read is_kicked: (self: profile<T>) -> boolean,
-	read is_out: (self: profile<T>) -> boolean,
-	read is_in_place: (self: profile<T>) -> boolean,
+	--[==[ 
+        Ждёт загрузки профиля (yield). Возвращает сразу, если уже загружен или нельзя yield'ить. 
+    ]==]
+	read wait_loaded: (self: profile<T>) -> (),
+
+	--[==[ 
+        `true`, если у пользователя включены **все** указанные платформы. 
+    ]==]
+	read has_platform: (self: profile<T>, ...enumitem_user_machine_variant) -> boolean,
+
+	--[==[ 
+        По одному `boolean` на каждый аргумент: включён ли соответствующий restriction.
+    ]==]
+	read has_restrictions: (self: profile<T>, ...T) -> ...boolean,
+
+	--[==[ 
+        По одному `boolean` на каждый аргумент: включён ли соответствующий permission.
+    ]==]
+	read has_permissions: (self: profile<T>, ...T) -> ...boolean,
+
+	--[==[ 
+        `true`, если данные профиля загружены (сервер или снапшот с клиента).
+    ]==]
+	read is_loaded: (self: profile<T>) -> boolean,
+
+	--[==[
+        `true`, если пользователь сейчас в сервере.
+    ]==]
 	read is_in_server: (self: profile<T>) -> boolean,
 } & referenceable<profile<T>, Player?>, observer<enumitem_user_notification>>
 
-export type localuser = extend<{
-	read uid: number,
-	read get_player: (self: localuser) -> Player,
-
-	read require_get_configuration: (self: localuser, of: enumitem) -> result,
-	read require_save_configuration: (self: localuser, of: enumitem, ...unknown) -> (),
-
-	read get_user: (self: localuser) -> profile,
-}, luaobject>
-
---[==[
-    Объект, представляющий геометрическое пространство
-
-    В обычном случае такие объекты представляются синглтон-пространствами
-    внутри самого физического движка и не представляет собой какие-либо
-    объекты. В контексте конкретно этой архитектуры он полезен именно
-    как реестр для `geovolume` структур
-
-
-]==]
-export type world = extend<{
-	--[==[
-        Выполняет операцию рейкаста в мире
-    ]==]
-	read raycast: (self: world, from: vector, to: vector, info: rayinfo?) -> ...unknown,
-
-	--[==[
-        Проверяет, какие другие возможные `volume` могут иметь коллизии с этим
-        конкретным объектом
-    ]==]
-	read volumecast: (self: world, at: unknown) -> ...unknown,
-
-	read insert_volume: (self: world, ...unknown) -> (),
-	read remove_volume: (self: world, ...unknown) -> (),
-
-	read get_grid: (self: world) -> { [number]: { [number]: { [number]: geometry_check } } },
-	read get_grid_size: (self: world) -> number,
-	read set_grid_size: (self: world, to: number) -> (),
-} & collidable<world>, observer>
-
 -- Game
-
-type collidable_instance = Instance
-type collidable_ref = reference<collidable>
-
---[==[
-    Объект, представляющий группу коллизий
-]==]
-export type collision = extend<{
-	read get_collision: (self: collision) -> ...reference<Instance>,
-	read set_collision: (self: collision, ...collidable_ref | collidable_instance) -> (),
-	read rem_collision: (self: collision, ...collidable_ref | collidable_instance) -> (),
-	read set_name: (self: collision, to: string) -> (),
-	read get_name: (self: collision) -> string,
-}, disposable>
 
 --[==[
     Объект, представляющий доменную логику раунда и дающий возможность структурно управлять игрой
@@ -1389,7 +1702,12 @@ export type character = extend<
         Возвращает инвентарь конкретного персонажа и то чем он сейчас
         обладает
     ]==]
-		read get_inventory: (self: character) -> unknown, -- TODO
+		read get_inventory: (self: character) -> inventory,
+		read get_equipped: (self: character) -> iteminstance?,
+		read set_equipped: (self: character, to: iteminstance?) -> (),
+		read take_item: (self: character, ...iteminstance) -> (),
+		read drop_item: (self: character, ...iteminstance) -> (),
+		read use_item: (self: character, context: enumitem_item_context, delta: number) -> (),
 
 		--[==[
         Возвращает референс на модель персонажа
@@ -1400,110 +1718,353 @@ export type character = extend<
 >
 
 --[==[
-    Объект инвентаря, хранящий в себе `ItemStack` элементы.
+    Объект, представляющий физические свойства для живой сущности. Воздействует на физические силы, тем самым
+    и реализует самого себя.
+
+    По крайней мере используется в качестве основного способа контроля передвижения, заменяя тем самым Humanoid.
+    Формально не контроллирует ничего, это простой исполнитель для физического поведения.
+]==]
+export type entity = extend<{
+    --[==[
+        Направление в котором сущность совершает движение относительно своей скорости
+    ]==]
+	move_direction: vector,
+
+    --[==[
+        Переключение этого свойства в true вызывает прыжок.
+    ]==]
+	jump: boolean,
+
+    --[==[
+        Скорость с которой сущность движется
+    ]==]
+	walk_speed: number,
+
+    --[==[
+        Сила с которой сущность прыгает
+    ]==]
+	jump_power: number,
+
+    --[==[
+        Целевая высота «бедра» над полом — расстояние от root-парта персонажа до земли, которое PD-контроллер пытается удержать.
+    ]==]
+	hip_height: number,
+
+    --[==[
+        Направление вверх, определенное для этой сущности.
+    ]==]
+    up_direction: vector,
+
+
+    --[==[
+        Дополнительная длина луча ниже hip_height для поиска пола.
+        То есть floor_reach — это допуск по «зазору» между корнем и полом, в пределах которого пол ещё «виден».
+    ]==]
+	floor_reach: number,
+
+    --[==[
+        Автоматический поворот персонажа в сторону движения
+    ]==]
+	auto_rotate: boolean,
+
+    --[==[
+        Флаг для какой оси угловой скорости контроллер имеет право перезаписывать данные.
+    ]==]
+	lock_rotation_x: boolean,
+
+    --[==[
+        Флаг для какой оси угловой скорости контроллер имеет право перезаписывать данные.
+    ]==]
+	lock_rotation_y: boolean,
+
+    --[==[
+        Флаг для какой оси угловой скорости контроллер имеет право перезаписывать данные.
+    ]==]
+	lock_rotation_z: boolean,
+
+
+    
+    --[==[ Возвращает `true`, если персонаж в текущем кадре считается стоящим на полу.
+
+    Флаг вычисляется в `private.step` по результатам рейкаста вниз длиной `hip_height + floor_reach`:
+    `grounded = distance ~= nil and not state.rising`.
+
+    Особенности:
+    - Работает как «coyote»-подобный допуск: пол детектируется даже если он чуть ниже `hip_height` (в пределах `floor_reach`).
+    - Сбрасывается в `false` на время прыжка (`state.rising = true`) и при выключенном `enabled`, отсутствии `root`/`instance` или `delta <= 0`.
+    - Возвращает `false` при приземлении только после того, как `velocity.y <= 0` (т.е. пока персонаж летит вверх — пол игнорируется).
+    - Не учитывает реальную геометрию стояния — только результат последнего луча.
+    ]==]
+    read is_grounded: (self: entity) -> boolean,
+
+    --[==[ Возвращает нормаль поверхности, на которой стоит персонаж.
+
+    Вектор берётся из последнего успешного рейкаста вниз. Если луч не попал (`distance == nil`) или контроллер отключён — возвращается `of.up_direction` (по умолчанию `(0,1,0)`).
+
+    Используется, например, для наклона персонажа по склону (см. `get_tilt` в `private.rotate`) и внешними системами для ориентации по рельефу.
+
+    Важно: нормаль — это нормаль *поверхности*, а не ориентация персонажа. При отключённом `enabled` может содержать устаревшее значение из предыдущего успешного шага.
+    ]==]
+    read get_floor_normal: (self: entity) -> vector,
+
+    --[==[ Возвращает расстояние от `root`-парта до пола по последнему рейкасту вниз.
+
+    Значение в диапазоне `[0, hip_height + floor_reach]`, либо `nil`, если луч не попал (персонаж в воздухе дальше `floor_reach` от пола, или контроллер отключён / нет `instance` / `delta <= 0`).
+
+    Служит measurement-сигналом для PD-контроллера высоты (`get_height_controller`) — setpoint там `hip_height`. Разница между ними и определяет вертикальный импульс:
+    - `distance < hip_height` → lift вверх;
+    - `distance > hip_height` → lift обрезается до `0`, работает только гравитация.
+
+    Значение обновляется каждый `private.step`, в том числе в воздухе (где может быть `nil`).
+    ]==]
+    read get_floor_distance: (self: entity) -> number?,
+
+    --[==[ Возвращает PI-контроллер горизонтального движения (`PIController<vector>`).
+
+    Параметры по умолчанию (см. `private.new_movement`):
+    - `proportional = 12`
+    - `integral = 1`
+    - `integral_limit = 8`
+    - `output_limit = 250`
+
+    Используется в `private.step` как `apply_measurement(direction * walk_speed, planar_velocity, delta)` — на вход идёт целевая горизонтальная скорость и текущая спроецированная на XZ-плоскость скорость; на выходе — ускорение, которое превращается в импульс через `mass * delta`.
+
+    I-составляющая компенсирует постоянное сопротивление (трение, скольжение), поэтому важно вызывать `reset()` при телепортации/респавне — иначе накопленный интеграл даст «рывок».
+
+    Можно заменить через `set_movement_controller`.
+    ]==]
+    read get_movement_controller: (self: entity) -> kinematiccontroller<vector>,
+
+    --[==[ Возвращает PD-контроллер вертикальной высоты (`PDController<number>`).
+
+    Параметры по умолчанию (см. `private.new_height`):
+    - `proportional = 300`
+    - `derivative = 35`
+    - `output_limit = 1000`
+
+    Используется в `private.step` только когда `state.grounded == true`:
+    `lift = apply_measurement(hip_height, distance, delta)`.
+
+    D-составляющая гасит колебания у целевой высоты — иначе высокий P (300) давал бы «пружинный» баунс. `output_limit = 1000` ограничивает максимальный вертикальный импульс.
+
+    При прыжке, в воздухе и при отключённом `enabled` вызывается `height:reset()` — интегратор/производная сбрасываются, чтобы избежать накопленных артефактов при следующем приземлении.
+
+    Можно заменить через `set_height_controller`.
+    ]==]
+    read get_height_controller: (self: entity) -> kinematiccontroller<number>,
+
+    --[==[ Возвращает P-контроллер вращения (`PController<vector>`), работающий покомпонентно в осях мира.
+
+    Параметры по умолчанию (см. `private.new_rotation`):
+    - `proportional = 12`
+    - `output_limit = 25`
+
+    Используется в `private.rotate`: на вход идёт вектор ошибки `(tilt.x, yaw, tilt.z)`, где X/Z — наклон корня к `up_direction`, Y — угол между текущим `facing` и `state.look`. На выходе — целевая угловая скорость, которая напрямую пишется в `set_angular_velocity` (с пропуском осей, где соответствующий `lock_rotation_* = false`).
+
+    Обратите внимание: это **P**, не PD — при резких разворотах yaw возможен «перелёт»/колебание. При необходимости замените на PD через `set_rotation_controller`.
+
+    Можно заменить через `set_rotation_controller`.
+    ]==]
+    read get_rotation_controller: (self: entity) -> kinematiccontroller<vector>,
+
+    --[==[ Устанавливает пользовательский контроллер горизонтального движения.
+
+    Ожидаемый тип — `kinematiccontroller<vector>` (обычно `PIController<vector>`, но подойдёт любой совместимый). Заменяет дефолтный контроллер, созданный в `private.new_movement`.
+
+    Требования/рекомендации к замене:
+    - `apply_measurement(setpoint, measurement, delta)` должен принимать целевую и текущую скорость в плоскости XZ и возвращать ускорение (не импульс — умножение на `mass * delta` делает `private.step`).
+    - Выход ограничивайте по модулю — большие значения дадут резкий рывок.
+    - При смене контроллера на «живом» персонаже стоит вызвать `reset()` у нового, чтобы не тащить накопленный интеграл.
+
+    Устанавливает значение по ключу `private.movement_key`. Тип контроллера не проверяется — при несовпадении сигнатуры будет runtime-ошибка в `private.step` (которая отключит entity через pcall-обёртку).
+    ]==]
+    read set_movement_controller: (self: entity, to: kinematiccontroller<vector>) -> (),
+
+    --[==[ Устанавливает пользовательский контроллер высоты (`kinematiccontroller<number>`).
+
+    Ожидаемый тип — `PDController<number>` или совместимый. Заменяет дефолтный контроллер, созданный в `private.new_height`.
+
+    Требования/рекомендации к замене:
+    - `apply_measurement(setpoint, measurement, delta)` должен принимать `hip_height` (setpoint) и текущую дистанцию до пола (measurement) и возвращать **лифт** (ускорение/силу), который затем прибавляется к `gravity` и превращается в импульс `mass * delta`.
+    - Контроллер вызывается **только при `state.grounded == true`**; в воздухе и при прыжке — `reset()`.
+    - Наличие D-составляющей крайне желательно: чистый P при высоком коэффициенте даст баунс.
+    - `output_limit` должен быть с запасом больше `-gravity`, иначе персонаж не сможет удержать высоту.
+
+    Устанавливает значение по ключу `private.height_key`. При несовпадении сигнатуры — runtime-ошибка в `private.step` (entity будет отключён через pcall).
+    ]==]
+    read set_height_controller: (self: entity, to: kinematiccontroller<number>) -> (),
+
+    --[==[ Устанавливает пользовательский контроллер вращения (`kinematiccontroller<vector>`).
+
+    Ожидаемый тип — `PController<vector>` или `PDController<vector>`. Заменяет дефолтный контроллер, созданный в `private.new_rotation`.
+
+    Требования/рекомендации к замене:
+    - `apply_error(error, delta)` (не `apply_measurement`!) должен принимать вектор ошибки `(tilt.x, yaw, tilt.z)` в осях мира и возвращать целевую угловую скорость.
+    - `private.rotate` пишет результат покомпонентно, пропуская оси с `lock_rotation_* = false` (там сохраняется текущая `angular` скорость).
+    - `output_limit` разумно держать небольшим (дефолт — 25): большие угловые скорости легко «срывают» физику и приводят к jitter.
+    - Для стабильного yaw при быстрых разворотах лучше использовать PD, а не P.
+
+    Устанавливает значение по ключу `private.rotation_key`. При несовпадении сигнатуры — runtime-ошибка в `private.step` (entity будет отключён через pcall).
+    ]==]
+    read set_rotation_controller: (self: entity, to: kinematiccontroller<vector>) -> (),
+} & switchable & referenceable<entity, PVInstance?>, disposable>
+
+--[==[
+    Объект инвентаря, хранящий в себе `ItemInstance` элементы.
 
     Данные внутри этого объекта хранятся как попало, поэтому никакого порядка через него нельзя добиться.
+    Единственное, что гарантируется, — это лимит `max` на количество элементов. Один элемент инвентаря
+    может быть как `itemstack` (количество внутри одного предмета), так и `itemobject` (уникальный экземпляр).
 ]==]
 export type inventory = extend<{
 	--[==[
         Это размер инвентаря. Сюда влезет только столько элементов, сколько указано в этом поле.
 
-        Если внезапно разм���� поменяется и старые предметы уже не смогут влезть, то инвентарь лишь
+        Если внезапно размер инвентаря поменяется и старые предметы уже не смогут влезть, то инвентарь лишь
         уведомит об этом событии.
     ]==]
 	max: number,
 
 	--[==[
-        Возвращает все стаки которые есть в этом инвентаре.
+        Возвращает все элементы, которые есть в этом инвентаре. Порядок не гарантируется.
     ]==]
 	read get_stacks: (self: inventory) -> ...iteminstance,
-} & list_checks<inventory> & list_operations<inventory, itemstack>, observer>
+
+	--[==[
+        Возвращает суммарное количество указанного предмета во всех элементах инвентаря.
+        Для `itemobject` один экземпляр считается за единицу.
+    ]==]
+	read count_item: (self: inventory, of: item) -> number,
+
+	--[==[
+        Проверяет, есть ли в инвентаре хотя бы один экземпляр указанного предмета.
+    ]==]
+	read has_item: (self: inventory, of: item) -> boolean,
+
+	--[==[
+        Включает репликацию этого инвентаря под указанным ключом для перечисленных игроков.
+        Передача `nil` в качестве ключа выключает репликацию. Работает только на сервере.
+    ]==]
+	read set_replication: (self: inventory, key: string?, ...Player) -> (),
+
+	--[==[
+        Возвращает реплицированный инвентарь по ключу. На сервере это исходный инвентарь,
+        на клиенте — read-only реплика.
+    ]==]
+	read get_replicated: (self: inventory, key: string) -> inventory?,
+
+	--[==[
+        Является ли этот инвентарь клиентской репликой? Реплики нельзя изменять.
+    ]==]
+	read is_replica: (self: inventory) -> boolean,
+} & list_checks<inventory> & list_operations<inventory, iteminstance>, observer<enumitem_list_notification>>
 
 --[==[
-    Поведение предмета здесь не реализуется, и в принципе класс не следует использовать в игровой логике. Он предназначен
-    для типизации и для "базы" его дочерних элементов, которые уже может переварить `ItemBehavior`.
+    Базовый элемент инвентаря. Сам по себе поведение не реализует: он лишь ссылается на описание
+    предмета и может иметь собственное переопределение поведения.
+
+    Если `get_behavior()` возвращает `nil`, используется `item.behavior` из описания предмета.
+    Так уникальные экземпляры (`itemobject`) могут иметь поведение, отличное от поведения стека.
 ]==]
 export type iteminstance = extend<{
 	--[==[
-        Возвращает описание предмета на который ссылается этот объект.
+        Возвращает описание предмета, на который ссылается этот объект.
+    
+        Если описания не будет, то будет fallback на `NullItem`
     ]==]
-	read get_item: (self: itemstack) -> variable<item?>,
-}, observer>
+	read get_item: (self: iteminstance) -> variable<item>,
+
+	--[==[
+        Возвращает поведение, переопределённое для этого конкретного элемента, либо `nil`,
+        если нужно использовать поведение из `item.behavior`.
+    ]==]
+	read get_behavior: (self: iteminstance) -> itembehavior?,
+
+	--[==[
+        Устанавливает поведение для этого конкретного элемента. `nil` возвращает наследование
+        поведения из описания предмета.
+    ]==]
+	read set_behavior: (self: iteminstance, to: itembehavior?) -> (),
+}, observer<enumitem_list_notification>>
 
 --[==[
-    Это уникальное представление какого-либо объекта. В принципе проект поддерживает создание как экземпляров майкнрафтовского
-    вида: когда есть `ItemStack` и никакой индивидуальности вне синглтона предмета, так и уникальность экземпляра.
+    Уникальный экземпляр предмета. Проект поддерживает как майнкрафт-подобные стеки (`itemstack`),
+    так и уникальные экземпляры (`itemobject`), у которых могут быть собственные поля и поведение.
 
     Для данного класса дочерние пользователи реализуют свои поля.
 ]==]
-export type itemobject = extend<{}, iteminstance>
+export type itemobject = extend<{
+
+}, iteminstance>
 
 --[==[
-    Объект стопки для хранен��я неуникального `Item`. По сути это эстетика майкнрафт-подобного вида предметов.
+    Объект стопки для хранения неуникального `item`. По сути это эстетика майнкрафт-подобного вида предметов.
+
+    `length` у стопки — это максимальный размер стопки, а `count` — текущее количество.
 ]==]
-export type itemstack = extend<list_checks<itemstack> & list_operations<itemstack, itemstack>, iteminstance>
+export type itemstack = extend<
+	{
+		--[==[
+        Возвращает максимальный размер этой стопки, определяемый описанием предмета.
+    ]==]
+		read get_max: (self: itemstack) -> number,
+	}
+	& list_checks<itemstack>
+	& list_operations<itemstack, itemstack>,
+	iteminstance
+>
 
 --[==[
-    Контекст вызова предмета в текущий момент времени. Для `ItemBehavior`.
+    Контекст вызова поведения предмета в текущий момент времени. Для `itembehavior`.
+
+    Контекст — единственный аргумент, который получает поведение, поэтому новые виды поведения
+    не требуют изменения сигнатур функций: достаточно добавить новый `enumitem_item_notification`.
 ]==]
 export type itemcontext = extend<{
 	--[==[
-        Экземпляр на который ссылается контекст - с чем работать.
+        Экземпляр, на который ссылается контекст — с чем работать.
     ]==]
 	read related: iteminstance,
+
 	--[==[
-        Пользователь который вызвал эту операцию - с кем работать.
+        Пользователь, который вызвал эту операцию — с кем работать.
     ]==]
 	read user: luaobject?,
 
 	--[==[
-        Контекст вызова, описывающий подробности о типе вызова - как работать.
+        Контекст вызова, описывающий подробности о типе вызова — как работать.
     ]==]
 	read context: enumitem_item_context,
+
+	--[==[
+        Дельта времени для действий, которые выполняются в цикле. Для мгновенных операций равно `0`.
+    ]==]
+	read delta: number,
 }, struct>
 
 --[==[
-    Поведение для предметов. Оно независимое. Можно написать поведение под конкретный предмет.
+    Поведение для предметов. Это не структура данных, а шина событий: поведение подписывается
+    на `enumitem_item_notification` и получает `itemcontext` при вызове.
+
+    Такая форма позволяет добавлять новые виды поведения без изменения функций: новый вид
+    поведения — это новый `enumitem_item_notification`, а не новое поле или метод у этого типа.
 ]==]
 export type itembehavior = extend<{
-	--[==[
-        Какую операцию делать когда пользователь экипирует предмет.
-    ]==]
-	read on_equip: (self: itembehavior, context: itemcontext) -> (),
 
-	--[==[
-        Какую операцию делать когда пользователь убирает предмет из рук в инвентарь.
-    ]==]
-	read on_unequip: (self: itembehavior, context: itemcontext) -> (),
-
-	--[==[
-        Какую операцию делать когда пользователь поднимает предмет с пола.
-    ]==]
-	read on_take: (self: itembehavior, context: itemcontext) -> (),
-
-	--[==[
-        Какую операцию делать когда пользователь выбрасывает предмет с инвентаря или рук.
-    ]==]
-	read on_drop: (self: itembehavior, context: itemcontext) -> (),
-
-	--[==[
-        Это главное действие предмета. Оно выполняет что-то в зависимости от полученного контекста.
-    ]==]
-	read action: (self: itembehavior, context: itemcontext, delta: number) -> (),
-}, struct>
+}, event<enumitem_item_notification, itembehavior, itemcontext>>
 
 --[==[
     Описание предмета в программе. Это синглтон, который указывает стандартные параметры предмета.
 ]==]
 export type item = extend<{
 	--[==[
-        Максимальное количество которое предмет может иметь в `ItemStack` или в инвентаре для
-        объектов вида `ItemObject`.
+        Максимальное количество, которое предмет может иметь в `itemstack` или в инвентаре для
+        объектов вида `itemobject`.
     ]==]
 	read max: number,
 
 	--[==[
-        Количество которое выдается пользователю когда он поднимает предмет с пола. Это может использоваться
+        Количество, которое выдается пользователю когда он поднимает предмет с пола. Это может использоваться
         для дюпов, поэтому проверяйте поведение отдельно.
     ]==]
 	read count: number,
@@ -1514,14 +2075,35 @@ export type item = extend<{
 	read description: string,
 
 	--[==[
-        Стандартное поведение для всех `ItemInstance` этого предмета.
+        Стандартное поведение для всех `iteminstance` этого предмета.
     ]==]
 	read behavior: itembehavior,
 
-	--[==[
-        Сразу создает `ItemStack` этого предмета с указанным количеством.
+    --[==[
+        Специальный синглтон, выделенный для обозначения неверного объекта.
     ]==]
-	read get_stack: (self: item, count: number) -> itemstack,
+    read get_null_item: (self: item) -> item,
+
+	--[==[
+        Сразу создает `itemstack` этого предмета с указанным количеством.
+        Если количество не указано, используется `item.count`.
+    ]==]
+	read get_stack: (self: item, count: number?) -> itemstack,
+
+	--[==[
+        Создает уникальный `itemobject` этого предмета с унаследованным поведением.
+    ]==]
+	read get_object: (self: item) -> itemobject,
+
+	--[==[
+        Возвращает зарегистрированный предмет по имени, либо `nil`.
+    ]==]
+	read get_by_name: (self: item, name: string) -> item?,
+
+	--[==[
+        Возвращает все зарегистрированные предметы.
+    ]==]
+	read get_all: (self: item) -> ...item,
 } & nameable, struct>
 
 --[==[
@@ -1554,7 +2136,6 @@ export type ability<T... = ...unknown> = extend<
 		read cooldown: (self: ability<T...>) -> timer,
 	}
 	& informable<ability<T...>, abilityinfo>
-	& collidable<ability<T...>>
 	& stateable<ability<T...>, enumitem_round_state>,
 	observer<enumitem_ability_notification>
 >
@@ -2150,7 +2731,7 @@ export type ikr6limbinfo = extend<{
 export type ikr6arminfo = extend<{}, ikr6limbinfo>
 
 --[==[
-	Объект, предоставляющий информацию для IK решателя `char6`,
+	Объект, предоставляющий информац������������ю для IK решателя `char6`,
 	в частности информацию для поведения IK ног.
 ]==]
 export type ikr6leginfo = extend<{
@@ -2161,7 +2742,7 @@ export type ikr6leginfo = extend<{
 	read leg_raycast_up: number,
 
 	--[==[
-        Насколько ниже предполагаемой точки положения ноги продолжить поиск поверхности?
+        Насколько н��же предполагаемой точки положения ноги продолжить поиск поверхности?
         Это позволяет находить землю под ногой, даже если она находится заметно ниже ожидаемого положения
     ]==]
 	read leg_raycast_down: number,
@@ -2252,134 +2833,35 @@ export type characterinfo = extend<{
 	read run_cooldown: number,
 	read jump_cooldown: number,
 	read revives: number,
+	read inventory_max: number,
 }, struct>
 
---[==[
-    Объект, представляющий набор информации для геометрических фигур
-]==]
-export type rayinfo = extend<{
-	--[==[
-        Первый попавшийся объект будет возвращен, и только он
-    ]==]
-	read only_one_output: boolean,
 
-	--[==[
-        Рейкаст будет создаваться не только в локальном пространстве, но и в
-        пространстве игры, в которой работает
-    ]==]
-	read engine_hit: boolean,
 
-	--[==[
-        Попадание будет создавать `world:volumecast()` для всех, в кого
-        оно было зарегистрировано. Если `self.only_one_output`, то это
-        свойство его игнорирует, - будут возвращены все кто попал в `world:volemucast()`
-    ]==]
-	read volume_hit: boolean,
-}, struct>
 
--- Struct
 
-export type raycast_hit = {
-	read position: vector,
-	read normal: vector,
-	read distance: number,
-	read hit: boolean,
-	read native: unknown?,
-}
 
-export type provider = extend<
-	{
-		--[==[
-        Название платформы.
-    ]==]
-		read name: string, -- "roblox" | "love2d" | "defold" | "generic" | ...
 
-		--[==[
-        Версия платформы.
-    ]==]
-		read version: string?, -- версия платформы (для отчётов/телеметрии)
 
-		--[==[
-        Идентификатор сервера. Смотря как использовать.
-    ]==]
-		read session_id: string?, -- идентификатор сервера / сессии
 
-		--[==[
-        Канонический планировщик платформы. Создается при `init` по первому запросу либо по другим причинам,
-        смотря как хост определит.
 
-        `Обязательно` ленивая загрузка. Ядро читает этот объект во время бустрапа и по другим причинам, `нельзя`
-        просто взять и оставлять `scheduler` наружу.
-    ]==]
-		read get_global_scheduler: () -> scheduler,
 
-		--[==[
-        Монотонные секунды (os.clock или свое, смотря как выбрать)
-    ]==]
-		read get_time_now: () -> number,
-		read get_network_channel: (name: string) -> unknown?,
-		read get_player_entities_in_game_now: () -> unknown,
-		read get_player_entity_name: (e: unknown) -> string,
-		read get_player_entity_id: (e: unknown) -> string,
-		read get_player_entity_by_id: (id: string) -> unknown?,
-		read get_attribute: (node: unknown, name: string) -> unknown?,
-		read get_tagged: (tag: string) -> { unknown },
 
-		read set_attribute: (node: unknown, name: string, value: unknown) -> (),
 
-		read do_raycast: (origin: vector, direction: vector, ignore: { string | unknown }) -> raycast_hit?,
-		read do_overlap_sphere: (position: vector, radius: number) -> { unknown }?,
-		read do_overlap_box: (position: vector, size: vector) -> { unknown }?,
-		read do_defer: (task: thread | (...any) -> ()) -> (),
-		read do_spawn: (task: thread | (...any) -> ()) -> (),
-		read do_delay: (time: number?, task: thread | (...any) -> ()) -> (),
-		read do_wait: (seconds: number?) -> (),
-		read do_kick_player_entity: (e: unknown, reason: string) -> (),
-		read do_fire_network_channel: (ch: unknown, targets: { unknown }?, ...any) -> (),
 
-		read toggle_on_player_entity_added: (f: (e: unknown) -> ()) -> (),
-		read toggle_on_player_entity_removed: (f: (e: unknown) -> ()) -> (),
-		read toggle_on_engine_frame: (f: (dt: number) -> ()) -> (),
-		read toggle_on_engine_render: (f: (dt: number) -> ()) -> (),
-		read toggle_on_engine_pre_physics: (f: (dt: number) -> ()) -> (),
-		read toggle_on_engine_post_physics: (f: (dt: number) -> ()) -> (),
-		read toggle_on_engine_shutdown: (f: (...unknown) -> ()) -> (),
-		read toggle_network_channel_listening: (ch: unknown, f: (sender: unknown?, ...any) -> ()) -> (),
-		read toggle_on_attribute_changed: (node: unknown, name: string, f: (v: unknown) -> ()) -> (),
-		read toggle_tag: (node: unknown, tag: string) -> (),
-		read toggle_on_tag_added: (tag: string, f: (n: unknown) -> ()) -> (),
-		read toggle_on_tag_removed: (tag: string, f: (n: unknown) -> ()) -> (),
 
-		read is_local_channel: (ch: unknown) -> boolean,
-		read is_network_channel: (i: unknown) -> boolean,
-		read is_player_entity: (i: unknown) -> boolean,
-		read is_player_entity_in_game: (e: unknown) -> boolean,
-		read is_player_entity_in_game_by_id: (id: string) -> boolean,
-		read is_server: boolean,
-		read is_client: boolean,
-		read is_native: (that: unknown) -> boolean,
 
-		--[==[
-        Это приватная сессия? 
-    ]==]
-		read is_private: boolean,
 
-		--[==[
-        Та же семантика что и у роблокса: сервер выделенный, доступ только по приглашению через ключ-код,
-        иначе никак сюда не попадешь.
-    ]==]
-		read is_reserved: boolean,
 
-		--[==[
-        Платформа в тестовом режиме? Просто полезная информация.
-    ]==]
-		read is_test: boolean, -- headless test / CI
 
-		read supports: (feature: string) -> boolean,
-		read type_of: (native: unknown) -> string?,
-	},
-	struct
->
+
+
+
+
+
+
+
+
 
 --[==[
     Объект, представляющий унифицированный результат выполнения той или иной операции
@@ -2577,7 +3059,7 @@ export type directions = extend<vector_operations<directions, directions> & axis
 
     Хранит в себе информацию о повороте и положении в пространстве.
 
-    Причина его существования - `over-engineering`. Он мог бы быть спокойно заменен на `CFrame`,
+    Причина его существования - `over-engineering`. Он м��г бы быть спокойно заменен на `CFrame`,
     однако в таком виде он не только обеспечивает удобство работы с данными Luau, но и модифицируемый.
     Если бы потребовалось, то его можно было бы и никогда не создавать, но поскольку проект однажды застрял
     в трясине в виде "code recode", то это вполне естественное решение.
@@ -2646,6 +3128,9 @@ export type basis = extend<
 		read append_basis: (self: basis, ...basis) -> basis,
 		read substract_basis: (self: basis, ...basis) -> basis,
 		read slerp: (self: basis, to: basis, alpha: number) -> basis,
+
+        read to_basis: (self: basis, ...CFrame) -> ...basis,
+        read to_cframe: (self: basis, ...basis) -> ...CFrame,
 
 		--[==[
         Особый случай инвертирования `basis` относительно его компонентов,
@@ -2844,6 +3329,38 @@ export type enum_item_context = extend<{
 	read Special: enumitem_item_context,
 }, enumobject>
 
+--[==[
+    События поведения предмета. Новый вид поведения добавляется как новый элемент этого перечисления,
+    а не как новое поле или метод в `itembehavior`. Подписчики получают `itemcontext`.
+]==]
+export type enumitem_item_notification = enumitem<enum_item_notification>
+export type enum_item_notification = extend<{
+	--[==[
+        Предмет экипирован пользователем. Вызывается до фактического применения эффектов.
+    ]==]
+	read Equip: enumitem_item_notification,
+
+	--[==[
+        Предмет убран из рук пользователя.
+    ]==]
+	read Unequip: enumitem_item_notification,
+
+	--[==[
+        Предмет поднят пользователем с пола.
+    ]==]
+	read Take: enumitem_item_notification,
+
+	--[==[
+        Предмет выброшен пользователем из инвентаря или рук.
+    ]==]
+	read Drop: enumitem_item_notification,
+
+	--[==[
+        Основное действие предмета, выполняемое в цикле. `itemcontext.delta` содержит дельту времени.
+    ]==]
+	read Action: enumitem_item_notification,
+}, enumobject>
+
 export type enumitem_state = enumitem<enum_state>
 export type enum_state = extend<{
 	read Failure: enumitem_state,
@@ -2909,6 +3426,15 @@ export type enum_data_notification = extend<{
 	read DataMessage: enumitem_data_notification,
 }, enumobject>
 
+export type enumitem_data_internal_variant = enumitem<enum_data_internal_variant>
+export type enum_data_internal_variant = extend<{
+    read DataSnapshot: enumitem_data_internal_variant,
+    read DataSet: enumitem_data_internal_variant,
+    read DataReady: enumitem_data_internal_variant,
+    read DataRequest: enumitem_data_internal_variant,
+    read DataExit: enumitem_data_internal_variant,
+}, enumobject>
+
 export type enumitem_data_state = enumitem<enum_data_state>
 export type enum_data_state = extend<{
 	read ProfileLoading: enumitem_data_state,
@@ -2919,6 +3445,8 @@ export type enum_data_state = extend<{
 export type enumitem_shared_net_link = enumitem<enum_shared_net_link>
 export type enum_shared_net_link = extend<{
 	read Data: enumitem_shared_net_link,
+	read Profile: enumitem_shared_net_link,
+	read Inventory: enumitem_shared_net_link,
 }, enumobject>
 
 export type enumitem_shared_net_variant = enumitem<enum_shared_net_variant>
@@ -3019,9 +3547,8 @@ export type enumitem_user_notification = enumitem<enum_user_notification>
 export type enum_user_notification = extend<{
 	read ServerJoin: enumitem_user_notification,
 	read ServerExit: enumitem_user_notification,
-	read ServerBan: enumitem_user_notification,
-	read ServerKick: enumitem_user_notification,
 	read ServerDataRequest: enumitem_user_notification,
+	read ServerDataChanged: enumitem_user_notification,
 }, enumobject>
 
 export type enumitem_action_map_variant = enumitem<enum_action_map_variant>
@@ -3191,7 +3718,7 @@ export type nameable<T = string> = {
 	name: T | string,
 }
 --[==[
-    Объектом мо��но хотя-��ы как-то управлять
+    Объектом мо��но хотя-��ы как-то упр��влять
 ]==]
 export type operatable<T = unknown> = {
 	read continue: (self: T) -> (),
@@ -3591,25 +4118,6 @@ export type rotateable<T = unknown> = {
 	rotation: directions,
 }
 
---[==[
-    Тип так или иначе заставляет взаимодействовать с определенными группами коллизий
-]==]
-export type collidable<T = unknown> = {
-	--[==[
-        Возвращает все коллизии, с которыми доступно взаимодействие
-    ]==]
-	read get_collision: (self: T) -> ...collision,
-
-	--[==[
-        Добавляет указанные коллизии в список, с которыми доступно взаимодействие
-    ]==]
-	read add_collision: (self: T, ...collision) -> (),
-
-	--[==[
-        Удаляет указанные коллизии из списка доступных взаимодействий
-    ]==]
-	read rem_collision: (self: T, ...collision) -> (),
-}
 
 --[==[
     Этот объект может преобразовывать данные в нормали
@@ -3660,7 +4168,7 @@ export type stateable<T = unknown, U = enumitem> = {
 
         Используется для внутренней логики через декомпозицию, в основном
     ]==]
-	read get_states: (self: T) -> statemachine<U>,
+	read get_states: (self: T) -> stateregistry<U>,
 }
 
 --[==[

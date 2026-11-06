@@ -2,14 +2,13 @@
 --!native
 --!optimize 2
 const Struct = require("@class/core/Struct")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 const types = require("@declare/types")
 const geometry = require("@project/geometry")
 const ftype = require("@static/ftype")
 
+const tname = "geovolume"
 const class : geovolume = Struct:new {
-    type = "geovolume",
+    type = tname,
 
     absolute = ftype:write(function (self: geovolume) : geovolume
         const clone = self:clone(self:each<<vector>>(types.vector, function(value: vector): vector
@@ -17,7 +16,7 @@ const class : geovolume = Struct:new {
         end))
 
         return clone
-    end, "geovolume", "geovolume"),
+    end, tname, tname),
 
     null = ftype:write(function (self: geovolume) : geovolume
         const clone = self:clone(self:each<<vector>>(types.vector, function(value: vector): vector
@@ -25,7 +24,7 @@ const class : geovolume = Struct:new {
         end))
 
         return clone
-    end, "geovolume", "geovolume"),
+    end, tname, tname),
 
     substract = ftype:write(function (self: geovolume, with: number) : geovolume
         const clone = self:clone(self:each<<vector>>(types.vector, function(value: vector): vector
@@ -33,7 +32,7 @@ const class : geovolume = Struct:new {
         end))
         
         return clone
-    end, "geovolume", "geovolume", types.number),
+    end, tname, tname, types.number),
 
     append = ftype:write(function (self: geovolume, with: number) : geovolume
         const clone = self:clone(self:each<<vector>>(types.vector, function(value: vector): vector
@@ -41,7 +40,7 @@ const class : geovolume = Struct:new {
         end))
         
         return clone
-    end, "geovolume", "geovolume", types.number),
+    end, tname, tname, types.number),
 
     multiple = ftype:write(function (self: geovolume, with: number) : geovolume
         const clone = self:clone(self:each<<vector>>(types.vector, function(value: vector): vector
@@ -49,7 +48,7 @@ const class : geovolume = Struct:new {
         end))
 
         return clone
-    end, "geovolume", "geovolume", types.number),
+    end, tname, tname, types.number),
 
     divide = ftype:write(function (self: geovolume, with: number) : geovolume
         const clone = self:clone(self:each<<vector>>(types.vector, function(value: vector): vector
@@ -57,7 +56,7 @@ const class : geovolume = Struct:new {
         end))
         
         return clone
-    end, "geovolume", "geovolume", types.number),
+    end, tname, tname, types.number),
 
     invert = ftype:write(function (self: geovolume) : geovolume
         const clone = self:clone(self:each<<vector>>(types.vector, function(value: vector): vector
@@ -65,7 +64,7 @@ const class : geovolume = Struct:new {
         end))
         
         return clone
-    end, "geovolume", "geovolume"),
+    end, tname, tname),
 
     normalize = ftype:write(function (self: geovolume) : geovolume
         const clone = self:clone(self:each<<vector>>(types.vector, function(value: vector): vector
@@ -73,7 +72,7 @@ const class : geovolume = Struct:new {
         end))
         
         return clone
-    end, "geovolume", "geovolume"),
+    end, tname, tname),
 
     infinity = ftype:write(function(self: geovolume) : geovolume
         const clone = self:clone(self:each<<vector>>(types.vector, function(value: vector): vector
@@ -81,7 +80,7 @@ const class : geovolume = Struct:new {
         end))
 
         return clone
-    end, "geovolume", "geovolume"),
+    end, tname, tname),
 
     fuzzy_eq = ftype:write(function (self: geovolume, to: geovolume, epsilon: number?) : boolean
         const epsilon = epsilon or geometry.fuzzy_eq_diff
@@ -105,7 +104,7 @@ const class : geovolume = Struct:new {
         end
         
         return true
-    end, types.boolean, "geovolume", "geovolume", ftype:opt(types.number)),
+    end, types.boolean, tname, tname, ftype:opt(types.number)),
 
     negation = ftype:write(function (self: geovolume) : geovolume
         const clone = self:clone(self:each<<vector>>(types.vector, function(value: vector): vector
@@ -113,7 +112,7 @@ const class : geovolume = Struct:new {
         end))
 
         return clone
-    end, "geovolume", "geovolume"),
+    end, tname, tname),
 
     lerp = ftype:write(function (self: geovolume, to: geovolume, alpha: number) : geovolume
         const result: {[unknown]: vector} = {}
@@ -134,10 +133,7 @@ const class : geovolume = Struct:new {
         end
 
         return self:clone(result)
-    end, "geovolume", "geovolume", "geovolume", types.number)
+    end, tname, tname, tname, types.number)
 }
-
-ctype:read(class):write_tag(ctags.geometry, ctags.struct)
-
 
 return class

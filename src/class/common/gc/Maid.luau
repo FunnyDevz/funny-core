@@ -1,134 +1,182 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
+const Reference = require("@class/common/Reference")
 const Connection = require("@class/common/signal/Connection")
+const Event = require("@class/common/signal/Event")
 const Disposable = require("@class/core/Disposable")
+const LuaObject = require("@class/core/LuaObject")
+const Path = require("@class/core/Path")
 const mtypes = require("@declare/mtypes")
 const types = require("@declare/types")
+const ttable = require("@extension/ttable")
 const rbxtypes = require("@platform/roblox/rbxtypes")
+const mtluaobject = require("@project/mtluaobject")
 const ftype = require("@static/ftype")
 
-const private = {}
-const class: maid = Disposable:new({
-	type = "maid",
+const private = {type = "maid"}
+const class: maid = Disposable:new {
+	type = private.type,
 
-	add_object = ftype:write(function(self: maid, that: any, strong: boolean?): () -- #12
-		if strong then
-			table.insert(private.s_objects[self], that)
-		else
-			table.insert(private.objects[self], that)
+	clear = ftype:write(function (self: maid) : ()
+		const list = private.get(self)
+	
+		if not table.isfrozen(list) then
+			table.clear(list)
 		end
-	end, mtypes.never, "maid", mtypes.anyt, ftype:opt(types.boolean)),
+	end, mtypes.never, private.type),
 
-	add_key = ftype:write(function<T>(self: maid, of: { [T]: unknown }, key: T): ()
-		if not private.pairs[self][of] then
-			private.pairs[self][of] = {}
-		end
+	count = ftype:write(function (self: maid) : number
+		return #private.get(self)
+	end, types.number, private.type),
 
-		table.insert(private.pairs[self][of], key)
-	end, mtypes.never, "maid", types.table, mtypes.anyt),
+	length = ftype:write(function (self: maid) : number
+		return ttable.length(private.get(self))
+	end, types.number, private.type),
 
-	remove_object = ftype:write(function(self: maid, that: any): () -- #12
-		do
-			const pos: number? = table.find(private.objects[self], that)
-
-			if pos then
-				table.remove(private.objects[self], pos)
-			end
-		end
-
-		do
-			const pos: number? = table.find(private.s_objects[self], that)
-
-			if pos then
-				table.remove(private.s_objects[self], pos)
-			end
-		end
-	end, mtypes.never, "maid", mtypes.anyt),
-
-	remove_key = ftype:write(function<T>(self: maid, of: { [T]: unknown }, key: T): ()
-		if not private.pairs[self][of] then
+	-- this feature is available only because the interface obliges
+	adjust = ftype:write(function (self: maid, to: number) : ()
+		const list = private.get(self)
+		
+		if table.isfrozen(list) then
 			return
 		end
 
-		const pos: number? = table.find(private.pairs[self][of], key)
-		if pos then
-			table.remove(private.pairs[self][of], pos)
+		if math.abs(to) ~= to then
+			table.remove(list, to)
+		else
+			for i = 1, to do
+				table.remove(list, i)
+			end
 		end
-	end, mtypes.never, "maid", types.table, mtypes.anyt),
+	end, mtypes.never, private.type, types.number),
 
-	is_supported = ftype:write(function(self: maid, that: unknown): boolean
-		for _, v in private.supported do
-			if self:that(that, v) then
-				return true
-			else
-				if typeof(that) == v then
-					return true
+	insert = ftype:write(function (self: maid, ...) : ()
+		const list = private.get(self)
+		if not table.isfrozen(list) then
+			const need = {...}
+
+			for i = 1, #need do
+				table.insert(list, need[i])
+			end
+		end
+	end, mtypes.never, private.type, ftype:var_or(rbxtypes.Instance, Disposable.type, Reference.type, Path.type)),
+
+	remove = ftype:write(function (self: maid, ...) : ()
+		const list = private.get(self)
+		
+		if not table.isfrozen(list) then
+			const need = {...}
+
+			for i = 1, #need do
+				table.remove(list, table.find(list, need[i]) or 0)
+			end
+		end
+	end, mtypes.never, private.type, ftype:var_or(rbxtypes.Instance, Disposable.type, Reference.type, Path.type)),
+
+	collect = ftype:write(function (self: maid, utype: string) : ...any
+		const list = private.get(self)
+
+		for _, v: any in list do
+			const TT = typeof(v)
+
+			if rbxtypes:is_rbx_type(TT) then
+				if TT == rbxtypes.Instance then
+					const that = v :: Instance
+					if that.ClassName == utype then
+						return that
+					end
+				elseif TT == utype then
+					return v
+				end
+			elseif TT == mtluaobject.luaobject_type then
+				if LuaObject.is(v, LuaObject.type) then
+					if LuaObject.is(v, utype) then
+						return v
+					end
 				end
 			end
 		end
+	end, ftype:var(mtypes.anyt), private.type, types.string),
 
-		return false
-	end, types.boolean, "maid", mtypes.anyt),
-})
+	find = ftype:write(function (self: maid, ...) : ...boolean
+		const list = private.get(self)
+		const is: {boolean} = {}
+		const need = {...}
 
-class:host(function(new)
-	const new = new:as <<maid>> (class.type)
-
-	private.objects[new] = setmetatable({}, private.meta)
-	private.s_objects[new] = {}
-	private.pairs[new] = setmetatable({}, private.meta)
-
-	new:watch(
-		function()
-			private.cycle(private.objects[new], private.s_objects[new])
-		end,
-		function()
-			for k, v in private.pairs[new] do
-				for _, j in v do
-					k[j] = nil
-				end
-			end
-
-			table.clear(private.pairs[new])
+		for i = 1, #need do
+			is[i] = table.find(list, need[i]) ~= nil
 		end
-	)
-end)
+
+		return table.unpack(is)
+	end, ftype:var(types.boolean), private.type, ftype:var_opt(mtypes.anyt))
+}
 
 do
-	private.meta = table.freeze({ __mode = "ks" })
-	private.objects = setmetatable({} :: { [maid]: { unknown } }, private.meta)
-	private.s_objects = setmetatable({} :: { [maid]: { unknown } }, private.meta)
-	private.pairs = setmetatable({} :: { [maid]: { [{ [unknown]: unknown }]: { unknown } } }, private.meta)
+	private.everyone = newproxy()
 
-	private.supported = table.freeze({
-		Connection.type,
-		Disposable.type,
-		rbxtypes.RBXScriptConnection,
-		rbxtypes.Instance,
-	})
+	private.new = function (new: luaobject) : ()
+		const new = new:as <<maid>> (class.type)
+		const closure = {}
 
-	private.cycle = function(t: { unknown })
-		for _, v in t do
-			if class:that(v, "connection") then
-				const connection = v :: connection
-				connection:disconnect()
-			elseif class:that(v, "disposable") then
-				const disposable = v :: disposable
-				disposable:free()
-			elseif class:that(v, "reference") then
-				const reference = v :: reference
-				reference:set_instance(nil)
-			elseif typeof(v) == rbxtypes.RBXScriptConnection then
-				const connection = v :: RBXScriptConnection
-				connection:Disconnect()
-			elseif type(v) == types["function"] then
-				const func = v :: (...any) -> () | any
-				func()
-			elseif typeof(v) == rbxtypes.Instance then
-				const instance = v :: Instance
-				instance:Destroy()
+		new:set(private.everyone, closure)
+		new:finally(function (id)
+			private.clean(closure)
+		end)
+	end
+
+	private.get = function (of: maid) : {unknown}
+		return of:get <<{unknown}>> (private.everyone)
+	end
+
+	private.clean = function (tbl: {unknown}) : ()
+		for _, v: any in tbl do
+			const TT = typeof(v)
+			
+			if TT == rbxtypes.Instance then
+				const that_instance = v  :: Instance
+				that_instance:Destroy()
+			elseif TT == rbxtypes.RBXScriptConnection then
+				const that_connection = v :: RBXScriptConnection
+				that_connection:Disconnect()
+			elseif TT == mtluaobject.luaobject_type then
+				if class.is(v, LuaObject.type) then
+					if class.is(v, Disposable.type) then
+						const that_disposable = v :: disposable
+						that_disposable:free()
+					elseif class.is(v, Reference.type) then
+						const that_reference = v :: reference
+						const value_referenced = that_reference:get_instance()
+						private.clean({ value_referenced })
+					elseif class.is(v, Path.type) then
+						const that_path = v :: path
+						const value = that_path:get_by_path_or_nil()
+						private.clean({value})
+					elseif class.is(v, Connection.type) then
+						const that_connection = v :: connection
+						that_connection:disconnect()
+					elseif class.is(v, Event.type) then
+						const that_event = v :: event
+						that_event:disconnect_all_connections()
+					end
+				end
 			end
 		end
+
+		if not table.isfrozen(tbl) then
+			table.clear(tbl)
+		end
 	end
+
+	--#if ALL_CLASS_USEABLE
+	private.new(class)
+	--#endif
 end
+
+class:host(private.new)
 
 return class

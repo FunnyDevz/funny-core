@@ -5,17 +5,14 @@ const Struct = require("@class/core/Struct")
 const AABBVolume = require("@class/struct/geometry/AABBVolume")
 const CubeVolume = require("@class/struct/geometry/CubeVolume")
 const types = require("@declare/types")
-const stderr = require("@extension/stderr")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const SAT = require("@import/SAT")
 const rbxtypes = require("@platform/roblox/rbxtypes")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
 
-const private = {}
+const private = { type = "obbvolume" }
 const class: obbvolume = CubeVolume:new({
-	type = "obbvolume",
+	type = private.type,
 	half = vector.one / 2,
 
 	from = ftype:write(function(self: obbvolume, ...: geometry_supported): obbvolume
@@ -28,7 +25,9 @@ const class: obbvolume = CubeVolume:new({
 		local new = private.convert(values[1])
 
 		if not new then
-			stdout:oute("unsupported geometry in OBB from")
+			--#if DEBUG
+			std:oute("unsupported geometry in OBB from")
+			--#endif
 			return self:clone()
 		end
 
@@ -41,7 +40,7 @@ const class: obbvolume = CubeVolume:new({
 		end
 
 		return new
-	end, "obbvolume", "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, private.type, private.type, ftype:var(rbxtypes.Instance, "aabbvolume", private.type, "cubevolume")),
 
 	middle = ftype:write(function(self: obbvolume, ...: geometry_supported): obbvolume
 		const values = { ... }
@@ -62,7 +61,9 @@ const class: obbvolume = CubeVolume:new({
 			const volume = private.convert(value)
 
 			if not volume then
-				stdout:oute("unsupported geometry in OBB middle")
+				--#if DEBUG
+				std:oute("unsupported geometry in OBB middle")
+				--#endif
 				return self:clone()
 			end
 
@@ -96,18 +97,20 @@ const class: obbvolume = CubeVolume:new({
 			front_axis,
 			vector.create(right_half_sum / count, up_half_sum / count, front_half_sum / count)
 		)
-	end, "obbvolume", "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, private.type, private.type, ftype:var(rbxtypes.Instance, "aabbvolume", private.type, "cubevolume")),
 
 	cover = ftype:write(function(self: obbvolume, ...: geometry_supported): obbvolume
 		return private.cover(self, { ... })
-	end, "obbvolume", "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, private.type, private.type, ftype:var(rbxtypes.Instance, "aabbvolume", private.type, "cubevolume")),
 
 	is_inside = ftype:write(function(self: obbvolume, ...: unknown): boolean
 		for _, value in { ... } do
 			const volume = private.convert(value :: any)
 
 			if not volume then
-				stdout:oute("unsupported geometry in OBB is_inside")
+				--#if DEBUG
+				std:oute("unsupported geometry in OBB is_inside")
+				--#endif
 				return false
 			end
 
@@ -117,7 +120,7 @@ const class: obbvolume = CubeVolume:new({
 		end
 
 		return true
-	end, types.boolean, "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, types.boolean, private.type, ftype:var(rbxtypes.Instance, "aabbvolume", private.type, "cubevolume")),
 
 	is_interacts = ftype:write(function(self: obbvolume, ...: unknown): boolean
 		for _, value in { ... } do
@@ -127,14 +130,16 @@ const class: obbvolume = CubeVolume:new({
 		end
 
 		return true
-	end, types.boolean, "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, types.boolean, private.type, ftype:var(rbxtypes.Instance, "aabbvolume", private.type, "cubevolume")),
 
 	is_intersection = ftype:write(function(self: obbvolume, ...: unknown): boolean
 		for _, value in { ... } do
 			const volume = private.convert(value :: any)
 
 			if not volume then
-				stdout:oute("unsupported geometry in OBB is_intersection")
+				--#if DEBUG
+				std:oute("unsupported geometry in OBB is_intersection")
+				--#endif
 				return false
 			end
 
@@ -144,7 +149,7 @@ const class: obbvolume = CubeVolume:new({
 		end
 
 		return true
-	end, types.boolean, "obbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
+	end, types.boolean, private.type, ftype:var(rbxtypes.Instance, "aabbvolume", private.type, "cubevolume")),
 
 	look_at = ftype:write(function(self: obbvolume, at: vector, up: vector?): obbvolume
 		const center = self:get_center()
@@ -175,7 +180,7 @@ const class: obbvolume = CubeVolume:new({
 		const real_up = vector.normalize(vector.cross(front, right))
 
 		return private.from_basis(self, center, right, real_up, front, self.half)
-	end, "obbvolume", "obbvolume", types.vector, ftype:opt(types.vector)),
+	end, private.type, private.type, types.vector, ftype:opt(types.vector)),
 
 	rotate_radian = ftype:write(function(self: obbvolume, radian_vector: vector): obbvolume
 		const right, up, front = private.get_axes(self)
@@ -204,7 +209,7 @@ const class: obbvolume = CubeVolume:new({
 		-- Rz(yaw) * Ry(pitch) * Rx(roll)
 
 		return private.from_basis(self, self:get_center(), new_right, new_up, new_front, self.half)
-	end, "obbvolume", "obbvolume", types.vector),
+	end, private.type, private.type, types.vector),
 
 	get_rotation_radian = ftype:write(function(self: obbvolume): vector
 		const right, up, front = private.get_axes(self)
@@ -223,10 +228,8 @@ const class: obbvolume = CubeVolume:new({
 		const yaw = math.atan2(-up.x, up.y)
 
 		return vector.create(roll, pitch, yaw)
-	end, types.vector, "obbvolume"),
+	end, types.vector, private.type),
 })
-
-ctype:read(class):write_tag(ctags.geometry, ctags.struct)
 
 do
 	--[[
@@ -510,7 +513,9 @@ do
 			const converted = private.convert(value)
 
 			if not converted then
-				stdout:oute("unsupported geometry in OBB cover")
+				--#if DEBUG
+				std:oute("unsupported geometry in OBB cover")
+				--#endif
 				return result
 			end
 
@@ -529,10 +534,8 @@ do
 		elseif typeof(v) == rbxtypes.Instance then
 			const var = v :: Model | BasePart | PVInstance
 
-			-- Сначала точное имя класса.
 			func = list[var.ClassName]
 
-			-- Затем наследование Roblox Instance.
 			if not func then
 				if var:IsA("BasePart") then
 					func = list["BasePart"]
@@ -543,18 +546,18 @@ do
 				end
 			end
 		else
-			stdout:oute("cannot reach unknown LuaObject, skipped")
+			--#if DEBUG
+			std:oute("cannot reach unknown LuaObject, skipped")
+			--#endif
 			return nil
 		end
 
-		if not stderr:assert(func, "cannot find right generator") then
+		if not std:assert(func, "cannot find right generator") then
 			return nil
 		end
 
 		return func
 	end
 end
-
-ctype:read(class):write_tag(ctags.geometry, ctags.struct)
 
 return class

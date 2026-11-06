@@ -1,0 +1,29 @@
+
+
+/src/core.d.luau @IFMNB
+/src/tfunc.d.luau @TheExeDEV @IFMNB
+/src/class/core @IFMNB @TheExeDEV
+
+/src/class/service/DataClient.luau @TheExeDEV
+/src/class/service/DataServer.luau @TheExeDEV
+/src/class/service/SharedNet.luau @TheExeDEV
+
+/src/class/game/character/Entity.luau @TheExeDEV
+/src/class/game/Profile.luau @TheExeDEV
+
+/src/class/common/physics/ @TheExeDEV
+
+/src/platform/roblox/network.luau @TheExeDEV
+/src/platform/roblox/players.luau @TheExeDEV
+/src/platform/roblox/datamodel.luau @TheExeDEV @IFMNB
+/src/platform/roblox/instance.luau @TheExeDEV @IFMNB
+/src/platform/roblox/physics.luau @TheExeDEV
+
+/CI @TheExeDEV
+/build/run @IFMNB
+/test.project.json @TheExeDEV
+/jest.config.json @TheExeDEV
+
+/.github/ @TheExeDEV @IFMNB
+/crater.json @TheExeDEV @IFMNB
+/crater.settings.json @TheExeDEV @IFMNB

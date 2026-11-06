@@ -24,6 +24,7 @@ const class: characterinfo = Struct:new({
 	run_cooldown = 0,
 	jump_cooldown = 0,
 	revives = 0,
+	inventory_max = 16,
 })
 
 return class

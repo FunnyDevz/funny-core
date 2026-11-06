@@ -1,12 +1,12 @@
 --!strict
 const dummies = require("@declare/dummies")
 const mtypes = require("@declare/mtypes")
-const stdout = require("@extension/stdout")
 const types = require("@declare/types")
 const ftype = require("@static/ftype")
 const tables = require("@declare/tables")
 const args = require("@static/mtargument")
 const outs = require("@static/mtout")
+const std = require("@extension/std")
 
 type argument = args.argument
 type tval = args.tval
@@ -216,6 +216,7 @@ export type ctype = {
 	read generate_metainfo: (self: ctype, of: tbl, tags: { string }, classname: string) -> metainfo,
 	read is_registered: (self: ctype, of: tbl) -> boolean,
 	read all: (self: ctype) -> { metainfo },
+	read validate: (self: ctype, of: tbl, classname: string?) -> boolean,
 }
 
 const private = {}
@@ -358,7 +359,9 @@ const ctype: ctype = table.freeze({
 
 		for i, v in of do
 			if typeof(i) ~= types.string then
-				stdout:oute(`index {i} unsupported, skip`)
+				--#if DEBUG
+				std:oute(`index {i} unsupported, skip`)
+				--#endif
 				continue
 			end
 
@@ -396,6 +399,40 @@ const ctype: ctype = table.freeze({
 			table.insert(result, v)
 		end
 		return result
+	end,
+
+	validate = function(self: ctype, of: tbl, classname: string?): boolean
+		if type(of) ~= types.table then
+			return false
+		end
+
+		if classname ~= nil then
+			if not args.is_luaobject(of) then
+				return false
+			end
+
+			const succ, result = pcall(of.is, of, classname)
+
+			if not succ or result ~= true then
+				return false
+			end
+		end
+
+		const info = self:read(of)
+
+		for k, v in info.fields do
+			if not args.match(v.type, of[v.name]) then
+				return false
+			end
+		end
+
+		for k, v in info.funcs do
+			if type(of[v.name]) ~= types["function"] then
+				return false
+			end
+		end
+
+		return true
 	end,
 })
 

@@ -1,14 +1,13 @@
 --!strict
 
-const EnumItem = require("@class/core/EnumItem")
 const EnumObject = require("@class/core/EnumObject")
 
 const class: enum_iklegs_state = EnumObject:new({
 	name = script.Name,
 
-    Planted = EnumItem:new() :: enumitem<any>,
-    Stepping = EnumItem:new() :: enumitem<any>,
-    Settling = EnumItem:new() :: enumitem<any>
+	Planted = EnumObject.build_enumitem_mark,
+	Stepping = EnumObject.build_enumitem_mark,
+	Settling = EnumObject.build_enumitem_mark,
 })
 
 return class

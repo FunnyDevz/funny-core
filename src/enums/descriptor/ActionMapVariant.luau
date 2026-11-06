@@ -1,19 +1,18 @@
 --!strict
-const EnumItem = require("@class/core/EnumItem")
 const EnumObject = require("@class/core/EnumObject")
 
 const class: enum_action_map_variant = EnumObject:new({
 	name = script.Name,
 
-	MoveForward = EnumItem:new() :: enumitem<any>,
-	MoveBackward = EnumItem:new() :: enumitem<any>,
-	MoveLeft = EnumItem:new() :: enumitem<any>,
-	MoveRight = EnumItem:new() :: enumitem<any>,
-	MoveJump = EnumItem:new() :: enumitem<any>,
-	MoveCrounch = EnumItem:new() :: enumitem<any>,
-	MoveLying = EnumItem:new() :: enumitem<any>,
-	MoveRun = EnumItem:new() :: enumitem<any>,
-	MoveSlow = EnumItem:new() :: enumitem<any>,
+	MoveForward = EnumObject.build_enumitem_mark,
+	MoveBackward = EnumObject.build_enumitem_mark,
+	MoveLeft = EnumObject.build_enumitem_mark,
+	MoveRight = EnumObject.build_enumitem_mark,
+	MoveJump = EnumObject.build_enumitem_mark,
+	MoveCrounch = EnumObject.build_enumitem_mark,
+	MoveLying = EnumObject.build_enumitem_mark,
+	MoveRun = EnumObject.build_enumitem_mark,
+	MoveSlow = EnumObject.build_enumitem_mark,
 })
 
 return class

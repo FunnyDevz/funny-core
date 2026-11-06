@@ -1,8 +1,15 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const Maybe = require("@class/common/gc/Maybe")
 const Controller = require("@class/common/runtime/Controller")
 const EnumItem = require("@class/core/EnumItem")
 const Observer = require("@class/core/Observer")
+const Scheduler = require("@class/core/Scheduler")
 const mtypes = require("@declare/mtypes")
 const types = require("@declare/types")
 const ConnectionVariant = require("@enums/descriptor/ConnectionVariant")
@@ -12,47 +19,47 @@ const ControllerState = require("@enums/state/ControllerState")
 const ftype = require("@static/ftype")
 
 
-const private = {}
+const private = {type = "timer"}
 const class : timer = (Observer :: observer<enumitem_tick_notification>):new {
-	type = "timer",
+	type = private.type,
 	iterate = 1,
 	modifier = 1,
 
 	get_control = ftype:write(function (self: timer): controller
 		return private.maybe:enactment(self, Controller)
-	end, Controller.type, "timer"),
+	end, Controller.type, private.type),
 
 	get_elapsed = ftype:write(function (self: timer) : number
 		return self:get_duration() - self:get_remaining()
-	end, types.number, "timer"),
+	end, types.number, private.type),
 
 	get_remaining = ftype:write(function (self: timer) : number
 		return private.get(self).remaining
-	end, types.number, "timer"),
+	end, types.number, private.type),
 
 	get_duration = ftype:write(function (self: timer) : number
 		return private.get(self).duration
-	end, types.number, "timer"),
+	end, types.number, private.type),
 
 	get_step = ftype:write(function (self: timer) : number
 		return private.get(self).step
-	end, types.number, "timer"),
+	end, types.number, private.type),
 
 	set_duration = ftype:write(function (self: timer, duration: number) : ()
 		private.get(self).duration = duration
-	end, mtypes.never, "timer", types.number),
+	end, mtypes.never, private.type, types.number),
 
 	set_step = ftype:write(function (self: timer, step: number) : ()
 		private.get(self).step = step
-	end, mtypes.never, "timer", types.number),
+	end, mtypes.never, private.type, types.number),
 
 	is_running = ftype:write(function (self: timer) : boolean
 		return private.get(self).remaining > 0
-	end, types.boolean, "timer"),
+	end, types.boolean, private.type),
 
 	is_finished = ftype:write(function (self: timer) : boolean
 		return private.get(self).remaining <= 0
-	end, types.boolean, "timer")
+	end, types.boolean, private.type)
 
 }
 
@@ -63,17 +70,24 @@ class:host(function(new)
 	new:set(private.internal_item.hashlink, internal)
 	new:subscribe(private.internal_item, ConnectionVariant.Once, function (controller: controller)
 		controller:subscribe(ControllerState.Continue, ConnectionVariant.Ever, function ()
+			const scheduler = Scheduler:whose()
 			internal.yield = false
 			
 			if internal.cycle then
 				if coroutine.status(internal.cycle) == "suspended" then
-					task.defer(internal.cycle)
+					if scheduler then
+						scheduler:last(internal.cycle)
+					else
+						task.defer(internal.cycle)
+					end
 				end
 			else
 				internal.remaining = internal.duration
 
 				const timer = coroutine.create(function()				
 					new:notificate(TickNotification.Started)
+
+
 
 					while task.wait(internal.step) and internal.remaining > 0 do
 						if internal.yield then
@@ -95,7 +109,12 @@ class:host(function(new)
 				end)
 				
 				internal.cycle = timer
-				task.defer(timer)
+
+				if scheduler then
+					scheduler:plan(timer)
+				else
+					task.defer(timer)
+				end
 			end
 
 
@@ -107,11 +126,24 @@ class:host(function(new)
 
 		controller:subscribe(ControllerState.Reset, ConnectionVariant.Ever, function ()
 			internal.yield = true
-			task.wait()
+			const scheduler = Scheduler:whose()
+
+			if scheduler then
+				scheduler:wait()
+			else
+				task.wait()
+			end
 
 			if internal.cycle then
-				task.cancel(internal.cycle)
-				coroutine.close(internal.cycle)
+				const internal_scheduler = Scheduler:whose(internal.cycle)
+				if internal_scheduler then
+					internal_scheduler:cancel(internal.cycle)
+					coroutine.close(internal.cycle)
+				else
+					task.cancel(internal.cycle)
+					coroutine.close(internal.cycle)
+				end
+			
 				internal.cycle = nil
 			end
 

@@ -1,4 +1,3 @@
-const stdout = require("@extension/stdout")
 const global = require("@project/global")
 
 --[==[
@@ -52,7 +51,7 @@ export type dummies = {
         Это абсолютная пустота. Она принимает все что угодно, ест все что угодно, и возвращает все что угодно.
         Но только на саму себя.
     ]==]
-    read nullf: () -> null,
+    read nullf: () -> null?,
 
     --[==[
         Аналогичен `nullf`, но `null` спрятан в типах.
@@ -90,19 +89,14 @@ null_mt.__eq = function (self, that)
     return false
 end
 
-null_mt.__call = function (self)
+null_mt.__call = function (self): null?
     if (not global.debug or not global.nullable) then
-        stdout:oute("NullObject")
-    end
-
-    if (global.debug) then
-        stdout:outw("NullObject used")
+        return nil
     end
 
     return null
 end
-null_mt.__tostring = function(self): string self()
-return "null" end
+null_mt.__tostring = function(self): string self(); return "null" end
 null_mt.__len = return_zero
 null_mt.__concat = null_mt.__tostring
 null_mt.__add = return_null
@@ -121,15 +115,14 @@ null_mt.__bxor = return_null
 null_mt.__bnot = return_null
 null_mt.__shl = return_null
 null_mt.__shr = return_null
-null_mt.__iter = function(self): (() -> (), nil) self()
-return func_dummy, nil end
+null_mt.__iter = function(self): (() -> (), nil) self(); return func_dummy, nil end
 table.freeze(null_mt)
 
 coroutine.close(closed_coroutine)
 
-const nullf = function () : null
+const nullf = function () : null?
     if (not global.debug or not global.nullable) then
-        return stdout:oute "Null object isn't allowed to use"
+        return nil
     end
 
     return null

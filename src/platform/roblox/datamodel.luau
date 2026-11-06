@@ -83,6 +83,36 @@ const datamodel = {
 		return false
 	end,
 
+	path_tokenize = tokenize,
+
+	get_absolute_path_of = function (instance: Instance): string
+		const parts: { string } = {}
+		local current: Instance? = instance
+
+		while current and current ~= game do
+			table.insert(parts, 1, current.Name)
+			current = current.Parent
+		end
+
+		return "game." .. table.concat(parts, ".")
+	end,
+
+	get_relative_path_of = function (root: Instance, target: Instance): string?
+		const parts: { string } = {}
+		local current: Instance? = target
+
+		while current and current ~= root do
+			table.insert(parts, 1, current.Name)
+			current = current.Parent
+
+			if not current then
+				return nil
+			end
+		end
+
+		return table.concat(parts, ".")
+	end,
+
 	find_by_absolute_path = function (path: string): Instance?
 		const tokens = tokenize(path)
 		if tokens[1] == "game" then

@@ -14,9 +14,13 @@ ROOT = CI.parent
 SOURCE = ROOT / "src"
 TARGET = CI / "build"
 
+sys.path.insert(0, str(ROOT / "build"))
+
+from crater_layout import load as load_layout
+
+LAYOUT = load_layout(ROOT)
 REQUIRED = {
-    "Packages": ROOT / "Packages",
-    "ServerPackages": ROOT / "ServerPackages",
+    LAYOUT["vendor_path"].relative_to(ROOT).as_posix(): LAYOUT["vendor_path"],
     "DevPackages": ROOT / "DevPackages",
 }
 
@@ -29,6 +33,17 @@ REQUIRE = re.compile(r"""require\(\s*(["'])@(\w+)(/[^"']*)?\1\s*\)""")
 class Preprocessor:
     def __init__(self, defines: dict[str, str]):
         self.defines = dict(defines)
+        self.included: set[str] = set()
+
+    def include(self, argument: str) -> None:
+        name = argument.strip().strip("<>\"")
+        if not name or name in self.included:
+            return
+        path = SOURCE / name
+        if not path.is_file():
+            raise ValueError(f"cannot include {name}: {path} does not exist")
+        self.included.add(name)
+        self.run(path.read_text("utf-8"))
 
     def truthy(self, expr: str) -> bool:
         def atom(token: str) -> bool:
@@ -76,15 +91,18 @@ class Preprocessor:
                 stack.append((active and cond, cond, active))
                 active = active and cond
             elif name == "elif":
+                if not stack: raise ValueError("Встречен --#elif без открывающего --#if")
                 _, taken, parent = stack.pop()
                 cond = not taken and self.truthy(arg)
                 stack.append((parent and cond, taken or cond, parent))
                 active = parent and cond
             elif name == "else":
+                if not stack: raise ValueError("Встречен --#else без открывающего --#if")
                 _, taken, parent = stack.pop()
                 stack.append((parent and not taken, True, parent))
                 active = parent and not taken
             elif name == "endif":
+                if not stack: raise ValueError("Встречен --#endif без открывающего --#if")
                 _, _, active = stack.pop()
             elif not active:
                 continue
@@ -94,7 +112,7 @@ class Preprocessor:
             elif name == "undef":
                 self.defines.pop(arg, None)
             elif name == "include":
-                pass
+                self.include(arg)
             else:
                 raise ValueError(f"unsupported directive --#{name}")
 
@@ -141,6 +159,9 @@ def build_core() -> None:
 
     for file in sorted(SOURCE.rglob("*.luau")):
         relative = file.relative_to(SOURCE).as_posix()
+        vendor = LAYOUT["vendor_name"]
+        if relative == vendor or relative.startswith(f"{vendor}/"):
+            continue
         if relative.endswith(".d.luau"):
             continue
 
@@ -154,6 +175,9 @@ def build_core() -> None:
         output = core / relative
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(text, "utf-8", newline="\n")
+
+    # Vendored packages are already built and are never preprocessed.
+    shutil.copytree(LAYOUT["vendor_path"], core / LAYOUT["vendor_name"])
 
 
 def build_spec() -> None:

@@ -1,4 +1,10 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const Maybe = require("@class/common/gc/Maybe")
 const Event = require("@class/common/signal/Event")
 const LuaObject = require("@class/core/LuaObject")
@@ -6,7 +12,7 @@ const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
 const DefaultVariant = require("@enums/descriptor/DefaultVariant")
-const stdrun = require("@extension/stdrun")
+const std = require("@extension/std")
 const rbxtypes = require("@platform/roblox/rbxtypes")
 const ftype = require("@static/ftype")
 
@@ -32,7 +38,7 @@ const class: signal = LuaObject:new {
         if #list == 0 then return end
 
         const lambda = function (...)
-            if stdrun:is_parallel() then
+            if std:is_parallel() then
                 if not self.use_parallel_signals then
                     return
                 end
@@ -47,7 +53,7 @@ const class: signal = LuaObject:new {
             v:Connect(lambda)
         end
 
-        if stdrun.is_parallelable then
+        if std.is_parallelable then
             for _, v in list do
                 v:ConnectParallel(lambda)
             end

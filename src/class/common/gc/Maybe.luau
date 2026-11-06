@@ -1,18 +1,23 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const LuaObject = require("@class/core/LuaObject")
 const Observer = require("@class/core/Observer")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
 const OperationVariant = require("@enums/descriptor/OperationVariant")
-const stderr = require("@extension/stderr")
-const Cryptography = require("@import/Cryptography")
+const std = require("@extension/std")
 const ftype = require("@static/ftype")
 
 
-const private = {}
+const private = {type = "maybe"}
 const class: maybe = (Observer :: observer<enumitem_operation_variant>):new({
-	type = "maybe",
+	type = private.type,
 
 	extract = ftype:write(function(self: maybe, it: unknown, make: () -> any): any
 		const stored = private.get(self)
@@ -24,10 +29,10 @@ const class: maybe = (Observer :: observer<enumitem_operation_variant>):new({
 		end
 
 		return that
-	end, mtypes.anyt, "maybe", mtypes.anyt, types["function"]),
+	end, mtypes.anyt, private.type, mtypes.anyt, types["function"]),
 
 	enactment = ftype:write(function (self: maybe, it: unknown, of: luaobject) : luaobject
-		if not stderr:assert(self:that(of, LuaObject.type), "unexpected obhect") then
+		if not std:assert(self:that(of, LuaObject.type), "unexpected object") then
 			return of
 		end
 
@@ -41,11 +46,11 @@ const class: maybe = (Observer :: observer<enumitem_operation_variant>):new({
 		end
 
 		return current :: any
-	end, LuaObject.type, "maybe", mtypes.anyt, LuaObject.type),
+	end, LuaObject.type, private.type, mtypes.anyt, LuaObject.type),
 
 	exist = ftype:write(function(self: maybe, it: unknown): boolean
 		return private.get(self)[it] ~= nil
-	end, types.boolean, "maybe", mtypes.anyt),
+	end, types.boolean, private.type, mtypes.anyt),
 
 	erase = ftype:write(function(self: maybe, it: unknown): ()
 		const stored = private.get(self)
@@ -54,7 +59,7 @@ const class: maybe = (Observer :: observer<enumitem_operation_variant>):new({
 		stored[it] = nil
 
 		self:notificate(OperationVariant.Remove, it)
-	end, mtypes.never, "maybe", mtypes.anyt),
+	end, mtypes.never, private.type, mtypes.anyt),
 })
 
 class:host(function(new)
@@ -63,7 +68,7 @@ class:host(function(new)
 end)
 
 do
-	private.key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "maybe_key")
+	private.key = newproxy()
 	private.get = function (self: maybe)
 		return self:get <<{[unknown]: unknown}>>(private.key)
 	end

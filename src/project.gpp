@@ -14,3 +14,4 @@
 --#define lua_NOT not
 --#define lua_OR or
 --#define lua_AND and
+--#define lua_ENDL ;

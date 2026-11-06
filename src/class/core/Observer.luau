@@ -1,4 +1,9 @@
 --!strict
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const EnumItem = require("@class/core/EnumItem")
 const EnumObject = require("@class/core/EnumObject")
 const Pointer = require("@class/core/Pointer")
@@ -9,11 +14,8 @@ const dummies = require("@declare/dummies")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
-const stderr = require("@extension/stderr")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const global = require("@project/global")
-const ctags = require("@static/ctags")
-const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
 
 type observer_on<T = enumitem> = T | { T } | enumobject | { enumobject } | { T | enumobject }
@@ -38,7 +40,7 @@ const class: observer = LuaObject:new({
 				return table.unpack(empty_pointers)
 			end
 
-			if (not stderr:check(private.relevant_actions[mode], `subscription option of {mode.name} does not exists`)) then return end
+			if (not std:check(private.relevant_actions[mode], `subscription option of {mode.name} does not exists`)) then return end
 
 			const flat = private.create_flatted_on(on)
 			const items = private.get_items(self)
@@ -152,7 +154,7 @@ const class: observer = LuaObject:new({
 
     get = ftype:write(function <Y> (self: observer, label: unknown) : Y
         return private.shadow_space[self][label]
-    end, ftype:opt(mtypes.anyt)), private.type, mtypes.anyt,
+    end, ftype:opt(mtypes.anyt), private.type, mtypes.anyt),
 
     set = ftype:write(function <Y> (self: observer, label: unknown, to: Y) : ()
         private.shadow_space[self][label] = to
@@ -169,6 +171,7 @@ class:host(function(new)
 end)
 
 do
+
 	type flatted = { [enumitem]: flatted_dependency }
 	type work_list = { observer_var }
 	type flatted_dependency = { [enumitem_connection_variant]: work_list }
@@ -188,6 +191,12 @@ do
 	private.shadow_space = setmetatable({} :: {[observer]: {[any]: any}}, private.meta)
 	private.pointers = newproxy()
 	private.items = newproxy()
+
+	--#if CORE_CLASS_USEABLE
+	private.shadow_space[class] = {}
+	class:set(private.pointers, setmetatable({}, private.meta))
+	class:set(private.items, {})
+	--#endif
 
 	private.create_flatted_on = function(on: observer_on<any>): { enumitem }
 		const output_for_cycle = {}
@@ -211,7 +220,7 @@ do
 			end
         --#if DEBUG
 		else
-			stdout:oute("unknown CallType")
+			std:oute("unknown CallType")
 		--#endif
         end
 
@@ -266,12 +275,12 @@ do
 		if T == types["function"] then
 			const var_func = v :: (...any) -> any
 			const out, msg = pcall(var_func, ...)
-			const res = stderr:assert(out, `{tostring(msg)}`)
+			const res = std:assert(out, `{tostring(msg)}`)
 			return res
 		elseif T == types.thread then
 			const var_thread = v :: thread
 			const out, msg = coroutine.resume(var_thread, ...)
-			const res = stderr:assert(out, `{tostring(msg)}`)
+			const res = std:assert(out, `{tostring(msg)}`)
 			return res
 		elseif class:that(v, class.type) then
 			const var_observer = v :: observer
@@ -279,7 +288,7 @@ do
             return true
 		--#if DEBUG
         else
-			stdout:oute("unexpected connection, skip")
+			std:oute("unexpected connection, skip")
         --#endif
 		end
 
@@ -348,7 +357,7 @@ do
 			--#if DEBUG
 			if not pointer:is_pointed_exists() then
 				if global.debug then
-					stdout:oute("pointer does not exist?")
+					std:oute("pointer does not exist?")
 				end
 			end
 			--#endif
@@ -381,7 +390,5 @@ do
 			end,
 		}) :: { read [enumitem_connection_variant]: (work: pointer_internal, pointer: pointer) -> () }
 end
-
-ctype:read(class):write_tag(ctags.core)
 
 return class

@@ -1,14 +1,12 @@
 --!strict
 const CollectionService = game:GetService("CollectionService")
-
-const stderr = require("@extension/stderr")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const rbxtypes = require("@platform/roblox/rbxtypes")
 
 const humanoid = table.freeze({
 	get_limb_of = function(humanoid: Humanoid, limb: Enum.Limb): BasePart
-		const parent = stderr:assert(humanoid.Parent, "cannot find parent of humanoid, crit")
-		const model = stderr:assert(parent:IsA("Model") and parent or nil, "expected humanoid parent as a model, crit")
+		const parent = std:assert(humanoid.Parent, "cannot find parent of humanoid, crit")
+		const model = std:assert(parent:IsA("Model") and parent or nil, "expected humanoid parent as a model, crit")
 
 		for _, v in model:GetChildren() do
 			if v:IsA("BasePart") and humanoid:GetLimb(v) == limb then
@@ -16,7 +14,7 @@ const humanoid = table.freeze({
 			end
 		end
 
-		return stdout:oute(`cannot find limb {limb.Name} in {model:GetFullName()}, crit fail`)
+		return std:oute(`cannot find limb {limb.Name} in {model:GetFullName()}, crit fail`)
 	end,
 })
 

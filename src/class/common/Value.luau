@@ -1,15 +1,21 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const Observer = require("@class/core/Observer")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
 const OperationVariant = require("@enums/descriptor/OperationVariant")
-const stdout = require("@extension/stdout")
+const std = require("@extension/std")
 const ftype = require("@static/ftype")
 
-const private = {}
+const private = {type = "value"}
 const class: value = (Observer :: observer<enumitem_operation_variant>):new({
-	type = "value",
+	type = private.type,
 
 	get_value = ftype:write(function(self: value): any
 		const value: any = private.values[self]
@@ -23,7 +29,7 @@ const class: value = (Observer :: observer<enumitem_operation_variant>):new({
 		end
 
 		return nil
-	end, mtypes.anyt, "value"),
+	end, mtypes.anyt, private.type),
 
 	set_value = ftype:write(function(self: value, value: any, default: boolean?): ()
 		const stored: any = private.values[self]
@@ -42,11 +48,11 @@ const class: value = (Observer :: observer<enumitem_operation_variant>):new({
 			self:notificate(OperationVariant.Remove)
 		--#if VALUE_PRINT_ACT
 		else
-			stdout:outw("unexpected value behaviour, skip")
+			std:outw("unexpected value behaviour, skip")
 		--#endif
 		end
 
-	end, mtypes.never, "value", mtypes.anyt, ftype:opt(types.boolean)),
+	end, mtypes.never, private.type, mtypes.anyt, ftype:opt(types.boolean)),
 })
 
 do

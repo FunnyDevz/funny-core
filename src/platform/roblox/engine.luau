@@ -2,8 +2,6 @@
 const RunService = game:GetService("RunService")
 const ScriptContext = game:GetService("ScriptContext")
 
-const tag = require("@declare/tag")
-
 const is_server = RunService:IsServer()
 const is_studio = RunService:IsStudio()
 
@@ -39,7 +37,7 @@ const engine = table.freeze {
     --[==[
         Идентификатор сервера в структуре роблокс.
     ]==]
-    job_id = is_server and game.JobId or tag.NOT_EXISTS,
+    job_id = is_server and game.JobId or 0,
 
 	render = RunService.PreRender,
 	frame = RunService.Heartbeat,

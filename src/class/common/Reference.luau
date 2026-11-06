@@ -1,4 +1,11 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
+const LuaObject = require("@class/core/LuaObject")
 const Observer = require("@class/core/Observer")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
@@ -6,7 +13,7 @@ const types = require("@declare/types")
 const ReferenceNotification = require("@enums/notification/ReferenceNotification")
 const rbxtypes = require("@platform/roblox/rbxtypes")
 const ftype = require("@static/ftype")
-const utypes = require("@declare/utypes")
+const std = require("@extension/std")
 
 const private = {type = "reference"}
 const class: reference = (Observer :: observer<enumitem_reference_notification>):new({
@@ -34,14 +41,23 @@ const class: reference = (Observer :: observer<enumitem_reference_notification>)
 			return (self:get_instance() :: any)[name]
 		end)
 
+		--#if DEBUG
+		const instance = self:get_instance() :: any
+		std:outw(`{self.type}:read_field({name}) return {status} with {result} for {instance and typeof(instance) == rbxtypes.Instance and instance.Name or "*unknown*"}`)
+		--#endif
+
 		return status == true and result or nil
 	end, ftype:opt(mtypes.anyt), private.type, mtypes.anyt),
 
 	write_field = ftype:write(function(self: reference, name: any, to: any) : ()
 		if self:is_instance_exists() then
-			pcall(function ()
+			const state, out = pcall(function ()
 				(self:get_instance() :: any)[name] = to
 			end)
+
+			--#if DEBUG
+			std:outw(`{self.type}:write_field({name}, {to}) return {state} with {out}`)
+			--#endif
 		end
 	end, mtypes.never, private.type, mtypes.anyt, ftype:opt(mtypes.anyt)),
 
@@ -50,7 +66,7 @@ const class: reference = (Observer :: observer<enumitem_reference_notification>)
 			const readed = (self:get_instance() :: any)[name]
 			
 			if type ~= nil then
-				if utypes.utype(readed) == type then
+				if typeof(readed) == type then
 					return true
 				else
 					return false
@@ -75,7 +91,7 @@ const class: reference = (Observer :: observer<enumitem_reference_notification>)
 			private.connections[self] = nil
 		end
 
-		if typeof(to) == "Instance" then
+		if typeof(to) == rbxtypes.Instance then
 			const that = to :: Instance
 
 			private.connections[self] = that.Destroying:Once(function()
@@ -100,13 +116,11 @@ const class: reference = (Observer :: observer<enumitem_reference_notification>)
 		const instance = self:get_instance() :: any
 
 		if instance ~= nil then
-			const T = utypes.utype(instance)
-
-			if T == rbxtypes.Instance then
+			if typeof(instance) == rbxtypes.Instance then
 				instance:Destroy()
-			elseif T == utypes.luaobject then
-				if (self.is(instance, require("@class/core/Disposable").type)) then
-					instance:free(true)
+			elseif LuaObject:that(instance, LuaObject.type) then
+				if (LuaObject:that(instance, require("@class/core/Disposable").type)) then
+					instance:free()
 				end
 			end
 		end

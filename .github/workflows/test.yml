@@ -8,7 +8,7 @@ on:
   pull_request:
 
 env:
-  CRATER_VERSION: v0.6.2
+  CRATER_VERSION: v0.7.5
 
 jobs:
   test:
@@ -25,7 +25,9 @@ jobs:
         uses: CompeyDev/setup-rokit@v0.1.2
 
       - name: Install tools
-        run: rokit install --no-trust-check
+        run: |
+          rokit install --no-trust-check
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -38,6 +40,7 @@ jobs:
           curl --fail --location --output "$HOME/.local/bin/crater" "https://github.com/TheExeDEV/crater/releases/download/$CRATER_VERSION/crater-linux-x64"
           chmod +x "$HOME/.local/bin/crater"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.crater/bin" >> "$GITHUB_PATH"
 
       - name: Run tests
         env:
