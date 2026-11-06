@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/TheExeDEV/crater/main/schemas/crater.schema.json",
 
   "name": "funnydevz/funny-core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "The object foundation for Roblox, which provides tools for creating games without spending time developing tools",
   "authors": ["IFMNB", "TheExeDEV"],
   "license": "MPLv2",
