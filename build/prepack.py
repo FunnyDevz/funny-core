@@ -30,7 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from crater_layout import load as load_layout
-from darklua_safe import has_marker, mask_tree, restore_tree
+from darklua_safe import compact_tree, has_marker, mask_tree, restore_tree
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -219,6 +219,7 @@ def main() -> None:
     luaurc = write_luaurc()
     transform(darklua, luaurc)
     shutil.rmtree(temporary_vendor)
+    print(f"compact > {compact_tree(TARGET_SRC)} files")
 
     # `.d.luau` is not runtime code, so it is copied after darklua.
     shutil.copyfile(SOURCE / "core.d.luau", TARGET_SRC / "core.d.luau")
