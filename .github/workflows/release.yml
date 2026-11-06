@@ -91,3 +91,15 @@ jobs:
             --target "${{ github.event.workflow_run.head_sha || github.sha }}" \
             --title "funny-core ${{ steps.version.outputs.version }}" \
             --generate-notes
+
+      - name: Publish to the crater registry
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          CRATER_GITHUB_TOKEN: ${{ secrets.CRATER_GITHUB_TOKEN }}
+          CORE_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          if [ -z "$CRATER_GITHUB_TOKEN" ]; then
+            echo "::warning::CRATER_GITHUB_TOKEN is not set, run crater publish by hand for ${{ steps.version.outputs.tag }}"
+            exit 0
+          fi
+          crater publish -y

@@ -430,7 +430,7 @@ git push --tags
 
 PR из форков секретов не получают и тесты в Open Cloud не запускают.
 
-Публикация в реестр crater в CI не настроена намеренно: `crater publish` делает человек после зелёного `main`.
+Публикация в реестр crater выполняется в `release.yml` вместе с GitHub Release (см. ниже).
 
 ### 6.1. GitHub Release
 
@@ -439,7 +439,10 @@ PR из форков секретов не получают и тесты в Ope
 1. читает `version` из `crater.json`; если релиз `v<version>` уже есть, ничего не делает;
 2. ставит gpp и crater `v0.7.5`, выполняет `crater install --locked -y`;
 3. собирает архив пакета `crater pack -o dist/funny-core-<version>.zip` и место `python3 build/build.py`, копирует `build.rbxl` в `dist/funny-core-<version>.rbxl`;
-4. создаёт GitHub Release `v<version>` на слитом коммите с этими двумя файлами и автоматическими release notes.
+4. создаёт GitHub Release `v<version>` на слитом коммите с этими двумя файлами и автоматическими release notes;
+5. выполняет `crater publish -y`, который открывает PR в `TheExeDEV/crater-registry`. Для этого нужен секрет `CRATER_GITHUB_TOKEN`: classic personal access token участника организации `funnydevz` (членство публичное) со scope `public_repo` и `read:org`. Встроенный `GITHUB_TOKEN` не подходит: он не может открыть PR в другом репозитории. Если секрета нет, шаг пропускается с предупреждением, и `crater publish` нужно выполнить вручную.
+
+Публикация запускается только тогда, когда workflow создал новый релиз, поэтому одна версия не отправляется в реестр дважды.
 
 Чтобы выпустить новый релиз, подними версию (`crater bump`) в PR и слей его в `main`.
 
