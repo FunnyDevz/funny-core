@@ -12,7 +12,11 @@ import sys
 import tempfile
 from pathlib import Path
 
-PACKAGES = ("Packages", "ServerPackages")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from crater_layout import load as load_layout
+from darklua_safe import mask_tree, restore_tree
+
 SKIPPED = (".gpp", ".d.luau", ".project.json", ".darklua.json", ".md")
 DARKLUA_CONFIG = "build_info.darklua.json"
 LUAURC = "config.luaurc"
@@ -77,13 +81,16 @@ def collect_defines() -> list[str]:
     return []
 
 
-def preprocess(gpp: str, source: Path, target: Path, defines: list[str], header: Path) -> None:
+def preprocess(gpp: str, source: Path, target: Path, defines: list[str], header: Path, vendor: str) -> None:
     for file in sorted(source.rglob("*")):
         if not file.is_file():
             continue
 
         relative = file.relative_to(source)
         name = file.name
+
+        if relative.parts and relative.parts[0] == vendor:
+            continue
 
         if not name.endswith(".luau") or name.endswith(SKIPPED):
             continue
@@ -107,22 +114,43 @@ def transform(darklua: str, source: Path, target: Path) -> None:
     luaurc = target / ".luaurc"
     shutil.copyfile(source / LUAURC, luaurc)
 
+    masked = mask_tree(target)
+
+    # darklua 0.19.0 drops Luau's `f <<T>>(x)` while regenerating the AST, so
+    # the instantiations are temporarily masked as comments. `--format
+    # retain_lines` is required because the default format strips comments.
     print("darklua > core")
     try:
-        run([darklua, "process", str(target), str(target), "--config", str(source / DARKLUA_CONFIG)])
+        run([
+            darklua,
+            "process",
+            str(target),
+            str(target),
+            "--config",
+            str(source / DARKLUA_CONFIG),
+            "--format",
+            "retain_lines",
+        ])
     finally:
         luaurc.unlink(missing_ok=True)
 
+    try:
+        restore_tree(masked)
+    except ValueError as error:
+        fail(str(error))
 
-def copy_packages(root: Path, output: Path) -> None:
-    missing = [name for name in PACKAGES if not (root / name).is_dir()]
+    if masked:
+        print(f"check > preserved type instantiations in {len(masked)} files")
 
-    if missing:
-        fail(f"missing {', '.join(missing)}, run `crater install` first")
 
-    for name in PACKAGES:
-        print(f"copy > {name}")
-        shutil.copytree(root / name, output / name)
+def copy_vendor(layout: dict, output: Path) -> None:
+    source = layout["vendor_path"]
+
+    if not source.is_dir():
+        fail(f"missing {layout['vendor']}, run `crater install` first")
+
+    print(f"copy > {layout['vendor_path']}")
+    shutil.copytree(source, output / "core" / layout["vendor_name"])
 
 
 def write_project(output: Path) -> Path:
@@ -131,7 +159,6 @@ def write_project(output: Path) -> Path:
         "$className": "DataModel",
         "ReplicatedStorage": {
             "core": {"$path": "core"},
-            **{name: {"$path": name} for name in PACKAGES},
         },
     }
 
@@ -148,6 +175,7 @@ def main() -> None:
     root = find_root(cwd)
     source = root / "src"
     output = (arguments.output or cwd.parent / "bin").resolve()
+    layout = load_layout(root)
 
     if output == root or output in source.parents or output == source or source in output.parents:
         fail(f"refusing to build into {output}")
@@ -173,9 +201,11 @@ def main() -> None:
             (source / "project.gpp").read_text("utf-8") + "\n" + (source / "build.gpp").read_text("utf-8"),
             "utf-8",
         )
-        preprocess(gpp, source, core, collect_defines(), header)
+        preprocess(gpp, source, core, collect_defines(), header, layout["vendor_name"])
 
-    copy_packages(root, output)
+    # Vendor has to exist before darklua resolves `@import` / `@include`.
+    # `build_info.darklua.json` skips `vendor/**`, so the files stay pristine.
+    copy_vendor(layout, output)
     transform(darklua, source, core)
 
     project = write_project(output)

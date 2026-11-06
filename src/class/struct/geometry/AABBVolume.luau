@@ -34,36 +34,21 @@ const class: aabbvolume = CubeVolume:new({
 					return false
 				end
 
-				if not private.is_inside_aabb(
-					self.min,
-					self.max,
-					other_min,
-					other_max
-				)
-				then
-					return false 
+				if not private.is_inside_aabb(self.min, self.max, other_min, other_max) then
+					return false
 				end
-
 			elseif self:that(value, "aabbvolume") then
 				const volume = value :: aabbvolume
 
-				if not private.is_inside_aabb(
-					self.min,
-					self.max,
-					volume.min,
-					volume.max
-				)
-				then
+				if not private.is_inside_aabb(self.min, self.max, volume.min, volume.max) then
 					return false
 				end
-
 			elseif self:that(value, "cubevolume") then
 				const volume = value :: cubevolume
 
 				if not private.is_inside_cube(self, volume) then
 					return false
 				end
-
 			else
 				--#if DEBUG
 				std:oute("unsupported geometry in AABB is_inside")
@@ -76,7 +61,7 @@ const class: aabbvolume = CubeVolume:new({
 	end, types.boolean, "aabbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	is_interacts = ftype:write(function(self: aabbvolume, ...: unknown): boolean
-		for _, value in {...} do
+		for _, value in { ... } do
 			if not self:is_inside(value) and not self:is_intersection(value) then
 				return false
 			end
@@ -86,7 +71,7 @@ const class: aabbvolume = CubeVolume:new({
 	end, types.boolean, "aabbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	is_intersection = ftype:write(function(self: aabbvolume, ...: unknown): boolean
-		for _, value in {...} do
+		for _, value in { ... } do
 			if typeof(value) == rbxtypes.Instance then
 				const instance = value :: Instance
 
@@ -99,36 +84,21 @@ const class: aabbvolume = CubeVolume:new({
 					return false
 				end
 
-				if not private.is_intersection_aabb(
-					self.min,
-					self.max,
-					other_min,
-					other_max
-				)
-				then
+				if not private.is_intersection_aabb(self.min, self.max, other_min, other_max) then
 					return false
 				end
-
 			elseif self:that(value, "aabbvolume") then
 				const volume = value :: aabbvolume
 
-				if not private.is_intersection_aabb(
-					self.min,
-					self.max,
-					volume.min,
-					volume.max
-				)
-				then
+				if not private.is_intersection_aabb(self.min, self.max, volume.min, volume.max) then
 					return false
 				end
-
 			elseif self:that(value, "cubevolume") then
 				const volume = value :: cubevolume
 
 				if not private.is_intersection_cube(self, volume) then
 					return false
 				end
-
 			else
 				--#if DEBUG
 				std:oute("unsupported geometry in AABB is_intersection")
@@ -141,7 +111,7 @@ const class: aabbvolume = CubeVolume:new({
 	end, types.boolean, "aabbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
 	from = ftype:write(function(self: aabbvolume, ...: geometry_supported): aabbvolume
-		const values = {...}
+		const values = { ... }
 
 		if #values == 0 then
 			return self:clone()
@@ -195,7 +165,7 @@ const class: aabbvolume = CubeVolume:new({
 		return private.cover(self, table.freeze({ ... }) :: { geometry_supported })
 	end, "aabbvolume", "aabbvolume", ftype:var(rbxtypes.Instance, "aabbvolume", "obbvolume", "cubevolume")),
 
-	look_at = ftype:write(function(self: aabbvolume, at: vector, up: vector?) : aabbvolume
+	look_at = ftype:write(function(self: aabbvolume, at: vector, up: vector?): aabbvolume
 		const center = self:get_center()
 		const direction = at - center
 
@@ -218,10 +188,11 @@ const class: aabbvolume = CubeVolume:new({
 		const real_up = vector.normalize(vector.cross(front, right))
 		const half = self.half
 
-		const world_half =
-			vector.create(math.abs(right.x) * half.x + math.abs(real_up.x) * half.y + math.abs(front.x) * half.z, math.abs(
-				right.y
-			) * half.x + math.abs(real_up.y) * half.y + math.abs(front.y) * half.z, math.abs(right.z) * half.x + math.abs(real_up.z) * half.y + math.abs(front.z) * half.z)
+		const world_half = vector.create(
+			math.abs(right.x) * half.x + math.abs(real_up.x) * half.y + math.abs(front.x) * half.z,
+			math.abs(right.y) * half.x + math.abs(real_up.y) * half.y + math.abs(front.y) * half.z,
+			math.abs(right.z) * half.x + math.abs(real_up.z) * half.y + math.abs(front.z) * half.z
+		)
 
 		return self:clone(private.from_bounds(center - world_half, center + world_half))
 	end, "aabbvolume", "aabbvolume", types.vector, ftype:opt(types.vector)),
@@ -259,10 +230,11 @@ do
 		const up = cframe.UpVector
 		const front = cframe.LookVector
 
-		const half =
-			vector.create(math.abs(right.X) * half_x + math.abs(up.X) * half_y + math.abs(front.X) * half_z, math.abs(
-				right.Y
-			) * half_x + math.abs(up.Y) * half_y + math.abs(front.Y) * half_z, math.abs(right.Z) * half_x + math.abs(up.Z) * half_y + math.abs(front.Z) * half_z)
+		const half = vector.create(
+			math.abs(right.X) * half_x + math.abs(up.X) * half_y + math.abs(front.X) * half_z,
+			math.abs(right.Y) * half_x + math.abs(up.Y) * half_y + math.abs(front.Y) * half_z,
+			math.abs(right.Z) * half_x + math.abs(up.Z) * half_y + math.abs(front.Z) * half_z
+		)
 
 		const center = vector.create(position.X, position.Y, position.Z)
 
@@ -276,7 +248,6 @@ do
 			const cframe, size = instance:GetBoundingBox()
 
 			return private.from_cframe(cframe, size)
-
 		elseif instance:IsA("PVInstance") then
 			return private.from_cframe(instance:GetPivot(), Vector3.one)
 		end

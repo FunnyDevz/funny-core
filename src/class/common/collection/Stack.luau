@@ -1,13 +1,20 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const LuaObject = require("@class/core/LuaObject")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
+const std = require("@extension/std")
 const ftype = require("@static/ftype")
 
-const private = {}
+const private = {type = "stack"}
 const class: stack = LuaObject:new({
-	type = "stack",
+	type = private.type,
 	max = 10000,
 
 	pick = ftype:write(function<T>(self: stack): T?
@@ -16,18 +23,21 @@ const class: stack = LuaObject:new({
 		const value = stack[index]
 		stack[index] = nil
 		return value
-	end, ftype:opt(mtypes.anyt), "stack"),
+	end, ftype:opt(mtypes.anyt), private.type),
 
 	put = ftype:write(function<T>(self: stack, item: T): ()
 		const stack = private.stacks[self]
-		stack[#stack + 1] = item
 
-		assert(#stack <= self.max, "stack limit capacity reached")
-	end, mtypes.never, "stack", mtypes.anyt),
+		if not std:check(#stack + 1 <= self.max, "stack limit capacity reached") then
+			return
+		end
+
+		stack[#stack + 1] = item
+	end, mtypes.never, private.type, mtypes.anyt),
 
 	count = ftype:write(function(self: stack): number
 		return #private.stacks[self]
-	end, types.number, "stack"),
+	end, types.number, private.type),
 })
 
 class:host(function(new)
@@ -36,8 +46,7 @@ class:host(function(new)
 end)
 
 do
-	private.meta = tables.__mode_ks
-	private.stacks = setmetatable({} :: { [stack]: { any } }, private.meta)
+	private.stacks = setmetatable({} :: { [stack]: { any } }, tables.__mode_ks)
 end
 
 return class

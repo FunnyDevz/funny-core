@@ -6,19 +6,17 @@
 
 const EnumItem = require("@class/core/EnumItem")
 const LuaObject = require("@class/core/LuaObject")
-const mtypes = require("@declare/mtypes")
-const tables = require("@declare/tables")
 const types = require("@declare/types")
 const std = require("@extension/std")
-const Cryptography = require("@import/Cryptography")
 const ftype = require("@static/ftype")
 
 type indexed = enumobject & { [unknown]: unknown }
 
-const private = {type = "enumobject"}
+const private = { type = "enumobject" }
 const class: enumobject = LuaObject:new({
 	type = private.type,
 	name = private.type,
+	build_enumitem_mark = newproxy(),
 
 	get_enums_list = ftype:write(function<T>(self: enumobject): { [unknown]: enumitem }
 		const result: { [unknown]: enumitem } = {}
@@ -92,80 +90,38 @@ const class: enumobject = LuaObject:new({
 			const var = that :: string
 			const item: unknown = (self :: indexed)[var]
 
-			if item == nil then return false end
-			if self:that(item, EnumItem.type) then return true end
+			if item == nil then
+				return false
+			end
+			if self:that(item, EnumItem.type) then
+				return true
+			end
 
 		--#if !DEBUG
-        else
+		else
 			std:oute("unexpected that for enumitem")
-		--#endif
-        end
+			--#endif
+		end
 
 		return false
 	end, types.boolean, private.type, EnumItem.type),
 })
 
 class:host(function(new)
-	const new = new:as <<enumobject>> (class.type)
-    const tnew = new :: any
+	const new = new:as<<enumobject>>(class.type)
 
+	for i, v in new :: { [unknown]: unknown } do
+		if i == "build_enumitem_mark" then
+			continue
+		elseif v == new.build_enumitem_mark then
+			const new_item = EnumItem:new({
+				name = tostring(i),
+				enum = new,
+			})
 
-
-	for i, v: enumitem in new:get_enums_list() do
-		const name = tostring(i)
-		local item_var: any = v
-
-
-        --#if CORE_ENUMITEM_FREEZE
-
-        item_var = EnumItem:new({
-            name = name,
-            enum = new,
-        })
-
-		if (not table.isfrozen(item_var)) then
-			table.freeze(item_var)
+			new[i] = new_item
 		end
-
-        --#else
-
-        item_var.enum = new
-        item_var.name = name
-        item_var.hashlink = Cryptography.Hashing.Blake3.Digest(buffer.fromstring(`{new.name}.{name}`))
-
-        --#endif
-
-
-        --#if DEBUG
-        const collision: enumitem? = private.item_builded[item_var.hashlink]
-        if collision and collision ~= item_var and collision.enum ~= new then
-            std:outw(
-                string.format(
-                    "enumitem hashlink collision with: \n\n %s (%s) \n %s (%s) \n\n parents: \n\n %s \n %s  ",
-                    item_var.name,
-                    item_var.hashlink,
-                    collision.name :: any,
-                    collision.hashlink :: any,
-                    item_var.enum and item_var.enum.name or mtypes.never,
-                    collision.enum and collision.enum.name or mtypes.never :: any
-                )
-            )
-        end
-        --#endif
-
-		tnew[name] = item_var
-		private.item_builded[item_var.hashlink] = item_var
 	end
-
-	--#if CORE_ENUMOBJECT_FREEZE
-	if not table.isfrozen(new) then
-		table.freeze(new)
-	end
-	--#endif
 end)
-
-do
-	private.item_builded = setmetatable({} :: { [string]: enumitem }, tables.__mode_vs)
-end
 
 return class

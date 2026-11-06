@@ -9,12 +9,6 @@
       "spec": {
         "$path": "CI/build/spec"
       },
-      "Packages": {
-        "$path": "Packages"
-      },
-      "ServerPackages": {
-        "$path": "ServerPackages"
-      },
       "DevPackages": {
         "$path": "DevPackages"
       }

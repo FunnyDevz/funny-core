@@ -10,7 +10,7 @@ Jest-тесты, которые проверяют, что рантайм ядр
 - [Roblox Studio](https://create.roblox.com/), запущенная хотя бы раз и залогиненная;
 - [Python](https://www.python.org/) 3.12+;
 - [rokit](https://github.com/rojo-rbx/rokit);
-- [crater](https://github.com/TheExeDEV/crater) 0.6.2+.
+- [crater](https://github.com/TheExeDEV/crater) 0.7.0+.
 
 ### Из архива
 
@@ -111,7 +111,7 @@ crater publish
 | `Studio did not start the run within 45000ms` | Headless Studio не успела загрузиться. Закрой открытые Studio. На медленной машине увеличь окно запуска переменной `JEST_ROBLOX_STUDIO_BOOT_TIMEOUT` (в мс), например `120000`. |
 | `Studio run timed out` | Либо Studio не подхватила прогон, либо в ядре что-то вешает VM. Смотри «Известные проблемы». |
 | `Do not import JestGlobals outside of the Jest 3 test environment` | Пакет jest-globals должен называться ровно `JestGlobals`, это алиас в `crater.json`. |
-| `prepare: missing Packages, DevPackages` | Не выполнен `crater install -y`. |
+| `prepare: missing src/vendor, DevPackages` | Не выполнен `crater install -y`. |
 | `require <модуль> failed: …` в тесте | Модуль ядра падает при загрузке, текст ошибки идёт следом. Это баг ядра, а не теста. |
 
 ## Известные проблемы ядра

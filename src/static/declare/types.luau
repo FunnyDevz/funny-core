@@ -50,6 +50,9 @@ export type types = {
         Соответствие к `buffer`
     ]==]
 	read buffer: "buffer",
+
+	read primetive_types: {[number]: "number" | "string" | "boolean" | string},
+	read link_types: {[number]: "table" | "userdata" | "vector" | "thread" | "buffer" | "function" | string}
 }
 
 const types: types = table.freeze {
@@ -63,6 +66,8 @@ const types: types = table.freeze {
 	["thread"] = "thread" :: "thread",
 	["userdata"] = "userdata" :: "userdata",
 	["buffer"] = "buffer" :: "buffer",
+	["primetive_types"] = table.freeze {"number", "string", "boolean"} :: any,
+	["link_types"] = table.freeze {"table", "userdata", "vector", "thread", "buffer", "function"} :: any
 }
 
 return types

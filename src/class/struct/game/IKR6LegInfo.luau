@@ -1,5 +1,5 @@
 --!strict
-const IKR6LimbInfo = require("@class/struct/game/ik/IKR6LimbInfo")
+const IKR6LimbInfo = require("@class/struct/game/IKR6LimbInfo")
 
 const class: ikr6leginfo = IKR6LimbInfo:new({
 	type = "ikr6leginfo",

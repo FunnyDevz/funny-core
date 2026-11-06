@@ -8,9 +8,8 @@
 const Reference = require("@class/common/Reference")
 const Maybe = require("@class/common/gc/Maybe")
 const Disposable = require("@class/core/Disposable")
-const IKR6Info = require("@class/struct/game/ik/IKR6Info")
+const IKR6Info = require("@class/struct/game/IKR6Info")
 const mtypes = require("@declare/mtypes")
-const Cryptography = require("@import/Cryptography")
 const ftype = require("@static/ftype")
 const ReferenceBasePart = require("@templates/class/reference/ReferenceBasePart")
 const ReferenceHumanoid = require("@templates/class/reference/ReferenceHumanoid")
@@ -43,7 +42,7 @@ const class : ikr6solver = Disposable:new {
 do
 	private.maybe_humanoid = Maybe:new() :: maybe<reference<Humanoid?>, ikr6solver>
 	private.maybe_torso = Maybe:new() :: maybe<reference<BasePart?>, ikr6solver>
-    private.info_key = Cryptography.Hashing.SHA2.SHA256(buffer.fromstring "ikr6legs_info_key")
+    private.info_key = newproxy()
 end
 
 return class

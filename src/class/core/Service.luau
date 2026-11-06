@@ -4,7 +4,10 @@
 --#include <fflag_core.gpp>
 --#include <fflag.gpp>
 
+
+
 const LuaObject = require("@class/core/LuaObject")
+
 
 const class: service = LuaObject:new({
 	type = "service",

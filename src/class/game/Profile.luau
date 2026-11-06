@@ -16,6 +16,7 @@ const NetPack = require("@class/struct/common/NetPack")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
+const DataInternalVariant = require("@enums/descriptor/DataInternalVariant")
 const SharedNetLink = require("@enums/descriptor/SharedNetLink")
 const DataNotification = require("@enums/notification/DataNotification")
 const NetNotification = require("@enums/notification/NetNotification")
@@ -366,7 +367,7 @@ do
 		const snapshot = private.snapshot(of, to.UserId == of.uid)
 
 		if snapshot then
-			SharedNet:emit_event(net, NetPack:pack({ to }, "snapshot", of.uid, snapshot))
+			SharedNet:emit_event(net, NetPack:pack({ to }, DataInternalVariant.DataSnapshot.hashlink, of.uid, snapshot))
 		else
 			SharedNet:emit_event(net, NetPack:pack({ to }, "exit", of.uid))
 		end

@@ -49,6 +49,25 @@ const class: inventory = (Observer :: observer<enumitem_list_notification>):new(
 		return unpack(table.clone(private.get(self)))
 	end, ftype:var(ItemInstance.type), private.type),
 
+	count_item = ftype:write(function(self: inventory, of: item): number
+		local total = 0
+
+		for _, v in private.get(self) do
+			if v:get_item():get_value() ~= of then
+				continue
+			end
+
+			const stack = self:that <<itemstack>> (v, ItemStack.type)
+			total += if stack then stack:count() else 1
+		end
+
+		return total
+	end, types.number, private.type, Item.type),
+
+	has_item = ftype:write(function(self: inventory, of: item): boolean
+		return self:count_item(of) > 0
+	end, types.boolean, private.type, Item.type),
+
 	count = ftype:write(function(self: inventory): number
 		return #private.get(self)
 	end, types.number, private.type),
@@ -113,14 +132,31 @@ const class: inventory = (Observer :: observer<enumitem_list_notification>):new(
 				continue
 			end
 
+			const item = v:get_item():get_value()
+
+			if not item then
+				--#if DEBUG
+				std:outw("cannot insert an item instance without an item description")
+				--#endif
+				continue
+			end
+
 			const stack = self:that <<itemstack>> (v, ItemStack.type)
 
 			if stack then
+				if stack:is_empty() then
+					continue
+				end
+
 				for i, entry in table.clone(entries) do
 					const target = self:that <<itemstack>> (entry, ItemStack.type)
 
 					if target and not target:is_full() then
 						target:insert(stack)
+					end
+
+					if stack:is_empty() then
+						break
 					end
 				end
 
@@ -254,12 +290,6 @@ const class: inventory = (Observer :: observer<enumitem_list_notification>):new(
 	end, types.boolean, private.type),
 })
 
-class:host(function(new)
-	const new = new:as <<inventory>> (class.type)
-	new:set(private.entries_key, {})
-	new:set(private.watch_key, {})
-end)
-
 do
 	private.entries_key = newproxy()
 	private.watch_key = newproxy()
@@ -277,9 +307,14 @@ do
 	private.instances = {} :: { [string]: { [number]: iteminstance } }
 	private.flushing = false
 
-	--#if CORE_CLASS_USEABLE
-	class:set(private.entries_key, {})
-	class:set(private.watch_key, {})
+	private.new = function (new: luaobject)
+		const new = new:as<<inventory>>(class.type)
+		new:set(private.entries_key, {})
+		new:set(private.watch_key, {})
+	end
+
+	--#if ALL_CLASS_USEABLE
+	private.new(class)
 	--#endif
 
 	private.get = function(of: inventory): { iteminstance }
@@ -505,7 +540,12 @@ do
 		end
 		--#endif
 
-		instance:get_item():set_value(item)
+		if class:that(item, Item.type) then
+			instance:get_item():set_value(item :: item)
+		else
+			instance:get_item():set_value(Item:get_null_item())
+		end
+
 		return instance
 	end
 
@@ -552,5 +592,7 @@ do
 		end
 	end
 end
+
+class:host(private.new)
 
 return class

@@ -8,8 +8,8 @@
 const Maybe = require("@class/common/gc/Maybe")
 const IKR6Foot = require("@class/game/character/ik/r6/IKR6Foot")
 const IKR6Solver = require("@class/game/character/ik/r6/IKR6Solver")
-const IKR6Info = require("@class/struct/game/ik/IKR6Info")
-const IKR6LegInfo = require("@class/struct/game/ik/IKR6LegInfo")
+const IKR6Info = require("@class/struct/game/IKR6Info")
+const IKR6LegInfo = require("@class/struct/game/IKR6LegInfo")
 const Basis = require("@class/struct/geometry/Basis")
 const tables = require("@declare/tables")
 const ConnectionVariant = require("@enums/descriptor/ConnectionVariant")
@@ -31,11 +31,23 @@ const class : ikr6legs = IKR6Solver:new {
     last_work_time = 0,
 
     get_left_leg = ftype:write(function (self: ikr6legs) : ikr6foot
-        return private.maybe_left_legs:extract(self, private.create_left_ikr6foot)
+        if not private.maybe_left_legs:exist(self) then
+            const left_leg = private.maybe_left_legs:enactment(self, IKR6Foot)
+            self:finally(left_leg)
+            return left_leg
+        else
+            return private.maybe_left_legs:enactment(self, IKR6Foot)
+        end
     end, IKR6Foot.type, private.type),
 
     get_right_leg = ftype:write(function (self: ikr6legs) : ikr6foot
-        return private.maybe_right_legs:extract(self, private.create_right_ikr6foot)
+        if not private.maybe_right_legs:exist(self) then
+            const right_leg = private.maybe_right_legs:enactment(self, IKR6Foot)
+            self:finally(right_leg)
+            return right_leg
+        else
+            return private.maybe_right_legs:extract(self, private.create_right_ikr6foot)
+        end
     end, IKR6Foot.type, private.type),
 
     get_active_cycle_leg_pair = ftype:write(function (self: ikr6legs) : (ikr6foot, ikr6foot)
@@ -136,7 +148,6 @@ do
         )
 
         new:set_info(private.default_ikr6info)
-        new:watch(private.free_legs)
 
         const left_leg =  new:get_left_leg()
         const right_leg = new:get_right_leg()
@@ -178,21 +189,6 @@ do
                 is_moving = vector.magnitude(dir) >= 0.01
             }
         end
-
-        private.free_legs = function (related: disposable)
-            const self = related:as <<ikr6legs>>(class.type)
-
-            table.remove(private.list, table.find(private.list, self) or 0)
-
-            if private.maybe_left_legs:exist(self) then
-                self:get_left_leg():free()
-            end
-
-            if private.maybe_right_legs:exist(self) then
-                self:get_right_leg():free()
-            end
-        end
-
     end
 
 

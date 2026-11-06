@@ -5,10 +5,23 @@
 --#include <fflag_core.gpp>
 --#include <fflag.gpp>
 
-const Struct = require("@class/core/Struct")
+const Event = require("@class/common/signal/Event")
 
-const class: itembehavior = Struct:new({
-	type = "itembehavior",
+const private = { type = "itembehavior" }
+const class: itembehavior = (Event :: event<enumitem_item_notification, itembehavior, itemcontext>):new({
+	type = private.type,
 })
+
+do
+	private.new = function(new: luaobject): ()
+		const _new = new:as<<itembehavior>>(class.type)
+	end
+
+	--#if ALL_CLASS_USEABLE
+	private.new(class)
+	--#endif
+end
+
+class:host(private.new)
 
 return class

@@ -14,9 +14,13 @@ ROOT = CI.parent
 SOURCE = ROOT / "src"
 TARGET = CI / "build"
 
+sys.path.insert(0, str(ROOT / "build"))
+
+from crater_layout import load as load_layout
+
+LAYOUT = load_layout(ROOT)
 REQUIRED = {
-    "Packages": ROOT / "Packages",
-    "ServerPackages": ROOT / "ServerPackages",
+    LAYOUT["vendor_path"].relative_to(ROOT).as_posix(): LAYOUT["vendor_path"],
     "DevPackages": ROOT / "DevPackages",
 }
 
@@ -144,6 +148,9 @@ def build_core() -> None:
 
     for file in sorted(SOURCE.rglob("*.luau")):
         relative = file.relative_to(SOURCE).as_posix()
+        vendor = LAYOUT["vendor_name"]
+        if relative == vendor or relative.startswith(f"{vendor}/"):
+            continue
         if relative.endswith(".d.luau"):
             continue
 
@@ -157,6 +164,9 @@ def build_core() -> None:
         output = core / relative
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(text, "utf-8", newline="\n")
+
+    # Vendored packages are already built and are never preprocessed.
+    shutil.copytree(LAYOUT["vendor_path"], core / LAYOUT["vendor_name"])
 
 
 def build_spec() -> None:

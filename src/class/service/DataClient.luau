@@ -1,11 +1,14 @@
 --!strict
 const Event = require("@class/common/signal/Event")
 const EnumItem = require("@class/core/EnumItem")
+const EnumObject = require("@class/core/EnumObject")
+const Scheduler = require("@class/core/Scheduler")
 const Service = require("@class/core/Service")
 const SharedNet = require("@class/service/SharedNet")
 const NetPack = require("@class/struct/common/NetPack")
 const mtypes = require("@declare/mtypes")
 const types = require("@declare/types")
+const DataInternalVariant = require("@enums/descriptor/DataInternalVariant")
 const SharedNetLink = require("@enums/descriptor/SharedNetLink")
 const DataNotification = require("@enums/notification/DataNotification")
 const NetNotification = require("@enums/notification/NetNotification")
@@ -15,9 +18,9 @@ const ftype = require("@static/ftype")
 
 type data_event = event<enumitem_data_notification, ...any>
 
-const private = {}
+const private = {type = "dataclient", active = false}
 const class: dataclient = Service:new({
-	type = "dataclient",
+	type = private.type,
 	name = "DataClient",
 
 	start = ftype:write(function(self: dataclient): ()
@@ -25,13 +28,24 @@ const class: dataclient = Service:new({
 			return
 		end
 
+		if private.active then
+			return
+		end
+
 		self.enabled = true
-		task.spawn(private.connect)
-	end, mtypes.never, "dataclient"),
+		private.active = true
+
+		const scheduler = Scheduler:whose()
+		if scheduler then
+			scheduler:plan(private.connect)
+		else
+			task.spawn(private.connect)
+		end
+	end, mtypes.never, private.type),
 
 	get_state = ftype:write(function(self: dataclient): enumitem_data_state
 		return private.state
-	end, EnumItem.type, "dataclient"),
+	end, EnumItem.type, private.type),
 
 	get_value = ftype:write(function<T>(self: dataclient, path: data_path): T
 		local node: any = private.data
@@ -45,17 +59,17 @@ const class: dataclient = Service:new({
 		end
 
 		return node
-	end, ftype:opt(mtypes.anyt), "dataclient", ftype:uor(types.string, types.table)),
+	end, ftype:opt(mtypes.anyt), private.type, ftype:uor(types.string, types.table)),
 
 	wait_loaded = ftype:write(function(self: dataclient): ()
 		if private.state ~= DataState.ProfileLoaded then
 			private.event:wait(DataNotification.DataLoaded)
 		end
-	end, mtypes.never, "dataclient"),
+	end, mtypes.never, private.type),
 
 	get_data_event = ftype:write(function(self: dataclient): data_event
 		return private.event
-	end, Event.type, "dataclient"),
+	end, Event.type, private.type),
 })
 
 do
@@ -69,14 +83,19 @@ do
 		net:connect(NetNotification.Received, function(pack: netpack)
 			const action, a, b = pack:payload()
 
-			if action == "snapshot" then
+			if action == DataInternalVariant.DataSnapshot.hashlink then
 				private.apply_snapshot(a)
-			elseif action == "set" then
+			elseif action == DataInternalVariant.DataSet.hashlink then
 				private.apply_set(a, b)
+			--#if DEBUG
+			else
+				const try_get_enumitem = EnumObject:get_enum_by_hashlink(tostring(action))
+				std:oute(`unexpected action type {action} >> {try_get_enumitem and try_get_enumitem.name or "*unknown-enumitem*"}`)
+			--#endif
 			end
 		end)
 
-		SharedNet:emit_event(net, NetPack:pack(nil, "ready"))
+		SharedNet:emit_event(net, NetPack:pack(nil, DataInternalVariant.DataReady.hashlink))
 	end
 
 	function private.split(path: data_path): { string }

@@ -1,7 +1,7 @@
 --!strict
+const mtluaobject = require("@project/mtluaobject")
 const mtypes = require("@static/declare/mtypes")
 const types = require("@static/declare/types")
-const utypes = require("@static/declare/utypes")
 
 --[==[
 	Represents a type value.
@@ -120,14 +120,10 @@ const relevant_meta = table.freeze({
 	[mtypes.nan] = function(value: unknown): boolean
 		return type(value) == types.number and value ~= value
 	end,
-
-	[utypes.luaobject] = function(value: unknown): boolean
-		return argument.is_luaobject(value)
-	end,
 }) :: { read [string]: (value: unknown) -> boolean }
 
 function argument.is_luaobject(value: unknown): boolean
-	if type(value) ~= types.table then
+	if type(value) ~= mtluaobject.luaobject_type then
 		return false
 	end
 
@@ -142,7 +138,7 @@ function argument.match_tval(value: unknown, name: string): boolean
 		return meta(value)
 	end
 
-	if type(value) == name or typeof(value) == name or utypes:utype(value) == name then
+	if type(value) == name or typeof(value) == name then
 		return true
 	end
 

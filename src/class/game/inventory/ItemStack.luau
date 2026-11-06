@@ -23,6 +23,10 @@ const class: itemstack = (ItemInstance :: iteminstance):new({
 		return private.get_max(self)
 	end, types.number, private.type),
 
+	get_max = ftype:write(function(self: itemstack): number
+		return private.get_max(self)
+	end, types.number, private.type),
+
 	is_full = ftype:write(function(self: itemstack): boolean
 		const max = private.get_max(self)
 		return max > 0 and self:count() >= max
@@ -87,16 +91,16 @@ const class: itemstack = (ItemInstance :: iteminstance):new({
 	end, ftype:var(types.boolean), private.type, ftype:var(private.type)),
 })
 
-class:host(function(new)
-	const new = new:as <<itemstack>> (class.type)
-	new:set(private.count_key, 0)
-end)
-
 do
 	private.count_key = newproxy()
 
-	--#if CORE_CLASS_USEABLE
-	class:set(private.count_key, 0)
+	private.new = function (new: luaobject)
+		const new = new:as<<itemstack>>(class.type)
+		new:set(private.count_key, 0)
+	end
+
+	--#if ALL_CLASS_USEABLE
+	private.new(class)
 	--#endif
 
 	private.get_max = function(of: itemstack): number
@@ -135,5 +139,7 @@ do
 		end
 	end
 end
+
+class:host(private.new)
 
 return class

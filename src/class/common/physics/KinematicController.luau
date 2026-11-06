@@ -53,11 +53,6 @@ const class: kinematiccontroller = LuaObject:new({
 	end, mtypes.never, private.type),
 })
 
-class:host(function(new)
-	const new = new:as <<kinematiccontroller>> (class.type)
-	private.states[new] = private.new_state()
-end)
-
 do
 	type state = {
 		error: quantity?,
@@ -82,13 +77,14 @@ do
 
 	private.meta = tables.__mode_ks
 	private.states = setmetatable({} :: { [kinematiccontroller]: state }, private.meta)
-
-	private.new_state = function(): state
-		return {}
+	private.new_state = function(): state return {} end
+	private.new = function (new: luaobject)
+		const new = new:as<<kinematiccontroller>>(class.type)
+		private.states[new] = private.new_state()
 	end
 
-	--#if CORE_CLASS_USEABLE
-	private.states[class] = private.new_state()
+	--#if ALL_CLASS_USEABLE
+	private.new(class)
 	--#endif
 
 	private.get_state = function(of: kinematiccontroller): state
@@ -214,5 +210,7 @@ do
 		return output
 	end
 end
+
+class:host(private.new)
 
 return class

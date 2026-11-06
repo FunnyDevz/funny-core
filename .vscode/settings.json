@@ -31,8 +31,11 @@
     ".rojo/**",
     "Packages/**",
     "ServerPackages/**",
+    "src/vendor/**",
     "node_modules/**",
-    "DevPackages/**"
+    "DevPackages/**",
+    "CI/**",
+    "build/**"
   ],
   "luau-lsp.platform.type": "roblox"
 }

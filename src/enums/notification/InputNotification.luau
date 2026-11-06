@@ -1,19 +1,18 @@
 --!strict
-const EnumItem = require("@class/core/EnumItem")
 const EnumObject = require("@class/core/EnumObject")
 
 const class: enum_input_notification = EnumObject:new({
 	name = script.Name,
 
-	CodeAdded = EnumItem:new() :: enumitem<any>,
-	CodeRemoved = EnumItem:new() :: enumitem<any>,
-	Pressed = EnumItem:new() :: enumitem<any>,
-	Clamped = EnumItem:new() :: enumitem<any>,
-	Stopped = EnumItem:new() :: enumitem<any>,
-	RelatedChanged = EnumItem:new() :: enumitem<any>,
-	RelatedNullified = EnumItem:new() :: enumitem<any>,
-	NetworkEnabled = EnumItem:new() :: enumitem<any>,
-	NetworkDisabled = EnumItem:new() :: enumitem<any>,
+	CodeAdded = EnumObject.build_enumitem_mark,
+	CodeRemoved = EnumObject.build_enumitem_mark,
+	Pressed = EnumObject.build_enumitem_mark,
+	Clamped = EnumObject.build_enumitem_mark,
+	Stopped = EnumObject.build_enumitem_mark,
+	RelatedChanged = EnumObject.build_enumitem_mark,
+	RelatedNullified = EnumObject.build_enumitem_mark,
+	NetworkEnabled = EnumObject.build_enumitem_mark,
+	NetworkDisabled = EnumObject.build_enumitem_mark,
 })
 
 return class

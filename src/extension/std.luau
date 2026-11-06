@@ -9,37 +9,37 @@ const global = require("@project/global")
     Общая сборка полезных функций
 ]==]
 export type std = {
-    --[==[
+	--[==[
         Если это `false`, то код выполняется в `main` потоке и не может быть параллельным. Иначе наоборот.
     ]==]
-    read is_parallelable: boolean,
+	read is_parallelable: boolean,
 
-    --[==[
+	--[==[
         Уникальная метка текущей виртуальной машины Luau.
 
         Позволяет определять чей именно тот или иной экземпляр. Например, 
     ]==]
-    read luau_virtual_machine_mark: string,
+	read luau_virtual_machine_mark: string,
 
-    --[==[
+	--[==[
         Общее наименование аттрибута, которое используется для проверки принадлежности к той или иной LVM.
 
         Используется потому что есть соглашение. Чисто технически можно использовать и через `Tag`
     ]==]
-    read luau_virtual_machine_attribute_name: "@LUAU_VM_MARKER",
+	read luau_virtual_machine_attribute_name: "@LUAU_VM_MARKER",
 
-    --[==[
+	--[==[
         Делает конкатенацию с `std.luau_virtual_machine_mark`
     ]==]
-    read get_luau_universal_name: (self: std, with: string) -> string,
+	read get_luau_universal_name: (self: std, with: string) -> string,
 
-    --[==[
+	--[==[
         Проверяет в каком сейчас режиме выполнения находится эта коррутина.
 
         Известно, что часть функций роблокса кидает ошибки при попытке доступа из паралелльного режима,
         поэтому ядро пользуется этим фактом.
     ]==]
-    read is_parallel: (self: std) -> boolean,
+	read is_parallel: (self: std) -> boolean,
 
 	--[==[
         Аналогичен `assert()`, работает в экосистеме ядра
@@ -57,76 +57,79 @@ export type std = {
     ]==]
 	read check: <T>(self: std, condition: T, msg: string?) -> (boolean, T & exist & truthful),
 
-    --[==[
+	--[==[
         Выводит сообщение об ошибке.
     ]==]
-    read oute: (self: std, ...any) -> never,
-    
-    --[==[
+	read oute: (self: std, ...any) -> never,
+
+	--[==[
         Выводит сообщение об ошибке для разработчиков. В проде не будет.
     ]==]
-    read outm: (self: std, ...any) -> never?,
+	read outm: (self: std, ...any) -> never?,
 
-    --[==[
+	--[==[
         Выводит сообщение.
     ]==]
-    read out: (self: std, ...any) -> (),
+	read out: (self: std, ...any) -> (),
 
-    --[==[
+	--[==[
         Выводит предупреждение.
     ]==]
-    read outw: (self: std, ...any) -> ()
+	read outw: (self: std, ...any) -> (),
 }
 
-const std: std = table.freeze {
-    luau_virtual_machine_mark = Cryptography.Hashing.Blake3.Digest(buffer.fromstring((tostring(tick() + math.random(1, 10000)))), 8),
-    luau_virtual_machine_attribute_name = "@LUAU_VM_MARKER" :: "@LUAU_VM_MARKER",
+const std: std = table.freeze({
+	luau_virtual_machine_mark = Cryptography.Hashing.Blake3.Digest(
+		buffer.fromstring((tostring(tick() + math.random(1, 10000)))),
+		8
+	),
+	luau_virtual_machine_attribute_name = "@LUAU_VM_MARKER" :: "@LUAU_VM_MARKER",
 
-    is_parallel = function ()
-        const r, _ = pcall(function(...)
-            const t = Instance.new "BoolValue"
-            t.Parent = workspace
-            t:Destroy()
-        end)
+	is_parallel = function()
+		const r, _ = pcall(function(...)
+			const t = Instance.new("BoolValue")
+			t.Parent = workspace
+			t:Destroy()
+		end)
 
-        return r
-    end,
+		return r
+	end,
 
-    -- btw if we executing in non-roblox env then we got is_parallelable as false
-    is_parallelable = pcall(function(...)
-        task.desynchronize()
-        task.synchronize()
-    end),
+	-- btw if we executing in non-roblox env then we got is_parallelable as false
+	is_parallelable = pcall(function(...)
+		task.desynchronize()
+		task.synchronize()
+	end),
 
-    get_luau_universal_name = function (self: std, name: string) : string
-        return `{self.luau_virtual_machine_mark} :: @{name}`
-    end,
+	get_luau_universal_name = function(self: std, name: string): string
+		return `{self.luau_virtual_machine_mark} :: @{name}`
+	end,
 
-    assert = function (self: std, condition, msg)
-        if (not condition) then
-            return self:oute(msg or "std::assert")
-        else
-            return condition :: any
-        end
-    end,
+	assert = function(self: std, condition, msg)
+		if not condition then
+			return self:oute(msg or "std::assert")
+		else
+			return condition :: any
+		end
+	end,
 
-    option = function (self: std, condition, msg)
-        if not condition then
-            self:outm(msg or "std::optional")
-            return condition :: any
-        else
-            return condition :: any
-        end
-    end,
+	option = function(self: std, condition, msg)
+		if not condition then
+			self:outm(msg or "std::optional")
+			return condition :: any
+		else
+			return condition :: any
+		end
+	end,
 
-    check = function (self: std, condition: any, msg: any): (boolean, any)
-        if (not condition) then
-            self:outw(msg or "std::check")
-            return false, condition :: any
-        else
-            return true, condition :: any
-        end
-    end,
+	check = function(self: std, condition: any, msg: any): (boolean, any)
+		if not condition then
+			self:outw(msg or "std::check")
+			return false, condition :: any
+		else
+			return true, condition :: any
+		end
+	end,
 
 	out = function(self: std, ...): ()
 		print(`{...}{if extension.stdout.traceback then "\n" .. debug.traceback() else ""}`)
@@ -161,6 +164,6 @@ const std: std = table.freeze {
 				) :: never
 		end
 	end,
-}
+})
 
 return std

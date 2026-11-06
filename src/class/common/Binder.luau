@@ -1,4 +1,10 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const Observer = require("@class/core/Observer")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")

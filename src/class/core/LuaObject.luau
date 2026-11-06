@@ -4,28 +4,28 @@
 --#include <fflag_core.gpp>
 --#include <fflag.gpp>
 
-
 const dummies = require("@declare/dummies")
 const mtypes = require("@declare/mtypes")
 const tables = require("@declare/tables")
 const types = require("@declare/types")
-const utypes = require("@declare/utypes")
 const std = require("@extension/std")
 const ttable = require("@extension/ttable")
+const Cryptography = require("@import/Cryptography")
+const mtluaobject = require("@project/mtluaobject")
 const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
 
-const private = {type = "luaobject"}
+const private = { type = "luaobject" }
 const class: luaobject = {
 	type = private.type,
 
 	new = ftype:write(function<T, U>(self: T, that: U?): any
-		if not std:assert(type(self) == types.table, "unexpected self argument") then
+		if not std:assert(type(self) == types.table, "unexpected 'self' argument") then
 			return dummies.nullf()
 		end
 
 		if that ~= nil then
-			if not std:assert(type(that) == types.table, "unexpected that argument, ingoring") then
+			if not std:assert(type(that) == types.table, "unexpected 'that' argument, ingoring") then
 				that = nil
 			end
 		end
@@ -97,7 +97,7 @@ const class: luaobject = {
 	base = ftype:write(function<T>(self: T & luaobject): any
 		const metainfo = getmetatable(self :: T) :: unknown?
 
-		if type(metainfo) == types.table then
+		if self:that(metainfo, private.type) then
 			return metainfo :: luaobject
 		end
 
@@ -109,7 +109,7 @@ const class: luaobject = {
 	end, mtypes.never, private.type, types["function"]),
 
 	as = ftype:write(function<T>(self: luaobject, as: string): T
-		const cast = std:assert(self:is(as), "cannot convert this luaobject to required type")
+		const cast = std:assert(self:is(as), "cannot convert this object to required type")
 
 		if not cast then
 			return dummies.voidf()
@@ -119,20 +119,42 @@ const class: luaobject = {
 	end, private.type, types.string),
 
 	that = ftype:write(function<T>(self: luaobject, that: unknown, otype: string): any?
-		if type(that) ~= types.table or type((that :: any).is) ~= types["function"] then
-			return nil
+		const identity = self.iden(that :: any) :: string?
+
+		if identity then
+			const object = that :: luaobject
+			if object:is(otype) then
+				return otype
+			end
 		end
 
-		return (that :: luaobject):is(otype) and (that :: any) or nil
+		return nil
 	end, ftype:opt(private.type), private.type, mtypes.anyt),
 
 	iden = ftype:write(function(self: luaobject): string
-		return std:get_luau_universal_name(tostring(self))
+		return private.identity[self]
 	end, types.string, private.type),
 
-	finally = ftype:write(function(self: luaobject, f: object_finally_type?): ()
+	seal = ftype:write(function(self: luaobject, f: object_finally_type?): ()
 		private.finally[self] = f
 	end, mtypes.never, private.type, types["function"]),
+
+	fetch = ftype:write(function(self: luaobject, ...: string): ...luaobject?
+		const list: { luaobject? } = {}
+		const list_str = { ... }
+
+		for i = 1, #list_str do
+			const v = list_str[i]
+
+			if type(v) ~= types.string then
+				list[i] = nil
+			else
+				list[i] = private.identity_back[v]
+			end
+		end
+
+		return table.unpack(list)
+	end, ftype:var(private.type), private.type, ftype:var(types.string)),
 
 	tget = ftype:write(function(self: luaobject, name: string): any?
 		const meta = ctype:read(self)
@@ -157,7 +179,7 @@ const class: luaobject = {
 		const field = meta:read_field(name)
 
 		if field then
-			if value == nil and field.type.opt or table.find(field.type.tval :: any, utypes:utype(value :: exist)) then
+			if value == nil and field.type.opt or table.find(field.type.tval :: any, typeof(value :: exist)) then
 				(self :: any)[name] = value
 			end
 		end
@@ -242,6 +264,9 @@ do
 		[number]: (T) -> (),
 	}
 
+	private.identity = setmetatable({} :: { [luaobject]: string }, tables.__mode_ks)
+	private.identity_back = setmetatable({} :: { [string]: luaobject }, tables.__mode_vs)
+
 	private.host_list = setmetatable({} :: { [luaobject]: host? }, tables.__mode_ks)
 	private.finally = setmetatable({} :: { [luaobject]: object_finally_type? }, tables.__mode_ks)
 
@@ -307,17 +332,42 @@ do
 			for i, v in host do
 				const state, err = pcall(v, of)
 
+				--#if DEBUG
 				if not state then
-					std:oute(of.type, ttable.find(private.host_list, host) or "*missed-luaobject*", err)
+					std:oute(of.type, ttable.find(private.host_list, host) or `*missed-{class.type}*`, err)
 				end
+				--#endif
 			end
 		end
 	end
 
-	--#if DEBUG && ALL_LOG_MISC_INFO
+	private.generate_identity = function(of: luaobject): ()
+		const new_identity = Cryptography.Verification.EdDSA.CSPRNG.RandomString(32) :: string
+		private.identity[of] = new_identity
+		private.identity_back[new_identity] = of
+	end
+
+	class:host(private.generate_identity)
+
+	--#if CORE_CLASS_USEABLE
+	private.generate_identity(class)
+	--#endif
+
+	--#if DEBUG
+
+	if mtluaobject.luaobject_type ~= type(class) then
+		std:oute(`{class.type} has different type() results ({type(class)} vs {mtluaobject.luaobject_type})`)
+	end
+
+	if mtluaobject.luaobject_can_get_type_by_tostring_func then
+		std:outw(`please check tostring() property of {class.type}`)
+	end
+
+	--#if ALL_LOG_MISC_INFO
 	class:host(function(new: luaobject)
-		std:out(string.format("luaobject::new %s", new.type))
+		std:out(`{class.type} ::new {new.type}`)
 	end)
+	--#endif
 	--#endif
 end
 

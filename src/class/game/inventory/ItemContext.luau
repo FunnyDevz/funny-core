@@ -13,6 +13,7 @@ const class: itemcontext = Struct:new({
 	related = nil :: any,
 	user = nil,
 	context = ItemContextVariant.Primary,
+	delta = 0,
 })
 
 return class

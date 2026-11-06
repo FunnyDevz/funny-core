@@ -10,7 +10,7 @@ const SAT = require("@import/SAT")
 const rbxtypes = require("@platform/roblox/rbxtypes")
 const ftype = require("@static/ftype")
 
-const private = {type = "obbvolume"}
+const private = { type = "obbvolume" }
 const class: obbvolume = CubeVolume:new({
 	type = private.type,
 	half = vector.one / 2,

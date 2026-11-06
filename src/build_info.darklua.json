@@ -1,4 +1,5 @@
 {
+  "skip_files": ["**/vendor/**"],
   "rules": [
     {
       "rule": "convert_require",

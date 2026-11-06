@@ -5,6 +5,8 @@
 /ServerPackages
 /wally.lock
 /build/target
+/build/dev
+/build/package
 /bin
 
 /*.rbxlx.lock
@@ -21,3 +23,5 @@
 /CI/build
 /funny-core-tests.zip
 __pycache__/
+src/vendor/import/
+src/vendor/include/

@@ -1,5 +1,11 @@
 --!strict
-const StateMachine = require("@class/common/StateMachine")
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
+const StateRegistry = require("@class/common/StateRegistry")
 const Maybe = require("@class/common/gc/Maybe")
 const Timer = require("@class/common/runtime/Timer")
 const Observer = require("@class/core/Observer")
@@ -41,8 +47,8 @@ const class: ability = (Observer :: observer<enumitem_ability_notification>):new
 	    self:set(private.info_key, new)
     end,
 
-    get_states = function (self: ability) : statemachine
-        return private.maybe_statemachine:enactment(self, StateMachine)
+    get_states = function (self: ability) : stateregistry
+        return private.maybe_statemachine:enactment(self, StateRegistry)
     end
 }
 
@@ -57,7 +63,7 @@ do
     private.default_ability_info = AbilityInfo:new()
     private.collision_key = newproxy()
     private.info_key = newproxy()
-    private.maybe_statemachine = Maybe:new() :: maybe<statemachine, ability>
+    private.maybe_statemachine = Maybe:new() :: maybe<stateregistry, ability>
     private.maybe_cooldown = Maybe:new() :: maybe<timer, ability>
 end
 

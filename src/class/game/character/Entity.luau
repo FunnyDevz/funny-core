@@ -34,7 +34,7 @@ const private = { type = "entity" }
 const class: entity = Disposable:new({
 	type = private.type,
 	enabled = false,
-
+	up_direction = vector.create(0, 1, 0),
 	move_direction = vector.zero,
 	jump = false,
 	walk_speed = 16,
@@ -93,7 +93,6 @@ class:host(function(new)
 end)
 
 do
-	private.up = vector.create(0, 1, 0)
 	private.epsilon = 1e-6
 	private.state_key = newproxy()
 	private.movement_key = newproxy()
@@ -104,7 +103,7 @@ do
 
 	private.new_state = function(): state
 		return {
-			normal = private.up,
+			normal = class.up_direction,
 			grounded = false,
 			rising = false,
 		}
@@ -141,12 +140,9 @@ do
 		new:set(private.rotation_key, private.new_rotation())
 
 		private.entities[new] = true
-		new:watch(function(that: disposable)
-			private.entities[that :: entity] = nil
-		end)
 	end
 
-	--#if CORE_CLASS_USEABLE
+	--#if ALL_CLASS_USEABLE
 	private.register(class)
 	--#endif
 
@@ -170,15 +166,15 @@ do
 		return if magnitude > private.epsilon then of / magnitude else nil
 	end
 
-	private.get_tilt = function(up: vector): vector
-		const axis = vector.cross(up, private.up)
+	private.get_tilt = function(up: vector, entity_up: vector): vector
+		const axis = vector.cross(up, entity_up)
 		const sine = vector.magnitude(axis)
 
 		if sine <= private.epsilon then
 			return vector.zero
 		end
 
-		return axis / sine * math.atan2(sine, vector.dot(up, private.up))
+		return axis / sine * math.atan2(sine, vector.dot(up, entity_up))
 	end
 
 	private.get_yaw = function(from: vector?, to: vector?): number
@@ -204,7 +200,7 @@ do
 			state.look = facing
 		end
 
-		const tilt = private.get_tilt(up)
+		const tilt = private.get_tilt(up, of.up_direction or class.up_direction)
 		const error = vector.create(
 			if of.lock_rotation_x then tilt.x else 0,
 			if of.lock_rotation_y then private.get_yaw(facing, state.look) else 0,
@@ -250,7 +246,7 @@ do
 		end
 
 		state.distance = distance
-		state.normal = normal or private.up
+		state.normal = normal or of.up_direction or class.up_direction
 		state.grounded = distance ~= nil and not state.rising
 
 		const direction = private.planar(of.move_direction)
@@ -288,7 +284,9 @@ do
 
 			if not succ then
 				k.enabled = false
-				std:outw(`entity step failed, entity disabled: {err}`)
+				--#if DEBUG
+				std:outw(`{k.type} step failed, disabled with {err}`)
+				--#endif
 			end
 		end
 	end)

@@ -11,7 +11,9 @@
     "monorepository": 2,
     "settings": 2,
     "package_rules": 3,
-    "registry_names": 3
+    "registry_names": 3,
+    "sync": 3,
+    "vendor_packages": 3
   },
   "schemas": {
     "package_info": "https://raw.githubusercontent.com/TheExeDEV/crater/main/schemas/crater.schema.json",
@@ -22,7 +24,8 @@
     "wally": "https://github.com/UpliftGames/wally-index",
     "pesde": "https://github.com/pesde-pkg/index",
     "forest": "https://api.forest.dev",
-    "ember": "https://github.com/ember-luau/index"
+    "ember": "https://github.com/ember-luau/index",
+    "luarocks": "https://luarocks.org"
   },
   "realms": {
     "import_client": "client",
@@ -79,9 +82,55 @@
     "block_package_scripts": false,
     "allow_scripts_from": [],
     "exclude": [],
-    "allow_files": []
+    "allow_files": [],
+    "vendor_packages": {
+      "import_client": [],
+      "import_server": [],
+      "import_develop": []
+    },
+    "package_root": ""
   },
   "path_to_lock_file": "crater.lock",
+  "vendor": {
+    "field": "vendor_packages",
+    "realms": [
+      "client",
+      "server",
+      "develop"
+    ],
+    "folder": "",
+    "lock_section": "vendor",
+    "artifact_path": "<vendor folder of the realm>/<alias>, the same path as in development",
+    "package_root": "package_root",
+    "prepack_script": "prepack",
+    "lists": {
+      "import_client": "client",
+      "import_server": "server",
+      "import_develop": "develop"
+    },
+    "folders": {
+      "client": {
+        "path": "src/vendor/import",
+        "alias": "import"
+      },
+      "server": {
+        "path": "src/vendor/include",
+        "alias": "include"
+      },
+      "develop": {
+        "path": "_vendor/develop",
+        "alias": "develop"
+      }
+    },
+    "packed_realms": [
+      "client",
+      "server"
+    ],
+    "marker_file": ".crater-vendor"
+  },
+  "sync": {
+    "tool": "none"
+  },
   "cli": {
     "json_output": {
       "changelog": 1,

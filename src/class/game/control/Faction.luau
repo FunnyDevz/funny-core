@@ -1,4 +1,10 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const Observer = require("@class/core/Observer")
 const Character = require("@class/game/character/Character")
 const mtypes = require("@declare/mtypes")
@@ -6,14 +12,14 @@ const tables = require("@declare/tables")
 const types = require("@declare/types")
 const ftype = require("@static/ftype")
 
-const private = {}
+const private = {type = "faction"}
 const class : faction = (Observer :: observer<enumitem_faction_notification>):new {
-    type = "faction",
+    type = private.type,
     name = "default_faction_name",
 
     get_member = ftype:write(function (self: faction) : ...character
         return table.unpack(private.get(self))
-    end, ftype:var(Character.type), "faction"),
+    end, ftype:var(Character.type), private.type),
 
     add_member = ftype:write(function (self: faction, ...: character) : ()
         const list = private.get(self)
@@ -23,7 +29,7 @@ const class : faction = (Observer :: observer<enumitem_faction_notification>):ne
                 table.insert(list, v)
             end
         end
-    end, mtypes.never, "faction", ftype:var(Character.type)),
+    end, mtypes.never, private.type, ftype:var(Character.type)),
 
     rem_member = ftype:write(function (self: faction, ...: character) : ()
         const list = private.get(self)
@@ -31,7 +37,7 @@ const class : faction = (Observer :: observer<enumitem_faction_notification>):ne
         for _, v in {...} do
             table.remove(list, table.find(list, v) or 0)
         end
-    end, mtypes.never, "faction", ftype:var(Character.type)),
+    end, mtypes.never, private.type, ftype:var(Character.type)),
 
     is_member = ftype:write(function (self: faction, ...:character) : boolean
         const list = private.get(self)
@@ -43,7 +49,7 @@ const class : faction = (Observer :: observer<enumitem_faction_notification>):ne
         end
 
         return true
-    end, types.boolean, "faction", ftype:var(Character.type))
+    end, types.boolean, private.type, ftype:var(Character.type))
 }
 
 

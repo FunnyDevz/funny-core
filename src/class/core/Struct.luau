@@ -66,7 +66,7 @@ do
         return result
     end
 
-    class:finally(function(self: luaobject, base)
+    class:seal(function(self: luaobject, base)
         if (not table.isfrozen(self)) then
             table.freeze(self)
         end

@@ -1,4 +1,10 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const Maybe = require("@class/common/gc/Maybe")
 const Controller = require("@class/common/runtime/Controller")
 const EnumItem = require("@class/core/EnumItem")

@@ -1,8 +1,14 @@
 --!strict
-const StateMachine = require("@class/common/StateMachine")
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
+const StateRegistry = require("@class/common/StateRegistry")
 const Maybe = require("@class/common/gc/Maybe")
 const Timer = require("@class/common/runtime/Timer")
-const Faction = require("@class/game/Faction")
+const Faction = require("@class/game/control/Faction")
 const mtypes = require("@declare/mtypes")
 const types = require("@declare/types")
 const ftype = require("@static/ftype")
@@ -68,9 +74,9 @@ const class : round = Timer:new {
         return private.members:enactment(self, Faction)
     end, Faction.type, private.type),
 
-    get_states = ftype:write(function (self: round) : statemachine
-        return private.machines:enactment(self, StateMachine)
-    end, StateMachine.type, private.type)
+    get_states = ftype:write(function (self: round) : stateregistry
+        return private.machines:enactment(self, StateRegistry)
+    end, StateRegistry.type, private.type)
 }
 
 class:host(function(new)
@@ -81,7 +87,7 @@ end)
 do
     private.factions_key = newproxy()
     private.members = Maybe:new() :: maybe<faction, round>
-    private.machines = Maybe:new() :: maybe<statemachine, round>
+    private.machines = Maybe:new() :: maybe<stateregistry, round>
 
     private.get_factions = function (self: round)
         return self:get <<{faction}>>(private.factions_key)

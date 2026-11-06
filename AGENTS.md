@@ -1,204 +1,221 @@
-# AGENTS.md
+## 1. Overview
 
-## 1. Общая картина
+The project is the **core of a game runtime in Luau/Roblox**, implementing its own object model on top of the `luaobject` types declared in `src/core.d.luau`. Everything written in `src/class/**` must implement the types from `core.d.luau`, not invent a new contract. The `src/core.d.luau` file is the **single source of truth** for interfaces and RTTI mechanics.
 
-Проект — это **ядро игрового рантайма на Luau/Roblox**, реализующее собственную объектную модель поверх `luaobject`-типов, объявленных в `src/core.d.luau`. Всё, что пишется в `src/class/**`, обязано реализовывать типы из `core.d.luau`, а не придумывать новый контракт. Файл `src/core.d.luau` — **источник истины** по интерфейсам и RTTI-механике.
-
-Ключевой принцип — **наследование через интерсекцию типов**, а не через цепочки метатаблиц в духе обычного ООП. Базовый тип — `luaobject`, а расширение — `extend<extension, base>`. Всё остальное (сервисы, структуры, енамы, контроллеры, ивенты) собирается из этих двух кирпичей.
+The key principle is **inheritance via type intersection**, not through metatable chains like in standard OOP. The base type is `luaobject`, and extension is done via `extend<extension, base>`. Everything else (services, structs, enums, controllers, events) is assembled from these two building blocks.
 
 ```luau
 export type extend<extension = {}, base = luaobject> = extension & base
 ```
 
-Любое отклонение от этого принципа (ручные метатаблицы, «нормальные» классы, копирование поведения других языков) считается нарушением архитектуры. В дальнейшем смотрите по фактическому состоянию проекта, эта инструкция может быть устаревшей в реализации. В стилистике она гарантированно не устареет.
+Any deviation from this principle (manual metatables, "normal" classes, copying behavior from other languages) is considered an architectural violation. In the future, refer to the actual state of the project; this instruction may be outdated in its implementation. However, it is guaranteed not to become outdated in its stylistics.
 
 ---
 
-## 2. Базовые концепции, которые агент обязан знать
+## 2. Core Concepts the Agent Must Know
 
 ### 2.1. `luaobject`
 
-Базовый объект проекта — не класс, а **семантический прототип**: и класс, и экземпляр являются `luaobject`. Конструирование идёт через `:new()`, инициализация — через `:host(f)`, финализация — через `:finally(f)`. `luaobject` несёт в себе RTTI: `type`, `it`, `is`, `as`, `same`, `eq`, `base`, `iden`, `ttype`.
+The base object of the project is not a class, but a **semantic prototype**: both the class and the instance are `luaobject`. Construction is done via `:new()`, initialization via `:host(f)`, and finalization via `:finally(f)`. `luaobject` carries RTTI: `type`, `it`, `is`, `as`, `same`, `eq`, `base`, `iden`, `ttype`.
 
-Если агенту нужно написать что-то, «что является объектом проекта», он **не должен** писать `{ ... }` руками. Он должен объявить тип в `core.d.luau` и унаследовать от `luaobject` (напрямую или через один из базовых интерфейсов).
+If the agent needs to write something that "is a project object", it **must not** write `{ ... }` manually. It must declare the type in `core.d.luau` and inherit from `luaobject` (either directly or through one of the base interfaces).
 
 ### 2.2. Struct
 
-`struct` — **неизменяемый носитель данных**, без скрытого состояния. Изменения — только через `:clone(change)` и `:new()`. Все «информационные» классы (`*Info`, `NetPack`, `Result`, геометрия, `Basis` и т.п.) реализуются как `struct`. Итерация по значениям — через `:each(type, f)`.
+`struct` is an **immutable data carrier**, with no hidden state. Changes are only made via `:clone(change)` and `:new()`. All "informational" classes (`*Info`, `NetPack`, `Result`, geometry, `Basis`, etc.) are implemented as `struct`. Iteration over values is done via `:each(type, f)`.
 
-Если агенту нужно изменить `struct` — нельзя писать мутирующий сеттер. Нужно либо объявить новое поле и создавать через `clone`, либо оставить как есть.
+If the agent needs to modify a `struct`, it must not write a mutating setter. It must either declare a new field and create it via `clone`, or leave it as is.
 
 ### 2.3. Enums
 
-Енамы устроены как объекты: `enumobject` (контейнер, содержит `enumitem`-ы) и `enumitem` (конкретное значение). Они не используют Roblox `Enum`, а являются «своими». Реализации енамов лежат в `src/enums/{descriptor,mode,notification,state}/*.luau`, а их типы — в `core.d.luau` рядом с соответствующими `enumitem_*`/`enum_*`.
+Enums are structured as objects: `enumobject` (the container, holding `enumitem`s) and `enumitem` (the specific value). They do not use Roblox `Enum`, but are "custom". Enum implementations are located in `src/enums/{descriptor,mode,notification,state}/*.luau`, and their types are in `core.d.luau` next to the corresponding `enumitem_*`/`enum_*`.
 
-Правило: **любой новый енам** добавляется и в `src/enums/**`, и в `core.d.luau` (типы `enumitem_*` и `enum_*`).
+Rule: **any new enum** must be added to both `src/enums/**` and `core.d.luau` (types `enumitem_*` and `enum_*`).
 
-### 2.4.  Observer
+### 2.4. Observer
 
-`observer` — типизированный наблюдатель. На его основе строятся `event`, `connection`, `signal`, `value`, `timer`, `binder`, `reference`, `quant`, `statemachine`, `maid`, `maybe`, `profile` и т.д. Поведение подписок описывается через `enumitem_connection_variant` (`Ever`, `Once`, `Skip`, `Next`).
+`observer` is a typed observer. It serves as the foundation for `event`, `connection`, `signal`, `value`, `timer`, `binder`, `reference`, `maid`, `maybe`, `template`, `stateregistry`, `profile`, `iteminstance`, etc. Subscription behavior is described via `enumitem_connection_variant` (`Ever`, `Once`, `Skip`, `Next`).
 
-Если агенту нужен «свой ивент» — не изобретать новый механизм, использовать `event`/`observer`.
+If the agent needs a "custom event", it must not invent a new mechanism; it must use `event`/`observer`.
 
-### 2.5. Сервисы
+### 2.5. Services
 
-`service` — синглтон-объект с `name`, `enabled`. Сервисы лежат в `src/class/service/` (`DataClient`, `DataServer`, `SharedNet`). Публичные API сервисов должны иметь типы в `core.d.luau`.
+`service` is a singleton object with `name` and `enabled`. Services are located in `src/class/service/` (`DataClient`, `DataServer`, `SharedNet`). Public service APIs must have types defined in `core.d.luau`.
 
-### 2.6. Платформенный слой
+### 2.6. Platform Layer
 
-Роблоксовые обёртки (Instance, Players, RBXScriptSignal, worldspace, network, datamodel, engine) — в `src/platform/roblox/`. **Игровая логика и ядро не должны напрямую зависеть от Roblox**, если для этого есть обёртка. Прямое обращение к `game`, `workspace`, `Enum`, `CFrame` допустимо, но только в `platform/` или там, где это заявлено контрактом. Если по другому невозможно, то так уж и быть это может быть пропущено. Смотря по контексту ситуации.
+Roblox wrappers (Instance, Players, RBXScriptSignal, worldspace, network, datamodel, engine) are in `src/platform/roblox/`. **Game logic and the core must not directly depend on Roblox** if a wrapper exists. Direct access to `game`, `workspace`, `Enum`, `CFrame` is allowed, but only in `platform/` or where explicitly stated in the contract. If it is impossible to do otherwise, it may be permitted. It depends on the context of the situation.
 
-### 2.7. Метаданные типов
+### 2.7. Type Metadata
 
-`src/static/` — это **собственный слой типизации**, который:
-- описывает допустимые типы (`mtargument`, `mtypes`, `utypes`);
-- валидирует аргументы и типы (`ftype`, `ctype`);
-- содержит «мета-информацию» о полях и их происхождении (`mtinfo`);
-- предоставляет декларации (`declare/`) для всех остальных слоёв.
+`src/static/` is a **custom typing layer** that:
+- describes valid types (`mtargument`, `mtypes`);
+- validates arguments, types and return values (`ftype`, `ctype`, `mtout`);
+- contains "meta-information" about fields and their origins (`mtinfo`, `ctags`);
+- provides declarations (`declare/`: `types`, `mtypes`, `tables`, `dummies`, `mtinfo`) and project-wide metadata (`project/`: `mtluaobject`, `geometry`, `extension`, `global`).
 
-Если агент добавляет новый тип/поле/контракт — соответствующая запись должна появиться в `src/static/**` (в частности в `src/static/mtargument` и `src/static/declare/mtypes`, где хранятся мета-типы), иначе валидация не увидит нововведение. По крайней мере это касается только если стандартными средствами не удалось ничего описать.
+If the agent adds a new type/field/contract, the corresponding entry must appear in `src/static/**` (specifically in `src/static/mtargument` and `src/static/declare/mtypes`, where meta-types are stored), otherwise validation will not see the innovation. At least, this applies if it was not possible to describe it using standard means. `@declare/*` and `@project/*` are both aliases of folders inside `src/static/`.
 
 ### 2.8. Scheduler vs task
 
-В проекте есть собственный `scheduler`, который **конфликтует** с `task`. По умолчанию новый код должен использовать `scheduler`, если он уже присутствует в контракте класса. Смешивать их в одном модуле разрешено только с рантайм проверкой чей это конкретно код? Для этого используй `scheduler:whose()` и ветки.
+The project has a custom `scheduler`, which **conflicts** with `task`. By default, new code should use `scheduler` if it is already present in the class contract. Mixing them in the same module is only allowed with a runtime check of whose code it specifically is. For this, use `scheduler:whose()` and branching.
 
 ---
 
-## 3. Структура каталогов и что в них живёт
+## 3. Directory Structure and Contents
 
 ```
 src/
-├── core.d.luau              # типы и контракты (источник истины)
-├── class/                   # реализации объектов
-│   ├── common/              # универсальные: Binder, Reference, Stack,
-│   │                        # StateMachine, Value, Signal, Timer, Quant,
-│   │                        # Controller, Maybe, Maid, Event, Connection
-│   ├── core/                # ядро RTTI: LuaObject, EnumItem, EnumObject,
+├── core.d.luau              # types and contracts (single source of truth)
+├── class/                   # object implementations
+│   ├── common/              # universal building blocks
+│   │   ├── collection/      # Stack, Queue
+│   │   ├── gc/              # Heap, Maid, Maybe, Template
+│   │   ├── physics/         # KinematicController, P/PD/PI/PIDController
+│   │   ├── runtime/         # Controller, Signal, Timer
+│   │   ├── signal/          # Connection, Event
+│   │   ├── Binder.luau      # Instance-to-object binding
+│   │   ├── Reference.luau   # Instance wrapper with events
+│   │   ├── StateRegistry.luau # registry of active enum states
+│   │   └── Value.luau       # value + change notifications
+│   ├── core/                # RTTI core: LuaObject, EnumItem, EnumObject,
 │   │                        # Disposable, Observer, Path, Pointer,
 │   │                        # Scheduler, Service, Struct, Variable
-│   ├── game/                # игровые сущности: Ability, Character,
-│   │                        # Faction, Round, inventory/, character/ik/r6/
-│   ├── service/             # сервисы: DataClient, DataServer, SharedNet
-│   └── struct/              # структуры данных
+│   ├── game/                # game entities
+│   │   ├── character/       # Character, Entity, ik/r6/
+│   │   ├── control/         # Faction, Round, CharacterStorage
+│   │   ├── inventory/       # Inventory, Item, ItemStack, ItemObject,
+│   │   │                    # ItemInstance, ItemBehavior, ItemContext
+│   │   ├── Ability.luau
+│   │   └── Profile.luau
+│   ├── service/             # services: DataClient, DataServer, SharedNet
+│   └── struct/              # data structures
 │       ├── common/          # NetPack, Result
-│       ├── game/            # AbilityInfo, CharacterInfo, ik/*
+│       ├── game/            # AbilityInfo, CharacterInfo, IKR6*Info
 │       └── geometry/        # AABBVolume, Basis, CubeVolume, Directions,
 │                            # GeoVolume, OBBVolume, Quad, Triangle
-├── enums/                   # свои EnumObject/EnumItem
-│   ├── descriptor/          # «варианты» (DirectionVariant, NetSource, ...)
-│   ├── mode/                # режимы (IKLimbMode)
-│   ├── notification/        # типы уведомлений
-│   └── state/               # состояния (ControllerState, RoundState, ...)
-├── extension/               # std и ttable — расширения языка
-├── platform/roblox/         # обёртки Roblox API
-├── settings/                # префы (DataServerPref, SharedNetPref)
-├── static/                  # слой метаданных/типизации
-├── temp/                    # отладочные инструменты (не для продакшена)
-└── templates/               # шаблоны class/script/struct
+├── enums/                   # custom EnumObject/EnumItem
+│   ├── descriptor/          # "variants" (DirectionVariant, NetSource, ...)
+│   ├── mode/                # modes (IKLimbMode)
+│   ├── notification/        # notification types
+│   └── state/               # states (ControllerState, RoundState, ...)
+├── extension/               # std and ttable — language extensions
+├── platform/roblox/         # Roblox API wrappers
+├── static/                  # metadata/typing layer
+├── temp/                    # debugging tools (not for production)
+└── templates/               # class/script/struct templates
 ```
 
-**Правило соответствия слоёв:** `class/**` реализует `core.d.luau`; `enums/**` реализует собственные `enumobject`; `static/**` валидирует и описывает их; `platform/**` прячет Roblox.
+There is no `src/settings/` anymore: preferences live in `core.d.luau`, and `@project` is an alias of `src/static/project/`.
+
+**Layer correspondence rule:** `class/**` implements `core.d.luau`; `enums/**` implements custom `enumobject`; `static/**` validates and describes them; `platform/**` hides Roblox.
 
 ---
 
-## 4. Стиль типов и именование
+## 4. Type Style and Naming
 
-1. **Один публичный тип = одно объявление в `core.d.luau`.** Реализации не «изобретают» поля, а следуют объявленному контракту.
-2. **Интерфейсы** объявляются как `export type <name> = { read <field>: ... }`. Методы объекта — это `read`-функции, свойства — `read`-поля. Только данные не ссылочного типа могут быть изменяемыми. При этом классам запрещено иметь в публичном поле видимости ссылочные типы кроме функций: это касается свойств/полей таблиц. Мутации для `struct` запрещены.
-3. **Поля-свойства объекта** называются в `snake_case` (например, `hit_position`, `up_direction`, `current_basis`).
-4. **Методы объекта** начинаются с глагола (`get_*`, `set_*`, `is_*`, `has_*`, `from_*`, `apply_*`, `add_*`, `rem_*`, `rebuild_*`, `invoke_*`).
-5. **Имена интерфейсов-миксинов** начинаются с префикса (`list_checks`, `list_operations`, `math_operations`, `geometry_*`, `vector_operations`, `I_targetable`, `positioned`, `rotateable`, `centerable`, `stateable`, `informable`, `initiable`, `switchable`, `instanceable`, `referenceable`, `controllable`, `modifier`, `iterations`, `loopable`, `reloadable`, `private_storage`, `invokeable`, `asyncable`).
-6. **Енамы:** `enum_<name>` — контейнер, `enumitem_<name>` — конкретный енам. Имена `enumitem`-ов — PascalCase (`DataLoaded`, `ProfileLoading`, `TickNotification`).
-7. **События и уведомления:** `enumitem_<x>_notification` и `enum_<x>_notification`.
-8. **Структуры-информации:** `*info` (`abilityinfo`, `characterinfo`, `ikr6leginfo`), не «data» или «config».
+1. **One public type = one declaration in `core.d.luau`.** Implementations do not "invent" fields, but follow the declared contract.
+2. **Interfaces** are declared as `export type <name> = { read <field>: ... }`. Object methods are `read` functions, properties are `read` fields. Only non-reference data types can be mutable. At the same time, classes are forbidden to have reference types in the public field scope except for functions: this concerns table properties/fields. Mutations for `struct` are forbidden.
+3. **Object property fields** are named in `snake_case` (e.g., `hit_position`, `up_direction`, `current_basis`).
+4. **Object methods** start with a verb (`get_*`, `set_*`, `is_*`, `has_*`, `from_*`, `apply_*`, `add_*`, `rem_*`, `rebuild_*`, `invoke_*`).
+5. **Mixin interface names** start with a prefix (`list_checks`, `list_operations`, `math_operations`, `geometry_*`, `vector_operations`, `I_targetable`, `positioned`, `rotateable`, `centerable`, `stateable`, `informable`, `initiable`, `switchable`, `instanceable`, `referenceable`, `controllable`, `modifier`, `iterations`, `loopable`, `reloadable`, `private_storage`, `invokeable`, `asyncable`).
+6. **Enums:** `enum_<name>` — container, `enumitem_<name>` — specific enum. `enumitem` names are PascalCase (`DataLoaded`, `ProfileLoading`, `TickNotification`).
+7. **Events and notifications:** `enumitem_<x>_notification` and `enum_<x>_notification`.
+8. **Info structs:** `*info` (`abilityinfo`, `characterinfo`, `ikr6leginfo`), not "data" or "config".
 
 ---
 
-## 5. Правила изменений
+## 5. Change Rules
 
-### 5.1. Изменение контракта
+### 5.1. Changing the Contract
 
-Любое изменение `core.d.luau` (новое поле, новый тип, новый интерфейс) требует:
-1. Обновления `src/static/**` — если тип участвует в валидации.
-2. Обновления `src/enums/**` — если вводится новый енам.
-3. Реализации в соответствующем `src/class/**` — если контракт декларативный, реализация всё равно должна быть приведена в соответствие.
-4. Проверки, что существующие реализации не нарушают новых требований.
+Any change to `core.d.luau` (new field, new type, new interface) requires:
+1. Updating `src/static/**` — if the type participates in validation.
+2. Updating `src/enums/**` — if a new enum is introduced.
+3. Implementation in the corresponding `src/class/**` — if the contract is declarative, the implementation must still be brought into compliance.
+4. Verification that existing implementations do not violate the new requirements.
 
-### 5.2. Разделяй слои
+### 5.2. Separate the Layers
 
-- `core.d.luau` — только типы.
-- `src/class/**` — только реализации контрактов.
-- `src/enums/**` — только объекты енамов.
-- `src/static/**` — только мета-описание.
-- `src/platform/**` — только обёртки над Roblox.
-- `src/settings/**` — только префы.
-- `src/temp/**` — временное, удаляемо, не для продакшена.
+- `core.d.luau` — types only.
+- `src/class/**` — contract implementations only.
+- `src/enums/**` — enum objects only.
+- `src/static/**` — meta-description only.
+- `src/platform/**` — Roblox wrappers only.
+- `src/temp/**` — temporary, deletable, not for production.
 
-Смешивать слои нельзя. Если появляется соблазн «положить утилиту рядом» — она кладётся в `src/extension/` или в соответствующий слой.
+Mixing layers is not allowed. If there is a temptation to "put a utility nearby" — it goes into `src/extension/` or the corresponding layer.
 
-### 5.3. Не ломай RTTI
+### 5.3. Do Not Break RTTI
 
-`luaobject`-механика (`new`, `host`, `finally`, `base`, `ttype`, `it`, `is`, `as`, `same`, `eq`) — обязательна. Новый класс **не должен** подменять её своими метатаблицами. Наследование — только через `extend`.
+`luaobject` mechanics (`new`, `host`, `finally`, `base`, `ttype`, `it`, `is`, `as`, `same`, `eq`) are mandatory. A new class **must not** replace it with its own metatables. Inheritance is only via `extend`.
 
-### 5.4. Enum-объекты, а не Roblox Enum
+### 5.4. Enum-objects, Not Roblox Enum
 
-Новый енам оформляется как `enumobject`, а не как `Enum.<X>`. В `core.d.luau` должны появиться `enum_<name>` и `enumitem_<name>`.
+A new enum is formatted as an `enumobject`, not as `Enum.<X>`. `enum_<name>` and `enumitem_<name>` must appear in `core.d.luau`.
 
-### 5.5. Валидация
+### 5.5. Validation
 
-Если тип участвует в `ftype:validate` / `ctype:validate` — его мета-описание обязано быть в `src/static/**`. Без этого валидация «не увидит» объект или поле.
+If a type participates in `ftype:validate` / `ctype:validate`, its meta-description must be in `src/static/**`. Without this, validation will not "see" the object or field.
 
 ### 5.6. Scheduling
 
-Новый код по умолчанию использует `scheduler`, а не `task`. Если класс уже реализует `scheduler` — не подмешивать `task`, они конфликтуют.
+New code uses `scheduler` by default, not `task`. If a class already implements `scheduler`, do not mix in `task`, as they conflict.
 
 ---
 
-## 6. Области проекта, требующие согласования
+## 6. Areas Requiring Coordination
 
-В репозитории есть `/.github/CODEOWNERS` — он определяет, какие участки кода кому принадлежат и кто должен ревьюить изменения. Перед изменением участков, не относящихся к зоне ответственности агента/контрибьютора, нужно **согласовать изменение с владельцем участка** — код нельзя менять «в обход» без явного запроса.
+The repository has `/.github/CODEOWNERS` — it defines which parts of the code belong to whom and who should review changes. Before changing areas outside the agent's/contributor's zone of responsibility, you must **coordinate the change with the area owner** — code cannot be changed "behind their back" without an explicit request.
 
-Практическое правило: если агент собирается править файл, который не является «своим» по `CODEOWNERS`, он должен явно обозначить это в PR/сообщении и дождаться ответа владельца. Молчаливые правки чужих участков недопустимы.
-
----
-
-## 7. Области, помеченные как требующие внимания (в общем виде)
-
-В проекте есть участки, которые либо не завершены, либо помечены как «в разработке»/«требует доработки», либо зависят от внешних согласований. Их правки не запрещены, но требуют **отдельного анализа и явного запроса** — менять их «по пути» или «заодно» нельзя.
-
-Если агент видит в `core.d.luau` TODO-комментарии, `*_TODO_*`-типы, незаполненные ветки (например, закомментированные геометрические объёмы), либо сталкивается с нереализованным классом, который ещё не имеет имплементации в `src/class/**`, — это сигнал, что:
-
-1. Правки такого участка нужно **сначала обсудить**, а не реализовывать одним движением.
-2. Если правка затрагивает чужой участок по `CODEOWNERS` — согласовать с владельцем.
-3. Реализация «как получится» не приветствуется: либо полная имплементация по контракту, либо оставление участка как есть.
-
-Правило: **не додумывать поведение за автора контракта**. Если контракт неоднозначен — уточнять, а не реализовывать наугад.
+Practical rule: if the agent is going to edit a file that is not "theirs" according to `CODEOWNERS`, they must explicitly state this in the PR/message and wait for the owner's response. Silent edits of someone else's areas are unacceptable.
 
 ---
 
-## 8. Быстрый чек-лист для агента
+## 7. Areas Marked as Requiring Attention (In General)
 
-- [ ] Тип объявлен в `core.d.luau`?
-- [ ] Реализация соответствует объявленному типу (все `read`-поля/методы присутствуют)?
-- [ ] Наследование идёт через `extend`, а не через самодельные метатаблицы?
-- [ ] Для `struct` — нет мутирующих сеттеров, изменения только через `clone`?
-- [ ] Для нового енама — есть и `src/enums/**`, и типы в `core.d.luau`?
-- [ ] Для нового поля — есть мета-описание в `src/static/**`?
-- [ ] Нет прямых зависимостей ядра от Roblox (только через `src/platform/roblox`)?
-- [ ] Не добавлен `task`, если класс уже реализует `scheduler`?
-- [ ] Не изменён чужой участок без согласования по `CODEOWNERS`?
-- [ ] Не реализован «TODO-участок» без явного запроса?
-- [ ] Не смешаны слои (`class`/`struct`/`enum`/`static`/`platform`)?
+The project has areas that are either unfinished, marked as "in development"/"requires refinement", or depend on external approvals. Editing them is not forbidden, but requires **separate analysis and an explicit request** — they cannot be changed "along the way" or "while at it".
 
-Если хоть один пункт не выполнен — изменение не готово.
+If the agent sees TODO comments in `core.d.luau`, `*_TODO_*` types, unfilled branches (e.g., geometric volumes that are declared but not implemented), or encounters an unimplemented class that does not yet have an implementation in `src/class/**`, this is a signal that:
 
-# 9. Построение класса
+1. Edits to such an area must be **discussed first**, not implemented in one go.
+2. If the edit affects someone else's area according to `CODEOWNERS`, it must be coordinated with the owner.
+3. "As best as I can" implementation is not welcome: either a full implementation according to the contract, or leaving the area as is.
 
-Раздел описывает **как именно строится класс** в проекте, на примере `Observer.luau`. Все классы обязаны следовать этой структуре; отклонения допустимы только если они продиктованы контрактом из `core.d.luau` и согласованы с владельцем участка. Это не прям строгая инструкция как нужно делать РАНТАЙМ класса, потому что это инструкция как АРХИТЕКТУРНО строить класс в единой стилистике с проектом.
+Known examples at the time of writing (verify before relying on this list):
 
-## 9.1. Скелет файла
+- `quant` and `remotecall` are declared in `core.d.luau`, but have no implementation in `src/class/**` (`Quant.luau` was removed, there is no `RemoteCall.luau`).
+- `spherevolume`, `conevolume`, `capsulevolume` and `tetavolume` are declared in `core.d.luau`, but are not implemented and are not part of `geometry_volume`.
+- `src/class/game/control/CharacterStorage.luau` is an empty placeholder.
+- `src/temp/ik_arms_r6.luau` is a prototype.
 
-Любой файл класса имеет фиксированный скелет:
+Rule: **do not guess the behavior for the contract author**. If the contract is ambiguous, clarify it, do not implement it at random.
+
+---
+
+## 8. Quick Checklist for the Agent
+
+- [ ] Is the type declared in `core.d.luau`?
+- [ ] Does the implementation match the declared type (all `read` fields/methods are present)?
+- [ ] Is inheritance done via `extend`, not custom metatables?
+- [ ] For `struct` — are there no mutating setters, changes only via `clone`?
+- [ ] For a new enum — are there both `src/enums/**` and types in `core.d.luau`?
+- [ ] For a new field — is there a meta-description in `src/static/**`?
+- [ ] Are there no direct core dependencies on Roblox (only via `src/platform/roblox`)?
+- [ ] Is `task` not added if the class already implements `scheduler`?
+- [ ] Is someone else's area not changed without coordination via `CODEOWNERS`?
+- [ ] Is a "TODO area" not implemented without an explicit request?
+- [ ] Are layers not mixed (`class`/`struct`/`enum`/`static`/`platform`)?
+
+If at least one item is not completed, the change is not ready.
+
+# 9. Building a Class
+
+This section describes **exactly how a class is built** in the project, using `Observer.luau` as an example. All classes must follow this structure; deviations are only allowed if dictated by the contract from `core.d.luau` and coordinated with the area owner. This is not a strict instruction on how to do the class RUNTIME, because this is an instruction on how to ARCHITECTURALLY build a class in a unified style with the project.
+
+## 9.1. File Skeleton
+
+Any class file has a fixed skeleton:
 
 ```luau
 --!strict
@@ -208,60 +225,60 @@ src/
 --#include <fflag_core.gpp>
 --#include <fflag.gpp>
 
--- 1. Импорты
+-- 1. Imports
 const LuaObject = require("@class/core/LuaObject")
 ...
 
--- 2. Локальные type-алиасы
+-- 2. Local type aliases
 type observer_on<T = enumitem> = ...
 type observer_var<T = unknown> = ...
 
--- 3. Приватное пространство
+-- 3. Private space
 const private = { type = "observer" }
 
--- 4. Создание класса
+-- 4. Class creation
 const class: observer = LuaObject:new({ ... })
 
--- 5. Инициализатор
+-- 5. Initializer
 class:host(function(new) ... end)
 
--- 6. Приватный блок
+-- 6. Private block
 do ... end
 
--- 7. Возврат
+-- 7. Return
 return class
 ```
 
-Агент **не должен** менять этот порядок. Все 7 частей присутствуют всегда; если какая-то часть не нужна (например, `do`-блок), она либо пустая, либо отсутствует, но не переезжает в другое место.
+The agent **must not** change this order. All 7 parts are always present; if a part is not needed (e.g., the `do` block), it is either empty or absent, but it does not move to another place.
 
-## 9.2. Заголовок модуля и импорты
+## 9.2. Module Header and Imports
 
-- `--!strict` — обязателен.
-- `--#include` — обязательны, порядок фиксирован: `project.gpp` → `build.gpp` → `fflag_core.gpp` → `fflag.gpp`.
-- Импорты идут через алиасы путей `@class/*`, `@enums/*`, `@declare/*`, `@extension/*`, `@project/*`, `@static/*`. Прямые относительные пути (`./`, `../`) — не используются.
-- После импортов идёт **группировка по слоям**: сначала ядро (`LuaObject`, `EnumItem`, `EnumObject`, `Pointer`), потом енамы, потом `declare`, потом `extension`/`static`/`project`. Это не формальное правило, но согласованный порядок; сорвать его — плохая практика.
+- `--!strict` — mandatory.
+- `--#include` — mandatory, fixed order: `project.gpp` → `build.gpp` → `fflag_core.gpp` → `fflag.gpp`.
+- Imports go via path aliases `@class/*`, `@enums/*`, `@declare/*`, `@extension/*`, `@project/*`, `@static/*`. Direct relative paths (`./`, `../`) are not used.
+- After imports comes **grouping by layers**: first the core (`LuaObject`, `EnumItem`, `EnumObject`, `Pointer`), then enums, then `declare`, then `extension`/`static`/`project`. This is not a formal rule, but an agreed-upon order; breaking it is bad practice.
 
-## 9.3. Локальные type-алиасы
+## 9.3. Local Type Aliases
 
-Локальные алиасы (`observer_on`, `observer_var`) объявляются **до** `private` и **до** `class`. Они нужны, чтобы:
-- упростить сигнатуры `ftype:write`;
-- дать имя «фактическому» типу, который используется только внутри модуля.
+Local aliases (`observer_on`, `observer_var`) are declared **before** `private` and **before** `class`. They are needed to:
+- simplify `ftype:write` signatures;
+- give a name to the "actual" type that is used only inside the module.
 
-Это **не** экспортируемые типы. Экспортируемые — только в `core.d.luau`.
+These are **not** exported types. Exported types are only in `core.d.luau`.
 
-## 9.4. Приватное пространство `private`
+## 9.4. Private Space `private`
 
-`const private = { type = "<type>" }` — это **не** обычная таблица. В неё складывается всё, что не должно утечь наружу: константы типа, `newproxy()`-сентинелы, `metatable`-ы, вспомогательные функции, `shadow_space`, `dummies`, `relevant_actions` и т.п.
+`const private = { type = "<type>" }` is **not** an ordinary table. Everything that should not leak outside is put into it: type constants, `newproxy()` sentinels, `metatable`s, helper functions, `shadow_space`, `dummies`, `relevant_actions`, etc.
 
-Ключевые правила:
+Key rules:
 
-1. **`private.type`** — строковый идентификатор класса. Он совпадает с тем, что передаётся в `:new({ type = ... })`, и с тем, что используется в `:as<<observer>>(class.type)`, `:that(x, class.type)`, `ftype:write(..., private.type, ...)`.
-2. **`private.shadow_space`** — таблица со слабыми ключами (`tables.__mode_ks`), куда складывается per-object состояние, доступное через `self:get`/`self:set`.
-3. **`private.pointers`, `private.items`** — `newproxy()`-сентинелы. Их нельзя заменить на строки или таблицы, потому что через них `private_storage` (`:get`/`:set`) отделяет приватные поля одного класса от полей другого.
-4. **Вспомогательные функции** кладутся в `private` и становятся доступны только внутри модуля.
-5. **Публичные поля класса** (`deferred_call`, `deferred_mode`, `allow_new_connections`) объявляются прямо в `:new({...})` и являются `read`-полями контракта.
+1. **`private.type`** — string identifier of the class. It matches what is passed to `:new({ type = ... })`, and what is used in `:as<<observer>>(class.type)`, `:that(x, class.type)`, `ftype:write(..., private.type, ...)`.
+2. **`private.shadow_space`** — table with weak keys (`tables.__mode_ks`), where per-object state accessible via `self:get`/`self:set` is stored.
+3. **`private.pointers`, `private.items`** — `newproxy()` sentinels. They cannot be replaced with strings or tables, because through them `private_storage` (`:get`/`:set`) separates private fields of one class from fields of another.
+4. **Helper functions** are placed in `private` and become available only inside the module.
+5. **Public class fields** (`deferred_call`, `deferred_mode`, `allow_new_connections`) are declared directly in `:new({...})` and are `read` fields of the contract.
 
-## 9.5. Создание класса через `LuaObject:new`
+## 9.5. Class Creation via `LuaObject:new`
 
 ```luau
 const class: observer = LuaObject:new({
@@ -272,32 +289,32 @@ const class: observer = LuaObject:new({
 })
 ```
 
-- Класс — это **результат** `LuaObject:new({...})`, а не отдельная конструкция.
-- Все публичные поля и методы перечисляются в одном литерале.
-- Поля-данные — просто значения (`deferred_call = true`).
-- Методы — обёрнуты в `ftype:write`. **Без обёртки метод не считается публичным контрактом**, потому что `ftype` проверяет аргументы и типы на входе и выходе.
+- The class is the **result** of `LuaObject:new({...})`, not a separate construct.
+- All public fields and methods are listed in a single literal.
+- Data fields are just values (`deferred_call = true`).
+- Methods are wrapped in `ftype:write`. **Without the wrapper, the method is not considered a public contract**, because `ftype` checks arguments and types on input and output.
 
-## 9.6. Обёртка методов `ftype:write`
+## 9.6. Method Wrapper `ftype:write`
 
-Сигнатура:
+Signature:
 
 ```luau
 ftype:write(fn, <return_type?>, <self_type>, <arg1_type>, <arg2_type>, ...)
 ```
 
-Правила:
+Rules:
 
-1. **Первый аргумент** — `fn`. Обычно это `function(self, ...) ... end`.
-2. **Второй аргумент** — тип возврата. Если функция ничего не возвращает — `mtypes.never`. Если возвращает `Y` — `ftype:opt(mtypes.anyt)` (для `Y?`) или `ftype:var(...)` (для `...`). Тип возврата **обязателен**, даже если это `mtypes.never`.
-3. **Третий аргумент** — `private.type` (тип `self`). Для статических методов — тип класса.
-4. **Далее** — типы аргументов **по порядку** после `self`. Для variadic-аргумента — `ftype:var(<type>)`.
-5. **Логические альтернативы** — через `ftype:uor(...)`.
-6. **Конкретные типы** — через `ftype:var(<TypeName>)` или `EnumItem.type`/`EnumObject.type`.
-7. **`mtypes.anyt`** — «любой тип», используется когда типизировать не нужно.
+1. **First argument** — `fn`. Usually this is `function(self, ...) ... end`.
+2. **Second argument** — return type. If the function returns nothing — `mtypes.never`. If it returns `Y` — `ftype:opt(mtypes.anyt)` (for `Y?`) or `ftype:var(...)` (for `...`). The return type is **mandatory**, even if it is `mtypes.never`.
+3. **Third argument** — `private.type` (the type of `self`). For static methods — the type of the class.
+4. **Next** — argument types **in order** after `self`. For a variadic argument — `ftype:var(<type>)`.
+5. **Logical alternatives** — via `ftype:uor(...)`.
+6. **Specific types** — via `ftype:var(<TypeName>)` or `EnumItem.type`/`EnumObject.type`.
+7. **`mtypes.anyt`** — "any type", used when typing is not needed.
 
-Если сигнатура в `ftype:write` не совпадает с реальной сигнатурой функции — это ошибка, которую валидатор должен поймать. Агент **не должен** подгонять типы в `ftype:write` под «что реально приходит», он должен отражать **контракт**.
+If the signature in `ftype:write` does not match the actual function signature, this is an error that the validator should catch. The agent **must not** adjust the types in `ftype:write` to "what actually arrives", it must reflect the **contract**.
 
-## 9.7. Инициализатор `:host`
+## 9.7. Initializer `:host`
 
 ```luau
 class:host(function(new)
@@ -308,31 +325,31 @@ class:host(function(new)
 end)
 ```
 
-- `:host(f)` — замена конструктору. Он вызывается при создании каждого экземпляра (включая сам `class`, если включён `CORE_CLASS_USEABLE`).
-- Внутри обязательно:
-  1. **Каст `new`** в целевой тип через `new:as<<observer>>(class.type)`. Это даёт корректный `self`-тип дальше.
-  2. **Инициализация `shadow_space`** для `new` (если класс использует приватные поля).
-  3. **Инициализация `:set(<sentinel>, ...)`** для каждого `newproxy()`-сентинела, чтобы `:get(...)` возвращал валидное значение, а не `nil`.
-- `:host` может быть **один**. Перезапись `:host` на уже существующем классе — это «toggle» (см. контракт `luaobject.host`), а не добавление второго инициализатора. Если нужно несколько шагов — они укладываются в одну лямбду.
-- `:host` **не** должен вызывать `:finally` или другие хуки жизненного цикла сам — это делает RTTI.
+- `:host(f)` — replaces the constructor. It is called when creating each instance (including the `class` itself, if `CORE_CLASS_USEABLE` is enabled).
+- Inside, it is mandatory to:
+  1. **Cast `new`** to the target type via `new:as<<observer>>(class.type)`. This gives the correct `self` type further down.
+  2. **Initialize `shadow_space`** for `new` (if the class uses private fields).
+  3. **Initialize `:set(<sentinel>, ...)`** for each `newproxy()` sentinel, so that `:get(...)` returns a valid value, not `nil`.
+- `:host` can be **only one**. Overwriting `:host` on an already existing class is a "toggle" (see the `luaobject.host` contract), not adding a second initializer. If multiple steps are needed, they are packed into a single lambda.
+- `:host` **must not** call `:finally` or other lifecycle hooks itself — RTTI does that.
 
-## 9.8. Приватный блок `do ... end`
+## 9.8. Private Block `do ... end`
 
-Всё, что не является частью класса и не должно попасть в публичный контракт, живёт в `do ... end` после `:host`:
+Everything that is not part of the class and should not get into the public contract lives in `do ... end` after `:host`:
 
-1. **Локальные типы** (`type flatted = ...`, `type pointer_internal = ...`) — только для приватных функций.
-2. **Инициализация `private.*`**: `private.meta = tables.__mode_ks`, `private.shadow_space = setmetatable({}, private.meta)`, `private.pointers = newproxy()`, `private.items = newproxy()`.
-3. **`--#if CORE_CLASS_USEABLE`** — блок инициализации для `class` как экземпляра. Симметричен тому, что делает `:host`, но выполняется один раз при загрузке модуля. **Обязателен**, если класс может быть использован как объект.
-4. **Приватные функции** (`private.create_flatted_on`, `private.get_pointers`, `private.call`, ...) — обычные локальные функции, привязанные к `private`.
-5. **Диспетчер-таблицы** (`private.relevant_actions`, `private.relevant_pointer_setting`) — `table.freeze({...})` с `enumitem`-ключами.
+1. **Local types** (`type flatted = ...`, `type pointer_internal = ...`) — only for private functions.
+2. **Initialization of `private.*`**: `private.meta = tables.__mode_ks`, `private.shadow_space = setmetatable({}, private.meta)`, `private.pointers = newproxy()`, `private.items = newproxy()`.
+3. **`--#if CORE_CLASS_USEABLE`** — initialization block for `class` as an instance. Symmetrical to what `:host` does, but executed once when loading the module. **Mandatory** if the class can be used as an object.
+4. **Private functions** (`private.create_flatted_on`, `private.get_pointers`, `private.call`, ...) — regular local functions bound to `private`.
+5. **Dispatcher tables** (`private.relevant_actions`, `private.relevant_pointer_setting`) — `table.freeze({...})` with `enumitem` keys.
 
-Правило: **публичные имена — только в `:new`**. Всё остальное — `private` + `do`-блок.
+Rule: **public names — only in `:new`**. Everything else — `private` + `do` block.
 
-## 9.9. Приватное хранилище
+## 9.9. Private Storage
 
-Per-object состояние хранится **не в полях объекта**, а через `self:get(sentinel)` / `self:set(sentinel, value)`. Сентинелы — это `newproxy()`, объявленные один раз на класс.
+Per-object state is stored **not in object fields**, but via `self:get(sentinel)` / `self:set(sentinel, value)`. Sentinels are `newproxy()`, declared once per class.
 
-Паттерн доступа:
+Access pattern:
 
 ```luau
 private.get_pointers = function(of: observer): pointers
@@ -340,14 +357,14 @@ private.get_pointers = function(of: observer): pointers
 end
 ```
 
-- `private.dummy = dummies.table` — общая «пустышка» для случаев, когда `:get` вернул `nil`.
-- Каст `:: any` нужен, потому что `:get<Y>` возвращает `Y`, а `Y` зависит от контекста.
+- `private.dummy = dummies.table` — a common "dummy" for cases when `:get` returned `nil`.
+- The `:: any` cast is needed because `:get<Y>` returns `Y`, and `Y` depends on the context.
 
-**Никогда** не храните приватные данные в `shadow_space` напрямую, если можно обойтись `:get`/`:set` с сентинелом. `shadow_space` — для случаев, когда сентинел-подхода недостаточно (например, для произвольного `label: unknown`).
+**Never** store private data in `shadow_space` directly if you can get by with `:get`/`:set` with a sentinel. `shadow_space` is for cases when the sentinel approach is insufficient (e.g., for an arbitrary `label: unknown`).
 
-## 9.10. Диспетчеризация через `relevant_*`
+## 9.10. Dispatching via `relevant_*`
 
-Ключевой паттерн: вместо `if mode == ConnectionVariant.Ever then ... elseif ...` используется **таблица стратегий** с `enumitem`-ключами:
+Key pattern: instead of `if mode == ConnectionVariant.Ever then ... elseif ...`, a **strategy table** with `enumitem` keys is used:
 
 ```luau
 private.relevant_actions = table.freeze({
@@ -358,63 +375,114 @@ private.relevant_actions = table.freeze({
 })
 ```
 
-Правила:
+Rules:
 
-1. **`table.freeze`** — обязательно. Стратегии не должны меняться в рантайме.
-2. **Все ветки покрыты** для всех возможных `enumitem` из контракта. Если появляется новая ветка — она добавляется в **все** релевантные `relevant_*` таблицы, иначе валидатор/контракт разъедется.
-3. **`private.relevant_actions[mode]`** вызывается без `self`, потому что стратегия уже знает, с чем работает (через `related`-контекст). Если нужен `self` — передаётся в `related` или аргументах.
-4. Аналогично для `private.relevant_pointer_setting` — диспетчер по `enumitem_connection_variant` для смены режима существующих подписок.
+1. **`table.freeze`** — mandatory. Strategies must not change at runtime.
+2. **All branches are covered** for all possible `enumitem`s from the contract. If a new branch appears, it is added to **all** relevant `relevant_*` tables, otherwise the validator/contract will diverge.
+3. **`private.relevant_actions[mode]`** is called without `self`, because the strategy already knows what it is working with (via the `related` context). If `self` is needed, it is passed in `related` or in the arguments.
+4. Similarly for `private.relevant_pointer_setting` — a dispatcher by `enumitem_connection_variant` for changing the mode of existing subscriptions.
 
-Если агенту нужно добавить новое поведение, зависящее от `enumitem`, он **добавляет ветку в существующую `relevant_*`-таблицу**, а не пишет `if/elseif` в основном методе.
+If the agent needs to add new behavior dependent on `enumitem`, they **add a branch to the existing `relevant_*` table**, and do not write `if/elseif` in the main method.
 
-## 9.11. Условная компиляция
+## 9.11. Conditional Compilation
 
-`--#if <FLAG>` / `--#endif` — директивы препроцессора:
+`--#if <FLAG>` / `--#endif` — preprocessor directives:
 
-- `CORE_CLASS_USEABLE` — блок инициализации класса как экземпляра.
-- `DEBUG` — диагностические ветки (`std:oute(...)`, дополнительные проверки).
+- `CORE_CLASS_USEABLE` — class initialization block as an instance.
+- `DEBUG` — diagnostic branches (`std:oute(...)`, additional checks).
 
-Правила:
+Rules:
 
-1. **Директивы не влияют на логику без флага**; если код «работает только с флагом» — это баг.
-2. `--#if DEBUG` не должен содержать функционально значимый код; только диагностику.
-3. Вложенные `--#if` не приветствуются.
-4. Без `--#endif` файл не должен собираться.
+1. **Directives do not affect logic without the flag**; if code "only works with the flag" — it's a bug.
+2. `--#if DEBUG` must not contain functionally significant code; only diagnostics.
+3. Nested `--#if` are not welcome.
+4. Without `--#endif`, the file should not compile.
 
-## 9.12. Особенности стиля
+## 9.12. Style Specifics
 
-1. **`const` вместо `local`** — везде, где значение не переприсваивается.
-2. **`type(x) == types.function`** — используйте константы из `@declare/types`, а не строковые литералы.
-3. **Проверка luaobject-типов** — через `class:that(x, SomeType.type)` или `LuaObject:that(x, SomeType.type)`, **не** через `x.type == "..."` или `typeof(x)`.
-4. **`self:as<<T>>(class.type)`** — каст перед использованием типизированного `self`.
-5. **`std:check`, `std:assert`, `std:oute`** — стандартные утилиты; не пишите свои `assert`/`error`/`print`, если есть эти.
-6. **`table.freeze`** — для всех неизменяемых таблиц-стратегий и констант.
-7. **`pcall`** — вокруг любых пользовательских функций (`observer_var`, `ftype`-каллбэков), с `std:assert`/`std:oute` по результату.
-8. **`coroutine.isyieldable()`** — перед `scheduler:wait()`/`task.wait()`.
-9. **`Scheduler:whose()`** — перед `scheduler:last()`/`scheduler:wait()`; fallback на `task.wait()` только если `scheduler` не найден.
-10. **Variadic в `for ... in`** — через `for _, v in { ... } do` (создаёт копию), а не через `for i = 1, select("#", ...)`.
-11. **`table.clone`, `table.move`, `table.clear`, `table.find`** — предпочтительны ручным циклам.
-12. **`return class`** — единственное, что возвращает модуль. Экспорт типов — только в `core.d.luau`.
+1. **`const` instead of `local`** — everywhere the value is not reassigned.
+2. **`type(x) == types.function`** — use constants from `@declare/types`, not string literals.
+3. **Checking luaobject types** — via `class:that(x, SomeType.type)` or `LuaObject:that(x, SomeType.type)`, **not** via `x.type == "..."` or `typeof(x)`.
+4. **`self:as<<T>>(class.type)`** — cast before using the typed `self`.
+5. **`std:check`, `std:assert`, `std:oute`** — standard utilities; do not write your own `assert`/`error`/`print` if these exist.
+6. **`table.freeze`** — for all immutable strategy tables and constants.
+7. **`pcall`** — around any user functions (`observer_var`, `ftype` callbacks), with `std:assert`/`std:oute` on the result.
+8. **`coroutine.isyieldable()`** — before `scheduler:wait()`/`task.wait()`.
+9. **`Scheduler:whose()`** — before `scheduler:last()`/`scheduler:wait()`; fallback to `task.wait()` only if `scheduler` is not found.
+10. **Variadic in `for ... in`** — via `for _, v in { ... } do` (creates a copy), not via `for i = 1, select("#", ...)`.
+11. **`table.clone`, `table.move`, `table.clear`, `table.find`** — preferred over manual loops.
+12. **`return class`** — the only thing the module returns. Type exports — only in `core.d.luau`.
 
-## 9.13. Чек-лист построения класса
+### 9.12.1. Formatting variants
 
-- [ ] `--!strict` и 4 обязательных `--#include` на месте?
-- [ ] Импорты через `@`-алиасы, сгруппированы по слоям?
-- [ ] Локальные `type`-алиасы объявлены до `private`?
-- [ ] `private.type` совпадает с `:new({ type = ... })`?
-- [ ] Все публичные методы обёрнуты в `ftype:write` с **полной** сигнатурой?
-- [ ] Типы возврата указаны (включая `mtypes.never`)?
-- [ ] `:host` кастует `new:as<<T>>(class.type)` и инициализирует все сентинелы?
-- [ ] `private` инициализирован в `do`-блоке до первого использования?
-- [ ] `--#if CORE_CLASS_USEABLE` присутствует, если класс может быть использован как экземпляр?
-- [ ] Все `relevant_*`-таблицы — `table.freeze` и покрывают все `enumitem` контракта?
-- [ ] `pcall` вокруг пользовательских каллбэков?
-- [ ] `Scheduler:whose()` + `coroutine.isyieldable()` перед `wait`?
-- [ ] `return class` в конце?
-- [ ] Нет публичных имён вне `:new`?
-- [ ] Нет `if/elseif` по `enumitem` в основных методах, только `relevant_*`?
+Two formatting variants are allowed and both are present in the tree. CI does not check formatting, so a file is not rejected for using either of them.
 
-## 9.14 Пример Enum
+**Variant A — legacy, most files, matches `stylua.toml`:**
+
+```luau
+const private = { type = "stack" }
+const class: stack = LuaObject:new({
+	type = private.type,
+
+	put = ftype:write(function(self: stack, item: any): ()
+		-- ...
+	end, mtypes.never, private.type, mtypes.anyt),
+})
+```
+
+- tabs for indentation;
+- spaces inside table braces: `{ type = "stack" }`, `{ ... }`;
+- `:new({ ... })` with call parentheses;
+- `function(self, ...)`;
+- `x:as<<T>>(class.type)` without spaces.
+
+**Variant B — used by the newest files (`Character`, `Entity`, `Round`, `Faction`, `StateRegistry`, `Template`):**
+
+```luau
+const private = {type = "faction"}
+const class : faction = (Observer :: observer<enumitem_faction_notification>):new {
+    type = private.type,
+
+    get_member = ftype:write(function (self: faction) : ...character
+        -- ...
+    end, ftype:var(Character.type), private.type),
+}
+```
+
+- 4 spaces for indentation;
+- no spaces inside braces: `{type = "faction"}`, `{...}`;
+- `class : type` and `:new {` without call parentheses;
+- `function (self: type) : ReturnType`;
+- `x:as <<T>> (class.type)` with spaces;
+- `for _, v in {...} do`.
+
+Rules for both variants:
+
+1. Do not reformat an existing file just to switch the variant. If you edit a file, keep its current variant.
+2. A new file may use either variant, but must be internally consistent.
+3. `stylua.toml` describes only variant A, so `stylua --check src` currently reports many files. Passing `stylua` is not a merge requirement.
+4. The mandatory header (`--!strict` and the four `--#include`s) applies to both variants.
+
+### 9.13. Class Building Checklist
+
+- [ ] Are `--!strict` and the 4 mandatory `--#include`s in place?
+- [ ] Are imports via `@`-aliases, grouped by layers?
+- [ ] Are local `type` aliases declared before `private`?
+- [ ] Does `private.type` match `:new({ type = ... })`?
+- [ ] Are all public methods wrapped in `ftype:write` with a **complete** signature?
+- [ ] Are return types specified (including `mtypes.never`)?
+- [ ] Does `:host` cast `new:as<<T>>(class.type)` and initialize all sentinels?
+- [ ] Is `private` initialized in the `do` block before first use?
+- [ ] Is `--#if CORE_CLASS_USEABLE` present if the class can be used as an instance?
+- [ ] Are all `relevant_*` tables `table.freeze`d and cover all `enumitem`s of the contract?
+- [ ] Is there `pcall` around user callbacks?
+- [ ] Is there `Scheduler:whose()` + `coroutine.isyieldable()` before `wait`?
+- [ ] Is there `return class` at the end?
+- [ ] Are there no public names outside `:new`?
+- [ ] Are there no `if/elseif` by `enumitem` in main methods, only `relevant_*`?
+- [ ] Is the file kept in its existing formatting variant (A or B), without wholesale reformatting?
+
+## 9.14 Enum Example
 
 ```luau
     --!strict
@@ -424,23 +492,22 @@ private.relevant_actions = table.freeze({
     --#include <fflag_core.gpp>
     --#include <fflag.gpp>
 
-    const EnumItem = require("@class/core/EnumItem")
     const EnumObject = require("@class/core/EnumObject")
 
     const class: enum_data_notification = EnumObject:new({
         name = script.Name,
 
-        DataStateChanged = EnumItem:new() :: enumitem<any>, -- Тип специально занижен до `enumitem<any>` чтобы избегать ошибок типизации, это не баг, а фича. Тип `enum_*` все равно подстроит что нужно, ему главное чтобы были по структуре `[k]: item`
-        DataLoaded = EnumItem:new() :: enumitem<any>,
-        DataReleased = EnumItem:new() :: enumitem<any>,
-        DataChanged = EnumItem:new() :: enumitem<any>,
-        DataMessage = EnumItem:new() :: enumitem<any>,
+        DataStateChanged = EnumObject.build_enumitem_mark, -- The item is created by `EnumObject` itself, with the field name as its name. The type is intentionally lowered to `enumitem<any>` to avoid typing errors; this is not a bug, but a feature. The `enum_*` type will still adjust what is needed, the main thing for it is to have the structure `[k]: item`
+        DataLoaded = EnumObject.build_enumitem_mark,
+        DataReleased = EnumObject.build_enumitem_mark,
+        DataChanged = EnumObject.build_enumitem_mark,
+        DataMessage = EnumObject.build_enumitem_mark,
     })
 
     return class
 ```
 
-## 9.15 Пример Struct
+## 9.15 Struct Example
 
 ```luau
     --!strict
@@ -671,167 +738,173 @@ private.relevant_actions = table.freeze({
     return class
 ```
 
-# 10. Что использовать и в каких ситуациях
+# 10. What to Use and in What Situations
 
-Раздел описывает, **какой примитив из `core.d.luau` брать в какой задаче**, и почему. Правило общее: если для задачи уже есть тип в `core.d.luau` — используйте его, а не изобретайте своё. Если тип отсутствует — сначала предложите расширение контракта, а не пишите ad-hoc-решение.
+This section describes **which primitive from `core.d.luau` to take for which task**, and why. The general rule: if there is already a type in `core.d.luau` for the task — use it, and do not invent your own. If the type is missing — first propose a contract extension, rather than writing an ad-hoc solution.
 
-## 10.1. Выбор базового типа
+## 10.1. Choosing the Base Type
 
-| Ситуация | Что брать | Почему |
+| Situation | What to take | Why |
 |---|---|---|
-| Нужен любой объект проекта | `luaobject` | Единственный базовый тип, даёт RTTI (`type`, `it`, `is`, `as`, `same`, `eq`, `base`, `iden`, `ttype`) |
-| Нужны **данные**, а не поведение | `struct` | Неизменяем, `:clone`/`:each`, без скрытого состояния — предсказуемо |
-| Нужен идентификатор (роль, состояние, режим, уведомление) | `enumobject` + `enumitem` | Стабильный `hashlink`, не строка, не Roblox `Enum`; работает с `observer`/`event`/`statemachine` |
-| Нужен синглтон-сервис с `name`/`enabled` | `service` | Контракт `nameable & switchable`; сервисы регистрируются и управляются единообразно |
-| Нужен ресурс с освобождением | `disposable` | `:free()`, `:released()`, `:watch()` — единый lifecycle |
+| Need any project object | `luaobject` | The only base type, gives RTTI (`type`, `it`, `is`, `as`, `same`, `eq`, `base`, `iden`, `ttype`) |
+| Need **data**, not behavior | `struct` | Immutable, `:clone`/`:each`, no hidden state — predictable |
+| Need an identifier (role, state, mode, notification) | `enumobject` + `enumitem` | Stable `hashlink`, not a string, not Roblox `Enum`; works with `observer`/`event`/`stateregistry` |
+| Need a singleton service with `name`/`enabled` | `service` | Contract `nameable & switchable`; services are registered and managed uniformly |
+| Need a resource with release | `disposable` | `:free()`, `:released()`, `:watch()` — unified lifecycle |
 
-**Не** наследуйте напрямую от `{...}`, если объект участвует в RTTI, сериализуется, реплицируется или ревьюится. Такие вещи всегда `luaobject` (напрямую или через `struct`/`service`/`disposable`).
+**Do not** inherit directly from `{...}` if the object participates in RTTI, is serialized, replicated, or reviewed. Such things are always `luaobject` (directly or via `struct`/`service`/`disposable`).
 
-## 10.2. Хранение значений и состояние
+## 10.2. Storing Values and State
 
-| Ситуация | Что брать | Почему |
+| Situation | What to take | Why |
 |---|---|---|
-| Хранить мутабельное значение и отдавать его наружу по ссылке | `variable<T>` | Ссылочный тип: `:get_value()`/`:set_value()` меняют значение, все видят изменение |
-| Хранить значение с подпиской на изменения, но без ссылки | `value<T>` | Уведомляет через `observer<enumitem_operation_variant>`; `:get_value()`/`:set_value()` с `default` |
-| LIFO-коллекция с ограничением | `stack<T>` | `:pick()`/`:put()`/`:count()`, `max` — встроен |
-| Несколько экземпляров одного класса с параллельным доступом | `quant<T>` | `:get_quantized_class()`/`:set_quantized_class()`, `list_*` операции, уведомления |
-| Ленивое кэширование | `maybe<T, U>` | `:extract()`, `:enactment()`, `:erase()`, `:exist()` — не изобретайте `cache[key] = f()` |
-| Реестр активных состояний | `statemachine<T>` | `:get_state()`/`:set_state()`/`:blacklist()`, уведомления через `enumitem_statemachine_notification` |
+| Store a mutable value and expose it outside by reference | `variable<T>` | Reference type: `:get_value()`/`:set_value()` change the value, everyone sees the change |
+| Store a value with subscription to changes, but without reference | `value<T>` | Notifies via `observer<enumitem_operation_variant>`; `:get_value()`/`:set_value()` with `default` |
+| LIFO collection with a limit | `stack<T>` | `src/class/common/collection/Stack.luau`; `:pick()`/`:put()`/`:count()`, `max` — built-in |
+| FIFO collection with a limit | `queue<T>` | `src/class/common/collection/Queue.luau`; `:pick()`/`:put()`/`:count()`, `max` — built-in |
+| Lazy caching | `maybe<T, U>` | `:extract()`, `:enactment()`, `:erase()`, `:exist()` — do not invent `cache[key] = f()` |
+| Lazy storage with a template for every new value | `template<T, U>` | `:get_template()`/`:set_template()`, `:allocate_for()`, `:exist_for()`, `:free_for()`; notifies via `observer<enumitem_operation_variant>` |
+| Registry of active states | `stateregistry<T>` | `src/class/common/StateRegistry.luau`; `:get_state()`, `:set_state()`, `:blacklist()`, notifications via `enumitem_statemachine_notification` |
 
-**Не** используйте `value` там, где нужна ссылка (нужен `variable`), и **не** используйте `variable` там, где нужны уведомления (нужен `value` или `observer`). Разница семантическая: `variable` — это «ячейка», `value` — это «источник события + значение».
+> `quant<T>` is still declared in `core.d.luau`, but has no implementation: do not use it in new code and do not reimplement it without an explicit request (see section 7).
 
-## 10.3. Индирекция и ссылки
+**Do not** use `value` where a reference is needed (you need `variable`), and **do not** use `variable` where notifications are needed (you need `value` or `observer`). The difference is semantic: `variable` is a "cell", `value` is an "event source + value".
 
-| Ситуация | Что брать | Почему |
+## 10.3. Indirection and References
+
+| Situation | What to take | Why |
 |---|---|---|
-| Слабая ссылка на «что-то» с управлением | `pointer<T>` | `:get_pointed()`, `:set_point()`, `:is_pointed_exists()`, `:is_pointed_hard()` — используется в `observer` для `unsubscribe` |
-| Обёртка над Roblox `Instance` с событиями | `reference<T>` | `:call_function()`, `:call_methode()`, `:read_field()`, `:write_field()`, `:has_field()` + `observer<enumitem_reference_notification>` |
-| Путь к `Instance`, когда прямая ссылка нежелательна | `path` | `:get_by_absolute_path()`, `:get_by_relative_path()`, `:get_by_path_or_nil()`, `spoof`-режимы |
+| Weak reference to "something" with control | `pointer<T>` | `:get_pointed()`, `:set_point()`, `:is_pointed_exists()`, `:is_pointed_hard()` — used in `observer` for `unsubscribe` |
+| Wrapper over Roblox `Instance` with events | `reference<T>` | `:call_function()`, `:call_methode()`, `:read_field()`, `:write_field()`, `:has_field()` + `observer<enumitem_reference_notification>` |
+| Path to `Instance` when a direct reference is undesirable | `path` | `:get_by_absolute_path()`, `:get_by_relative_path()`, `:get_by_path_or_nil()`, `spoof` modes |
 
-**Не** держите `Instance` напрямую, если он может исчезнуть — берите `reference`. **Не** делайте ручной `FindFirstChild`-обход — берите `path`. **Не** заменяйте `pointer` обычной таблицей-контейнером: `pointer` умеет `is_pointed_exists`, `pointer` — weak-совместим.
+**Do not** keep `Instance` directly if it can disappear — take `reference`. **Do not** do manual `FindFirstChild` traversal — take `path`. **Do not** replace `pointer` with a regular container table: `pointer` knows `is_pointed_exists`, `pointer` is weak-compatible.
 
-## 10.4. Уведомления и подписки
+## 10.4. Notifications and Subscriptions
 
-| Ситуация | Что брать | Почему |
+| Situation | What to take | Why |
 |---|---|---|
-| Внутренняя шина с тонким контролем | `observer<T>` | Базовый `:subscribe()`/`:unsubscribe()`/`:notificate()`; `deferred_call`, `deferred_mode`, `allow_new_connections` |
-| Пользовательский «ивент» с `connect`/`once`/`wait`/`invoke` | `event<T, U...>` | Удобный API поверх `observer`, `:wait()` — блокирующий, `:invoke()`/`:invoke_deferred()` |
-| Handle подписки, отписка вручную | `connection<T, U...>` | `:disconnect()`, `:set_mode()`, `:is_connected()`, `:get_mode()` |
-| Обёртка над Roblox `RBXScriptSignal` | `signal<T...>` | `:get_signal_event()`, `:set_signal_source()`, `:apply_as_source()`, `use_parallel_signals` |
-| Автопривязка классов к `Instance` по тегу | `binder<T>` | `:start()`/`:stop()`, `ancestors`, `maker`; уведомления `BinderNotification.Bound`/`Unbound` |
+| Internal bus with fine control | `observer<T>` | Basic `:subscribe()`/`:unsubscribe()`/`:notificate()`; `deferred_call`, `deferred_mode`, `allow_new_connections` |
+| User "event" with `connect`/`once`/`wait`/`invoke` | `event<T, U...>` | Convenient API over `observer`, `:wait()` — blocking, `:invoke()`/`:invoke_deferred()` |
+| Subscription handle, manual unsubscribe | `connection<T, U...>` | `:disconnect()`, `:set_mode()`, `:is_connected()`, `:get_mode()` |
+| Wrapper over Roblox `RBXScriptSignal` | `signal<T...>` | `:get_signal_event()`, `:set_signal_source()`, `:apply_as_source()`, `use_parallel_signals` |
+| Auto-binding classes to `Instance` by tag | `binder<T>` | `:start()`/`:stop()`, `ancestors`, `maker`; notifications `BinderNotification.Bound`/`Unbound` |
 
-**Не** пишите свой `signal`-подобный механизм: `observer`/`event` уже покрывают 95% случаев. **Не** подписывайтесь напрямую на `RBXScriptSignal` в ядре — оборачивайте в `signal`.
+**Do not** write your own `signal`-like mechanism: `observer`/`event` already cover 95% of cases. **Do not** subscribe directly to `RBXScriptSignal` in the core — wrap it in `signal`.
 
-## 10.5. Жизненный цикл, время, планирование
+## 10.5. Lifecycle, Time, Scheduling
 
-| Ситуация | Что брать | Почему |
+| Situation | What to take | Why |
 |---|---|---|
-| Один освобождаемый ресурс | `disposable` | `:free()`, `:released()`, `:watch()` — единая точка освобождения |
-| Набор освобождаемых ресурсов | `maid` | `:add_object()`, `:add_key()`, `:remove_object()`, `:remove_key()`, `:is_supported()`; сам `maid` — `disposable` |
-| Управление «запуском» | `controller` | `:continue()`, `:pause()`, `:reset()` + `enumitem_controller_state` |
-| Таймер с шагом | `timer` | `:get_elapsed()`, `:get_remaining()`, `:set_duration()`, `:set_step()` + `enumitem_tick_notification` |
-| Запланированная корутина | `scheduler` | `:plan()`, `:cancel()`, `:wait()`, `:hold()`, `:last()`, `:next()`, `:process()` |
+| One releasable resource | `disposable` | `:free()`, `:released()`, `:watch()` — single release point |
+| Set of releasable resources | `maid` | `:add_object()`, `:add_key()`, `:remove_object()`, `:remove_key()`, `:is_supported()`; `maid` itself is `disposable` |
+| "Run" management | `controller` | `:continue()`, `:pause()`, `:reset()` + `enumitem_controller_state` |
+| Timer with step | `timer` | `:get_elapsed()`, `:get_remaining()`, `:set_duration()`, `:set_step()` + `enumitem_tick_notification` |
+| Scheduled coroutine | `scheduler` | `:plan()`, `:cancel()`, `:wait()`, `:hold()`, `:last()`, `:next()`, `:process()` |
+| Track deletion of objects and attach finalizers | `heap` | `:register()`, `:unregister()`, `:finally()` — a GCTracker-style pool; `Maid`/`Maybe`/`Template` build on it |
+| PID-style physical control | `kinematiccontroller<T>`, `pcontroller<T>`, `picontroller<T>`, `pdcontroller<T>`, `pidcontroller<T>` | `:apply_error()`, `:apply_measurement()`, `:get_output()`, `:get_error()`, `:reset()`; used by `entity` for movement, height and rotation |
 
-**Не** используйте `task.wait`/`task.spawn`, если класс уже реализует `scheduler` — они конфликтуют. **Не** держите ссылку на ресурс без `disposable`/`maid`, если ресурс требует освобождения.
+**Do not** use `task.wait`/`task.spawn` if the class already implements `scheduler` — they conflict. **Do not** keep a reference to a resource without `disposable`/`maid` if the resource requires release.
 
-## 10.6. Сеть
+## 10.6. Network
 
-| Ситуация | Что брать | Почему |
+| Situation | What to take | Why |
 |---|---|---|
-| Транспорт клиент↔сервер | `sharednet` + `netpack` | `:get_event()`, `:emit_event()`; `netpack:pack()`, `:payload()`, `:get_flat()`, `:get_players()`, `:get_source()`, `:is_me_sender()` |
-| Данные игрока (сервер) | `dataserver` | `:start()`, `:get_data()`, `:wait_data()`, `:get_value()`, `:set_value()`, `:update_value()`, `:reset()`, `:send_message()`, `:get_data_event()` |
-| Данные игрока (клиент) | `dataclient` | `:start()`, `:get_state()`, `:get_value()`, `:wait_loaded()`, `:get_data_event()` |
-| RPC на другую машину | `remotecall` | Единая точка удалённого вызова |
+| Client↔server transport | `sharednet` + `netpack` | `:get_event()`, `:emit_event()`; `netpack:pack()`, `:payload()`, `:get_flat()`, `:get_players()`, `:get_source()`, `:is_me_sender()` |
+| Player data (server) | `dataserver` | `:start()`, `:get_data()`, `:wait_data()`, `:get_value()`, `:set_value()`, `:update_value()`, `:reset()`, `:send_message()`, `:get_data_event()` |
+| Player data (client) | `dataclient` | `:start()`, `:get_state()`, `:get_value()`, `:wait_loaded()`, `:get_data_event()` |
+| RPC to another machine | `remotecall` | Single point of remote call |
 
-**Не** шлите пакеты вручную через `RemoteEvent` — используйте `sharednet`. **Не** пишите с клиента в `dataserver` — только `dataclient` (read-only). **Не** используйте `dataserver:set_value` для реплицируемых ключей в обход `update_value` — иначе репликация разъедется.
+**Do not** send packets manually via `RemoteEvent` — use `sharednet`. **Do not** write from the client to `dataserver` — only `dataclient` (read-only). **Do not** use `dataserver:set_value` for replicable keys bypassing `update_value` — otherwise replication will diverge.
 
-## 10.7. Геометрия
+## 10.7. Geometry
 
-| Ситуация | Что брать | Почему |
+| Situation | What to take | Why |
 |---|---|---|
-| Ориентация + позиция в пространстве | `basis` | `:basis_to_world/local`, `:point_to_world/local`, `:slerp`, `:inverse_basis`, `:get_components`/`:from_components` |
+| Orientation + position in space | `basis` | `:basis_to_world/local`, `:point_to_world/local`, `:slerp`, `:inverse_basis`, `:get_components`/`:from_components` |
 | Axis-aligned box | `aabbvolume` | `min`/`max`, `half`, `:is_inside`, `:is_intersection`, `:look_at` |
-| Ориентированный box | `obbvolume` | То же + `:rotate_radian`, `:get_rotation_radian` |
-| Кубическая область | `cubevolume` | `:up/:bottom/:left/:right/:front/:back`, `:get_corners`, `:get_axises`, `:get_quad`, `:get_sat_axises` |
-| Полигон / фейс | `triangle`, `quad` | `:from_vector`, `:get_normal_geometric`, `:get_normal_interpolated` |
-| Упорядоченные оси | `directions` | `axisable` + `vector_operations` |
+| Oriented box | `obbvolume` | Same + `:rotate_radian`, `:get_rotation_radian` |
+| Cubic volume | `cubevolume` | `:up/:bottom/:left/:right/:front/:back`, `:get_corners`, `:get_axises`, `:get_quad`, `:get_sat_axises` |
+| Polygon / face | `triangle`, `quad` | `:from_vector`, `:get_normal_geometric`, `:get_normal_interpolated` |
+| Ordered axes | `directions` | `axisable` + `vector_operations` |
 
-**Не** считайте ориентацию руками через `CFrame` — берите `basis`. **Не** пишите ручные SAT-проверки — берите `geometry_check` из соответствующего объёма. Новые объёмы (`spherevolume`, `capsulevolume`, `conevolume`, `tetavolume`) пока закомментированы в `core.d.luau` — **не** реализуйте их без явного запроса и обновления контракта.
+**Do not** calculate orientation manually via `CFrame` — take `basis`. **Do not** write manual SAT checks — take `geometry_check` from the corresponding volume. `spherevolume`, `conevolume`, `capsulevolume` and `tetavolume` are declared in `core.d.luau`, but are not implemented and are not part of `geometry_volume` — **do not** implement them without an explicit request and contract update (see section 7).
 
-## 10.8. Игровые сущности
+## 10.8. Game Entities
 
-| Ситуация | Что брать | Почему |
+| Situation | What to take | Why |
 |---|---|---|
-| Домен игры: раунд, фракции | `round`, `faction` | `:get_members()`, `:add_member()`, `:rem_member()`, `:is_member()`; `round` — `timer` + `stateable` |
-| Логическая сущность «персонаж» | `character` | `:get_token()`, `:get_parameter()`, `:has_parameter()`, `:get_abilities()`, `:get_inventory()`, `:get_model_reference()`; `informable<characterinfo>` |
-| Способность | `ability` + `abilityinfo` | `:activate()`, `:cooldown()`; `abilityinfo` — пакет баланса (`has_*`, `cooldown`, `stun`, `recoil`, `kickback`, `slow`, `*_time`) |
-| Инвентарь | `inventory` + `itemstack` + `itemobject` | `inventory` — `max` + `list_*` + `:get_stacks()`; `itemstack`/`itemobject` — варианты «стак» и «уникальный» |
-| Описание предмета | `item` | Синглтон: `max`, `count`, `description`, `behavior`, `:get_stack()` |
-| Поведение предмета | `itembehavior` + `itemcontext` | `:on_equip`, `:on_unequip`, `:on_take`, `:on_drop`, `:action` |
-| Профиль игрока | `profile<T>` | `:get_player()`, `:get_joined_at()`, `:get_last_seen_at()`, `:get_permissions()`, `:get_restrictions()`, `:has_platform()`, `:is_banned()`, `:is_kicked()` |
+| Game domain: round, factions | `round`, `faction` | `src/class/game/control/`; `:get_members()`, `:add_member()`, `:rem_member()`, `:is_member()`, `:has_faction()`; `round` — `timer` + `stateregistry` |
+| Logical "character" entity | `character` | `:get_token()`, `:get_parameter()`, `:has_parameter()`, `:get_abilities()`, `:get_inventory()`, `:get_model_reference()`; `informable<characterinfo>` |
+| Physical entity (movement, physics) | `entity` | `src/class/game/character/Entity.luau`; `disposable`, wraps `reference`/`kinematiccontroller`, has `enabled`, `up_direction`, `move_direction`, `jump`, `walk_speed`, `jump_power`, `hip_height`, `floor_reach`, `auto_rotate`, `lock_rotation_x` |
+| Ability | `ability` + `abilityinfo` | `:activate()`, `:cooldown()`; `abilityinfo` — balance package (`has_*`, `cooldown`, `stun`, `recoil`, `kickback`, `slow`, `*_time`) |
+| Inventory | `inventory` + `itemstack` + `itemobject` | `inventory` — `max` + `list_*` + `:get_stacks()`; `itemstack`/`itemobject` — "stack" and "unique" variants, both extend `iteminstance` |
+| Item description | `item` | Singleton: `max`, `count`, `description`, `behavior`, `:get_stack()` |
+| Item behavior | `itembehavior` + `itemcontext` | `:on_equip`, `:on_unequip`, `:on_take`, `:on_drop`, `:action` |
+| Player profile | `profile<T>` | `:get_player()`, `:get_joined_at()`, `:get_last_seen_at()`, `:get_permissions()`, `:get_restrictions()`, `:has_platform()`, `:is_banned()`, `:is_kicked()` |
 
-**Не** заменяйте `character` прямым `Humanoid` в игровой логике — `character` не зависит от способа управления. **Не** храните предметы прямо в `inventory`: только `itemstack`/`itemobject`. **Не** пишите поведения предметов вне `itembehavior` — иначе `:action` не увидит `itemcontext`.
+**Do not** replace `character` with a direct `Humanoid` in game logic — `character` does not depend on the control method. **Do not** store items directly in `inventory`: only `itemstack`/`itemobject`. **Do not** write item behaviors outside `itembehavior` — otherwise `:action` will not see `itemcontext`.
 
 ## 10.9. IK
 
-| Ситуация | Что брать | Почему |
+| Situation | What to take | Why |
 |---|---|---|
-| Решатель R6 | `ikr6legs`, `ikr6arms`, `ikr6heads` | Автоматизированные решатели; каждый `initiable` и управляет своими `ikr6limb` |
-| Одна конечность | `ikr6limb`, `ikr6foot`, `ikr6arm`, `ikr6head` | `:get_fake()`, `:get_limb_target()`, `:get_limb_pole()`, `:get_limb_facing()`, `:is_moving_finished()` |
-| Конфигурация решателя | `ikr6info`, `ikr6leginfo`, `ikr6arminfo`, `ikr6limbinfo` | Пакеты настройки; используются через `informable` |
+| R6 solver | `ikr6legs`, `ikr6arms`, `ikr6heads` | Automated solvers; each is `initiable` and manages its own `ikr6limb` |
+| Single limb | `ikr6limb`, `ikr6foot`, `ikr6arm`, `ikr6head` | `:get_fake()`, `:get_limb_target()`, `:get_limb_pole()`, `:get_limb_facing()`, `:is_moving_finished()` |
+| Solver configuration | `ikr6info`, `ikr6leginfo`, `ikr6arminfo`, `ikr6limbinfo` | Setup packages in `src/class/struct/game/IKR6*Info.luau`; used via `informable` |
 
-**Не** пишите свой IK — берите `ikr6*`. **Не** храните настройки решателя в полях — используйте `*info` через `informable`. IK-классы помечены как «поддержка не гарантируется» (R6) — правки требуют согласования.
+**Do not** write your own IK — take `ikr6*`. **Do not** store solver settings in fields — use `*info` via `informable`. IK classes are marked as "support not guaranteed" (R6) — edits require coordination.
 
-## 10.10. Возврат значений
+## 10.10. Return Values
 
-| Ситуация | Что брать | Почему |
+| Situation | What to take | Why |
 |---|---|---|
-| Функция возвращает «успех/результат» | `result<T, U...>` | `:state`, `:result`, `:unpack` — вместо `(boolean, T?)` |
-| Сетевой пакет на проводе | `netpack` / `netpack_flat` | `netpack:get_flat()` — wire-формат, `netpack_flat` — плоская таблица |
+| Function returns "success/result" | `result<T, U...>` | `:state`, `:result`, `:unpack` — instead of `(boolean, T?)` |
+| Network packet on the wire | `netpack` / `netpack_flat` | `netpack:get_flat()` — wire format, `netpack_flat` — flat table |
 
-**Не** возвращайте `(boolean, string | nil)` из публичных API — берите `result`. **Не** сериализуйте `netpack` вручную — используйте `:get_flat()`/`:from_flat()`.
+**Do not** return `(boolean, string | nil)` from public APIs — take `result`. **Do not** serialize `netpack` manually — use `:get_flat()`/`:from_flat()`.
 
-## 10.11. Интерфейсы-миксины
+## 10.11. Mixin Interfaces
 
-Использовать по назначению, не «на всякий случай»:
+Use for their intended purpose, not "just in case":
 
-| Интерфейс | Когда |
+| Interface | When |
 |---|---|
-| `nameable` | Объект имеет имя (сервис, фракция, предмет) |
-| `switchable` | Объект можно вкл/выкл (`enabled`) |
-| `operatable` | Нужны `continue`/`pause`/`reset` |
-| `controllable` | У объекта есть `controller` (`:get_control()`) |
-| `instanceable` | Объект связан с одним Roblox `Instance` |
-| `referenceable` | Объект связан с `reference` (`:get_reference()`) |
-| `disposable` | Объект освобождает ресурсы |
-| `private_storage` | Нужны `:get`/`:set` по `label` |
-| `invokeable` | Объект вызываем (`:invoke`) |
-| `asyncable` | Объект делает сетевые/асинхронные попытки (`time_to_hold`, `time_to_response`, `attempts`) |
-| `stateable<T, U>` | Объект имеет автомат состояний (`:get_states()`) |
-| `informable<T, U>` | Объект имеет пакет `*info` (`:get_info()`/`:set_info()`) |
-| `initiable` | Объект имеет фазу инициализации (`:is_initiated()`) |
-| `loopable` | Объект имеет цикл (`:get_loop()`) |
-| `reloadable` | Объект можно перезарядить (`:reload()`) |
-| `modifier<T>` | Объект имеет модификатор |
-| `iterations<T>` | Объект итерируется |
-| `list_checks` | Объект — коллекция; нужны `is_full`/`is_empty`/`is_half` |
-| `list_operations<T, U...>` | Объект — коллекция; нужны `clear`/`count`/`length`/`adjust`/`insert`/`remove`/`collect`/`find` |
-| `math_operations` | Объект — число-подобный (`multiple`, `divide`, `lerp`, `fuzzy_eq`, ...) |
-| `vector_operations` | Объект конвертируется в `basis`/`vector` |
-| `positioned`, `rotateable`, `centerable`, `normal`, `normals`, `axisable` | Геометрические гарантии |
-| `geometry_check`, `geometry_control`, `geometry_rotatable`, `geometry_convertation`, `geometry_half` | Геометрические операции |
-| `I_targetable<T, U>` | У объекта есть цель (`:set_target()`/`:get_target()`) |
-| `expected_calltype<T>` | Подписка знает свой ожидаемый тип |
-| `loopable`/`iterations`/`modifier`/`reloadable` | Только если контракт реально нужен, не «чтобы было» |
+| `nameable` | Object has a name (service, faction, item) |
+| `switchable` | Object can be turned on/off (`enabled`) |
+| `operatable` | Need `continue`/`pause`/`reset` |
+| `controllable` | Object has a `controller` (`:get_control()`) |
+| `instanceable` | Object is tied to one Roblox `Instance` |
+| `referenceable` | Object is tied to a `reference` (`:get_reference()`) |
+| `disposable` | Object releases resources |
+| `private_storage` | Need `:get`/`:set` by `label` |
+| `invokeable` | Object is callable (`:invoke`) |
+| `asyncable` | Object makes network/async attempts (`time_to_hold`, `time_to_response`, `attempts`) |
+| `stateable<T, U>` | Object has a state machine (`:get_states()`) |
+| `informable<T, U>` | Object has an `*info` package (`:get_info()`/`:set_info()`) |
+| `initiable` | Object has an initialization phase (`:is_initiated()`) |
+| `loopable` | Object has a loop (`:get_loop()`) |
+| `reloadable` | Object can be reloaded (`:reload()`) |
+| `modifier<T>` | Object has a modifier |
+| `iterations<T>` | Object is iterable |
+| `list_checks` | Object is a collection; need `is_full`/`is_empty`/`is_half` |
+| `list_operations<T, U...>` | Object is a collection; need `clear`/`count`/`length`/`adjust`/`insert`/`remove`/`collect`/`find` |
+| `math_operations` | Object is number-like (`multiple`, `divide`, `lerp`, `fuzzy_eq`, ...) |
+| `vector_operations` | Object converts to `basis`/`vector` |
+| `positioned`, `rotateable`, `centerable`, `normal`, `normals`, `axisable` | Geometric guarantees |
+| `geometry_check`, `geometry_control`, `geometry_rotatable`, `geometry_convertation`, `geometry_half` | Geometric operations |
+| `I_targetable<T, U>` | Object has a target (`:set_target()`/`:get_target()`) |
+| `expected_calltype<T>` | Subscription knows its expected type |
+| `loopable`/`iterations`/`modifier`/`reloadable` | Only if the contract is really needed, not "just to have it" |
 
-**Не** подмешивайте интерфейсы «для полноты»: каждый добавляет поля/методы, которые придётся реализовывать и ревьюить. Берите ровно тот набор, который описывает поведение объекта.
+**Do not** mix in interfaces "for completeness": each adds fields/methods that will have to be implemented and reviewed. Take exactly the set that describes the object's behavior.
 
-## 10.12. Уведомления `enum_*_notification`
+## 10.12. Notifications `enum_*_notification`
 
-Выбор уведомления = выбор того, на что объект реагирует. Используйте существующие:
+Choosing a notification = choosing what the object reacts to. Use existing ones:
 
-- `enum_setup_notification` — фазы установки/подключения (`Install`, `Installed`, `Require`, `Disconnected`).
-- `enum_tick_notification` — жизненный цикл таймера (`Started`, `Stepped`, `Paused`, `Resumed`, `Finished`).
+- `enum_setup_notification` — installation/connection phases (`Install`, `Installed`, `Require`, `Disconnected`).
+- `enum_tick_notification` — timer lifecycle (`Started`, `Stepped`, `Paused`, `Resumed`, `Finished`).
 - `enum_operation_variant` — `New`/`Change`/`Remove`.
 - `enum_reference_notification` — `NewInstance`/`ChangedInstance`/`DestroyedInstance`/`NullifiedInstance`.
 - `enum_binder_notification` — `Bound`/`Unbound`.
@@ -839,24 +912,30 @@ private.relevant_actions = table.freeze({
 - `enum_data_notification` — `DataStateChanged`/`DataLoaded`/`DataReleased`/`DataChanged`/`DataMessage`.
 - `enum_shared_net_variant` — `Unsafe`/`Safe`/`Internal`.
 - `enum_net_source` — `FromServer`/`FromMe`/`FromClient`.
-- `enum_controller_state`, `enum_round_state`, `enum_state`, `enum_data_state`, `enum_iklegs_state` — состояния.
-- `enum_item_context` — `Primary`/`Secondary`/`Cycle`/`Special` (для `itemcontext`).
-- `enum_character_parameter_variant` — параметры персонажа.
-- `enum_action_map_variant` — действия для будущего `InputMap`.
-- `enum_statemachine_notification` — `ChangedState`/`NewState`/`BlacklistAdded`/`BlacklistRemoved`.
+- `enum_controller_state`, `enum_round_state`, `enum_state`, `enum_data_state`, `enum_iklegs_state` — states.
+- `enum_item_context` — `Primary`/`Secondary`/`Cycle`/`Special` (for `itemcontext`).
+- `enum_item_notification` — item lifecycle (`Equip`/`Unequip`/`Take`/`Drop`/`Action`).
+- `enum_list_notification` — list changes (`AddedElement`/`RemovedElement`/`ListFull`/`ListEmpty`/`ListHalf`).
+- `enum_character_parameter_variant` — character parameters.
+- `enum_action_map_variant` — actions for the future `InputMap`.
+- `enum_input_notification` — input pipeline (`CodeAdded`/`CodeRemoved`/`Pressed`/`Clamped`/`Stopped`/`RelatedChanged`/`RelatedNullified`/`NetworkEnabled`/`NetworkDisabled`).
+- `enum_executor_notification` — executor phases (`Process`/`Simulation`).
+- `enum_statemachine_notification` — `ChangedState`/`NewState`/`BlacklistAdded`/`BlacklistRemoved` (used by `stateregistry`).
 - `enum_disposable_notification` — `OnRelease`/`Released`.
 - `enum_faction_notification` — `MemberJoined`/`MemberRemoved`.
-- `enum_ability_notification` — фазы способности.
-- `enum_user_notification` — события профиля (`ServerJoin`/`ServerExit`/`ServerBan`/`ServerKick`/`ServerDataRequest`).
-- `enum_direction_variant`, `enum_collision_variant`, `enum_asset_type_variant`, `enum_physx_mode_variant`, `enum_internal_channel_variant` — доменные варианты.
+- `enum_ability_notification` — ability phases.
+- `enum_user_notification` — profile events (`ServerJoin`/`ServerExit`/`ServerBan`/`ServerKick`/`ServerDataRequest`).
+- `enum_user_data_require` — profile data keys (`UserProfile`/`UserLastDataSave`/`UserLastDataRequest`/`UserPlayedTime`/`UserLastEnter`/`UserPreviousKick`/`UserPreviousBan`).
+- `enum_data_internal_variant` — internal data transport (`DataSnapshot`/`DataSet`/`DataReady`/`DataRequest`/`DataExit`).
+- `enum_direction_variant`, `enum_collision_variant`, `enum_asset_type_variant`, `enum_physx_mode_variant`, `enum_user_machine_variant`, `enum_shared_net_link` — domain variants.
 
-**Не** вводите новое уведомление, если существующего достаточно. Если новое действительно нужно — оно добавляется в `src/enums/notification/**` и в `core.d.luau`, иначе валидатор его не увидит.
+**Do not** introduce a new notification if an existing one is sufficient. If a new one is really needed — it is added to `src/enums/notification/**` and to `core.d.luau`, otherwise the validator will not see it.
 
-## 10.13. Сводное правило выбора
+## 10.13. Summary Rule of Choice
 
-1. **Сначала ищите готовый тип** в `core.d.luau`. 90% задач уже покрыто.
-2. **Если тип есть, но не подходит по семантике** — рассмотрите соседний (`variable` vs `value`, `pointer` vs `reference`, `event` vs `signal`, `aabb` vs `obb`).
-3. **Если типа нет** — сначала предложите расширение `core.d.luau` (плюс `src/static/**` и, если надо, `src/enums/**`), затем реализацию.
-4. **Не смешивайте слои:** `struct` для данных, `service` для синглтонов, `disposable` для ресурсов, `observer` для уведомлений.
-5. **Не дублируйте:** если в проекте уже есть `scheduler`, `signal`, `maid`, `pointer`, `observer`, `sharednet`, `dataserver` — используйте их, даже если «своё» кажется проще.
-6. **Согласуйте**, если задача требует тронуть чужой участок по `CODEOWNERS`, реализовать закомментированный в контракте тип или изменить публичный API.
+1. **First look for a ready type** in `core.d.luau`. 90% of tasks are already covered.
+2. **If the type exists but does not fit semantically** — consider a neighbor (`variable` vs `value`, `pointer` vs `reference`, `event` vs `signal`, `aabb` vs `obb`).
+3. **If there is no type** — first propose an extension to `core.d.luau` (plus `src/static/**` and, if necessary, `src/enums/**`), then the implementation.
+4. **Do not mix layers:** `struct` for data, `service` for singletons, `disposable` for resources, `observer` for notifications.
+5. **Do not duplicate:** if the project already has `scheduler`, `signal`, `maid`, `pointer`, `observer`, `sharednet`, `dataserver`, `heap`, `queue`, `stateregistry` — use them, even if "your own" seems simpler.
+6. **Coordinate** if the task requires touching someone else's area according to `CODEOWNERS`, implementing a type that is declared but not implemented in the contract, or changing the public API.

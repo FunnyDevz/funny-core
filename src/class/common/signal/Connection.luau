@@ -1,4 +1,10 @@
 --!strict
+
+--#include <project.gpp>
+--#include <build.gpp>
+--#include <fflag_core.gpp>
+--#include <fflag.gpp>
+
 const EnumItem = require("@class/core/EnumItem")
 const Observer = require("@class/core/Observer")
 const Pointer = require("@class/core/Pointer")

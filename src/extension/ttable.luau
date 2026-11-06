@@ -4,6 +4,22 @@ const std = require("@extension/std")
 
 type t = { [any]: any }
 
+const d_type = type
+const d_next = next
+const d_create = table.create
+const d_sort = table.sort
+const d_unpack = table.unpack
+const types_table = types.table
+const types_number = types.number
+
+export type tstats = {
+	length: number,
+	count: number,
+	holes: number,
+	max: number,
+	contiguous: boolean,
+}
+
 --[==[
     Расширение стандартной библиотеки `table`
 
@@ -21,6 +37,11 @@ export type ttable = {
         Возвращает независимую таблицу, которая является поверхностной копией.
     ]==]
 	read combine: <T, U>(t0: T, t1: U) -> T & U,
+
+	--[==[
+		Анализирует таблицу на количество, качество и размерность. Заменяет собой 3 вызова `count + length + holes`
+	]==]
+	read analyze: (tbl: t) -> tstats,
 
 	--[==[
         Проходится по массиву и убирает любую дыру в нем, тем самым делая его однородным.
@@ -109,6 +130,8 @@ export type ttable = {
 	read frem: (t0: t, ...any) -> ...boolean,
 
 	read merge: <T, U>(t0: T, t1: U) -> T & U,
+
+	read cursor: (tbl: {any}?, f: (i: number) -> (), batch: number?, i: number?, m: number?, step: number?) -> (() -> boolean?)
 }
 
 type work = {
@@ -146,39 +169,124 @@ const ttable: ttable = {
 		return r0
 	end,
 
-	fix = function(t0)
-		if not std:assert(type(t0) == types.table, "t0 is not a table") then
-			return t0 :: { any }
+	analyze = function(t0: t): tstats
+		if not std:assert(d_type(t0) == types_table, "t0 is not a table") then
+			return { length = 0, count = 0, holes = 0, max = 0, contiguous = true }
 		end
 
-		local keys: { number } = {}
-		for i, _ in t0 do
-			if type(i) == types.number and i >= 1 and i % 1 == 0 then
-				table.insert(keys, i)
+		local max = 0
+		local count = 0
+
+		for i, _ in d_next, t0 do
+			if d_type(i) == types_number and i >= 1 and i % 1 == 0 then
+				if i > max then
+					max = i
+				end
+				count += 1
 			end
 		end
 
-		if #keys == 0 then
-			return t0 :: { any & exist<> }
+		const holes = max - count
+		return {
+			length = max,
+			count = count,
+			holes = holes,
+			max = max,
+			contiguous = holes == 0,
+		}
+	end,
+
+	cursor = function (tbl, f, b, i, m, s)
+		local i = (i or 1) :: number
+		const s = ((s == nil or s == 0) and 1 or s) :: number
+		local m_val: number
+
+		if m ~= nil then
+			m_val = m
+		elseif tbl ~= nil then
+			local mx = 0
+			for k, _ in d_next, tbl do
+				if d_type(k) == types_number and k >= 1 and k % 1 == 0 and k > mx then
+					mx = k
+				end
+			end
+			m_val = mx
+		else
+			m_val = 0
 		end
 
-		table.sort(keys)
+		const m_final = m_val
+		const b_final = b or (tbl ~= nil and m_final or 0)
 
-		local max_key = keys[#keys]
+		return function(): boolean?
+			local bi = 0
+			if (s > 0 and i > m_final) or (s < 0 and i < m_final) then
+				return true
+			end
+
+			for j = i, m_final, s do
+				i = j + s
+
+				if f(j) == false then
+					return false
+				end
+
+				bi += 1
+				if bi >= b_final then
+					return nil
+				end
+			end
+
+			return nil
+		end
+	end,
+
+	fix = function(t0: t): any
+		if not std:assert(d_type(t0) == types_table, "t0 is not a table") then
+			return t0
+		end
+
+		local max = 0
+		local count = 0
+		for i, _ in d_next, t0 do
+			if d_type(i) == types_number and i >= 1 and i % 1 == 0 then
+				if i > max then
+					max = i
+				end
+				count += 1
+			end
+		end
+
+		if max == count then
+			return t0
+		end
+
+		const keys = d_create(count)
+		local k = 0
+		for i, _ in d_next, t0 do
+			if d_type(i) == types_number and i >= 1 and i % 1 == 0 then
+				k += 1
+				keys[k] = i
+			end
+		end
+
 		local write = 1
 
-		if max_key <= #keys * 2 then
-			for i = 1, max_key do
-				if t0[i] ~= nil then
+		if max <= count * 2 then
+			for i = 1, max do
+				const v = t0[i]
+				if v ~= nil then
 					if write ~= i then
-						t0[write] = t0[i]
+						t0[write] = v
 						t0[i] = nil
 					end
 					write += 1
 				end
 			end
 		else
-			for _, i in keys do
+			d_sort(keys)
+			for j = 1, count do
+				const i = keys[j]
 				if write ~= i then
 					t0[write] = t0[i]
 					t0[i] = nil
@@ -187,25 +295,33 @@ const ttable: ttable = {
 			end
 		end
 
-		return t0 :: { any & exist<> }
+		return t0
 	end,
 
 	toggle = function(t0: t, that): ()
-		if not std:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(d_type(t0) == types_table, "t0 is not a table") then
 			return
 		end
 
-		for i, v in t0 do
-			if type(i) == types.number and i >= 1 and i % 1 == 0 then
-				if v == that then
-					table.remove(t0, i)
-					return
+		local max = 0
+		local hit: number? = nil
+
+		for i, v in d_next, t0 do
+			if d_type(i) == types_number and i >= 1 and i % 1 == 0 then
+				if i > max then
+					max = i
+				end
+				-- не break, чтобы до-посчитать max; но фиксируем только первое совпадение
+				if hit == nil and v == that then
+					hit = i
 				end
 			end
 		end
 
-		if that ~= nil then
-			t0[FTTABLE.length(t0) + 1] = that
+		if hit ~= nil then
+			t0[hit] = nil
+		elseif that ~= nil then
+			t0[max + 1] = that
 		end
 	end,
 
@@ -234,76 +350,106 @@ const ttable: ttable = {
 	end,
 
 	dump = function(t0: t): { number }
-		if not std:assert(type(t0) == types.table, "t0 is not a table") then
-			return dummies.nullf() :: { any }
+		if not std:assert(d_type(t0) == types_table, "t0 is not a table") then
+			return {} :: { number }
 		end
 
-		const list: { number } = {}
-		local j = 0
-
-		for i, _ in t0 do
-			if type(i) == types.number and i >= 1 and i % 1 == 0 then
-				j = i - 1
-
-				while j >= 1 and t0[j] == nil do
-					table.insert(list, j)
-					j -= 1
+		local max = 0
+		local count = 0
+		for i, _ in d_next, t0 do
+			if d_type(i) == types_number and i >= 1 and i % 1 == 0 then
+				if i > max then
+					max = i
 				end
+				count += 1
 			end
 		end
 
-		table.sort(list)
+		const holes = max - count
+		if holes <= 0 then
+			return {} :: { number }
+		end
 
+		if max <= count * 4 then
+			const list = d_create<<number>>(holes)
+			local w = 0
+			for i = 1, max do
+				if t0[i] == nil then
+					w += 1
+					list[w] = i
+				end
+			end
+			return list
+		end
+
+		const keys = d_create<<number>>(count)
+		local k = 0
+		for i, _ in d_next, t0 do
+			if d_type(i) == types_number and i >= 1 and i % 1 == 0 then
+				k += 1
+				keys[k] = i
+			end
+		end
+		d_sort(keys)
+
+		const list = d_create<<number>>(holes)
+		local w = 0
+		local prev = 0
+		for j = 1, count do
+			const key = keys[j]
+			for gap = prev + 1, key - 1 do
+				w += 1
+				list[w] = gap
+			end
+			prev = key
+		end
+		
 		return list
 	end,
 
-	holes = function(t0: t): number
-		if not std:assert(type(t0) == types.table, "t0 is not a table") then
+	count = function(t0: t): number
+		if not std:assert(d_type(t0) == types_table, "t0 is not a table") then
 			return 0
 		end
-
-		local max = 0
-		local count = 0
-
-		for i, _ in t0 do
-			if type(i) == types.number and i >= 1 and i % 1 == 0 then
-				max = math.max(max, i)
-				count += 1
+		local c = 0
+		for i, _ in d_next, t0 do
+			if d_type(i) == types_number and i >= 1 and i % 1 == 0 then
+				c += 1
 			end
 		end
-
-		return max - count
+		return c
 	end,
 
 	length = function(t0: t): number
-		if not std:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(d_type(t0) == types_table, "t0 is not a table") then
 			return 0
 		end
 		local max = 0
-
-		for i, _ in t0 do
-			if type(i) == types.number and i >= 1 and i % 1 == 0 then
-				max = math.max(max, i)
+		for i, _ in d_next, t0 do
+			if d_type(i) == types_number and i >= 1 and i % 1 == 0 then
+				if i > max then
+					max = i
+				end
 			end
 		end
-
 		return max
 	end,
 
-	count = function(t0: t): number
-		if not std:assert(type(t0) == types.table, "t0 is not a table") then
+	holes = function(t0: t): number
+		if not std:assert(d_type(t0) == types_table, "t0 is not a table") then
 			return 0
 		end
-
-		local count = 0
-
-		for i, _ in t0 do
-			if type(i) == types.number and i >= 1 and i % 1 == 0 then
-				count += 1
+		local max = 0
+		local c = 0
+		for i, _ in d_next, t0 do
+			if d_type(i) == types_number and i >= 1 and i % 1 == 0 then
+				if i > max then
+					max = i
+				end
+				c += 1
 			end
 		end
-
-		return count
+		return max - c
 	end,
 
 	conflictable = function(t0: any, ...: any): boolean
@@ -327,28 +473,45 @@ const ttable: ttable = {
 	end,
 
 	find = function(t0: t, ...: any): ...boolean
-		if not std:assert(type(t0) == types.table, "t0 is not a table") then
-			return table.unpack(table.create(select("#", ...), false))
+		if not std:assert(d_type(t0) == types_table, "t0 is not a table") then
+			const n0 = select("#", ...)
+			return d_unpack(d_create(n0, false))
 		end
 
 		const n = select("#", ...)
-		const list: { boolean } = table.create(n, false)
+		const list = d_create(n, false)
+		if n == 0 then
+			return d_unpack(list)
+		end
 
+		const targets: { [any]: { number } } = {}
 		for k = 1, n do
 			const v = select(k, ...)
-			local mark = false
+			const entry = targets[v]
+			if entry then
+				entry[#entry + 1] = k
+			else
+				targets[v] = { k }
+			end
+		end
 
-			for _, d in t0 do
-				if d == v then
-					mark = true
+		local remaining = n
+
+		for _, d in d_next, t0 do
+			const entry = targets[d]
+			if entry then
+				for j = 1, #entry do
+					list[entry[j]] = true
+				end
+				remaining -= #entry
+				targets[d] = nil
+				if remaining == 0 then
 					break
 				end
 			end
-
-			list[k] = mark
 		end
 
-		return table.unpack(list)
+		return d_unpack(list)
 	end,
 
 	copy = function(t0: t, root: t?): any
@@ -442,38 +605,76 @@ const ttable: ttable = {
 		return clone
 	end,
 
-	frem = function (t0: any, ...: any) : ...boolean
-		const list: {boolean} = {}
-		
-		for _, v in {...} do
-			const pos = table.find(t0, v)
-			
-			if pos ~= nil then
-				table.remove(t0, pos)
-				table.insert(list, true)
-			else
-				table.insert(list, false)
+	frem = function(t0: any, ...: any): ...boolean
+		if not std:assert(d_type(t0) == types_table, "t0 is not a table") then
+			return
+		end
+
+		const n = select("#", ...)
+		if n == 0 then
+			return
+		end
+
+		const args = d_create(n)
+		for k = 1, n do
+			args[k] = select(k, ...)
+		end
+
+		local max = 0
+		for i, _ in d_next, t0 do
+			if d_type(i) == types_number and i >= 1 and i % 1 == 0 then
+				if i > max then
+					max = i
+				end
 			end
 		end
 
-		return table.unpack(list)
+		const found = d_create(n, false)
+
+		for k = 1, n do
+			const v = args[k]
+			for i = 1, max do
+				if t0[i] == v then
+					t0[i] = nil
+					found[k] = true
+					break
+				end
+			end
+		end
+
+		local write = 1
+		for i = 1, max do
+			const v = t0[i]
+			if v ~= nil then
+				if write ~= i then
+					t0[write] = v
+					t0[i] = nil
+				end
+				write += 1
+			end
+		end
+
+		return d_unpack(found)
 	end,
 
 	equals = function(t0: any, ...: any): boolean
-		if not std:assert(type(t0) == types.table, "t0 is not a table") then
+		if not std:assert(d_type(t0) == types_table, "t0 is not a table") then
 			return false
 		end
 
-		for i, v in { ... } do
-			if not std:assert(type(v) == types.table, "value is not a table") then
+		for _, v in { ... } do
+			if not std:assert(d_type(v) == types_table, "value is not a table") then
 				return false
 			end
 
-			for j, d in t0 do
-				const T = typeof(v[j])
-
-				if T ~= typeof(d) and T ~= types["nil"] then
-					return false
+			for j, d in d_next, t0 do
+				const vv = v[j]
+				if vv ~= nil then
+					const td = typeof(d)
+					const tv = typeof(vv)
+					if td ~= tv then
+						return false
+					end
 				end
 			end
 		end

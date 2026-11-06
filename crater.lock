@@ -1,78 +1,7 @@
 {
   "lock_version": 1,
-  "manifest_hash": "9daba471c83d7fcae3e5b6a9cd0150fcf0b46b7d6487ba3a935194cb224032d0",
+  "manifest_hash": "e7fb04e909d1f53fb708ddf30da62a887007b92c8554be306a4ad5e130650523",
   "packages": [
-    {
-      "realm": "client",
-      "name": "daily3014/cryptography",
-      "version": "1.11.0",
-      "direct": true,
-      "links": [
-        "Cryptography"
-      ],
-      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
-      "sha256": "",
-      "dependencies": []
-    },
-    {
-      "realm": "client",
-      "name": "ifmnb/algorithm-sat",
-      "version": "2609.7.0",
-      "direct": true,
-      "links": [
-        "SAT"
-      ],
-      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
-      "sha256": "",
-      "dependencies": []
-    },
-    {
-      "realm": "client",
-      "name": "ifmnb/array-buffer",
-      "version": "2609.7.1",
-      "direct": true,
-      "links": [
-        "BufferedArrays"
-      ],
-      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
-      "sha256": "",
-      "dependencies": [
-        "BitMap:ifmnb/bitmap@2609.3.0"
-      ]
-    },
-    {
-      "realm": "client",
-      "name": "ifmnb/bitmap",
-      "version": "2609.3.0",
-      "direct": false,
-      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
-      "sha256": "",
-      "dependencies": []
-    },
-    {
-      "realm": "client",
-      "name": "ifmnb/quat",
-      "version": "2609.23.1",
-      "direct": true,
-      "links": [
-        "Quat"
-      ],
-      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
-      "sha256": "",
-      "dependencies": []
-    },
-    {
-      "realm": "server",
-      "name": "lm-loleris/profilestore",
-      "version": "1.0.3",
-      "direct": true,
-      "links": [
-        "ProfileStore"
-      ],
-      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
-      "sha256": "",
-      "dependencies": []
-    },
     {
       "realm": "develop",
       "name": "roblox/chalk-lua",
@@ -788,6 +717,100 @@
         "JestTypes:roblox/jest-types@3.20.1",
         "Promise:roblox/promise@3.5.2"
       ]
+    }
+  ],
+  "vendor": [
+    {
+      "realm": "client",
+      "name": "daily3014/cryptography",
+      "version": "1.11.0",
+      "direct": true,
+      "links": [
+        "Cryptography"
+      ],
+      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
+      "sha256": "",
+      "dependencies": []
+    },
+    {
+      "realm": "client",
+      "name": "ifmnb/algorithm-sat",
+      "version": "2609.7.0",
+      "direct": true,
+      "links": [
+        "SAT"
+      ],
+      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
+      "sha256": "",
+      "dependencies": []
+    },
+    {
+      "realm": "client",
+      "name": "ifmnb/array-buffer",
+      "version": "2609.7.1",
+      "direct": true,
+      "links": [
+        "BufferedArrays"
+      ],
+      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
+      "sha256": "",
+      "dependencies": [
+        "BitMap:ifmnb/bitmap@2609.3.0"
+      ]
+    },
+    {
+      "realm": "client",
+      "name": "ifmnb/bitmap",
+      "version": "2609.3.0",
+      "direct": false,
+      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
+      "sha256": "",
+      "dependencies": []
+    },
+    {
+      "realm": "client",
+      "name": "ifmnb/crate",
+      "version": "0.0.1",
+      "direct": true,
+      "registry": "https://raw.githubusercontent.com/TheExeDEV/crater-registry/main",
+      "sha256": "c530ec4c0291a4b470bc86422d6e4d715e423bb559c998f01f38512f78495c1d",
+      "dependencies": []
+    },
+    {
+      "realm": "client",
+      "name": "ifmnb/quat",
+      "version": "2609.23.1",
+      "direct": true,
+      "links": [
+        "Quat"
+      ],
+      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
+      "sha256": "",
+      "dependencies": []
+    },
+    {
+      "realm": "client",
+      "name": "rocks/lualinq",
+      "version": "1.6.0",
+      "direct": true,
+      "links": [
+        "LINQ"
+      ],
+      "registry": "https://luarocks.org",
+      "sha256": "",
+      "dependencies": []
+    },
+    {
+      "realm": "server",
+      "name": "lm-loleris/profilestore",
+      "version": "1.0.3",
+      "direct": true,
+      "links": [
+        "ProfileStore"
+      ],
+      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
+      "sha256": "",
+      "dependencies": []
     }
   ]
 }

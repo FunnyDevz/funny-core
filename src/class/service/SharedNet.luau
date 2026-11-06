@@ -32,9 +32,9 @@ type metadata = {
 	instance: Instance,
 }
 
-const private = {}
+const private = {type = "sharednet"}
 const class: sharednet = Service:new({
-	type = "sharednet",
+	type = private.type,
 	name = "SharedNet",
 	timeout = 5,
 	emitted = 0,
@@ -46,7 +46,9 @@ const class: sharednet = Service:new({
 
 			if not self:has_link(link) or not SharedNetVariant:is_my_enumitem(kind) then
 				self.errors += 1
-				std:oute("unexpected link or SharedNetVariant, register the link enum with SharedNet:register_links")
+				--#if DEBUG
+				std:oute(`unexpected link or {SharedNetVariant.name}, register the link enum with {self.type}:register_links()`)
+				--#endif
 				return Event:new() :: any
 			end
 
@@ -65,15 +67,15 @@ const class: sharednet = Service:new({
 
 			return event
 		end,
-		"event",
-		"sharednet",
-		"enumitem",
-		ftype:opt("enumitem")
+		Event.type,
+		private.type,
+		EnumItem.type,
+		ftype:opt(EnumItem.type)
 	),
 
 	register_links = ftype:write(function(self: sharednet, ...: enumobject): ()
 		for k, v in { ... } do
-			if not std:check(self:that(v, EnumObject.type), "SharedNet links must be an enumobject") then
+			if not std:check(self:that(v, EnumObject.type), `{self.type} links must be an {EnumObject.type}`) then
 				continue
 			end
 
@@ -81,7 +83,7 @@ const class: sharednet = Service:new({
 				table.insert(private.links, v)
 			end
 		end
-	end, mtypes.never, "sharednet", ftype:var(EnumObject.type)),
+	end, mtypes.never, private.type, ftype:var(EnumObject.type)),
 
 	has_link = ftype:write(function(self: sharednet, link: enumitem): boolean
 		if not self:that(link, EnumItem.type) then
@@ -95,41 +97,43 @@ const class: sharednet = Service:new({
 		end
 
 		return false
-	end, types.boolean, "sharednet", EnumItem.type),
+	end, types.boolean, private.type, EnumItem.type),
 
 	set_env = ftype:write(function(self: sharednet, env: any): sharednet_env
-		if not std:check(engine.is_server, "SharedNet env can be set only on the server") then
+		if not std:check(engine.is_server, `{self.type} env can be set only on the server`) then
 			return private.get_env()
 		end
 
-		if not std:check(next(private.events) == nil, "SharedNet env can't be changed after the first event") then
+		if not std:check(next(private.events) == nil, `{self.type} env can't be changed after the first event`) then
 			return private.env
 		end
 
 		if type(env) == types["function"] then
 			const succ, result = pcall(env, ttable.copy(private.env))
 
-			if std:check(succ and type(result) == types.table, `SharedNet env function must return a table, got {result}`) then
+			if std:check(succ and type(result) == types.table, `{self.type} env function must return a table, got {result}`) then
 				private.env = result
 			end
-		elseif std:check(type(env) == types.table, "SharedNet env must be a table or a function") then
+		elseif std:check(type(env) == types.table, `{self.type} env must be a table or a function`) then
 			private.env = ttable.merge(private.env, env)
 		end
 
 		private.publish()
 		return private.env
-	end, types.table, "sharednet", ftype:uor(types.table, types["function"])),
+	end, types.table, private.type, ftype:uor(types.table, types["function"])),
 
 	get_env = ftype:write(function(self: sharednet): sharednet_env
 		return private.get_env()
-	end, types.table, "sharednet"),
+	end, types.table, private.type),
 
 	emit_event = ftype:write(function(self: sharednet, event: net_event, pack: netpack): ()
 		const metadata = private.metadata[event]
 
 		if not metadata then
 			self.errors += 1
-			std:oute("unknown event, take it from SharedNet:get_event")
+			--#if DEBUG
+			std:oute(`unknown event, take it from {self.type}:get_event(link, variant)`)
+			--#endif
 			return
 		end
 
@@ -146,7 +150,7 @@ const class: sharednet = Service:new({
 		end
 
 		self.emitted += 1
-	end, types["nil"], "sharednet", "event", "netpack"),
+	end, types["nil"], private.type, Event.type, NetPack.type),
 })
 
 do
@@ -164,7 +168,7 @@ do
 	private.metadata = setmetatable({} :: { [net_event]: metadata }, tables.__mode_ks)
 
 	function private.attribute(key: string): string
-		return `sharednet_{key}`
+		return `{private.type}_{key}`
 	end
 
 	function private.publish()
@@ -215,7 +219,9 @@ do
 		end
 
 		that.errors += 1
+		--#if DEBUG
 		std:oute(`{name} wasn't created by the server, replaced with a local event`)
+		--#endif
 		return network.create_remote(nil, name, "BindableEvent")
 	end
 
