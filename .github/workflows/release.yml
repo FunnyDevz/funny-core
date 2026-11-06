@@ -92,14 +92,116 @@ jobs:
             --title "funny-core ${{ steps.version.outputs.version }}" \
             --generate-notes
 
+  registry:
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: TheExeDEV/crater-registry
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Read package
+        id: package
+        run: |
+          python3 - >> "$GITHUB_OUTPUT" <<'EOF'
+          import json
+          manifest = json.load(open("crater.json"))
+          print(f"name={manifest['name']}")
+          print(f"version={manifest['version']}")
+          EOF
+
+      - name: Check the registry
+        id: registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ steps.package.outputs.name }}
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if gh api "repos/$REGISTRY/contents/$NAME/index.json" --jq .content 2> /dev/null | base64 -d | jq -e --arg v "$VERSION" '.versions[] | select(.version == $v)' > /dev/null; then
+            echo "$NAME@$VERSION is already in the registry"
+            echo "state=published" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          pr=$(gh pr list -R "$REGISTRY" --state open --search "Publish $NAME@$VERSION in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$pr" ]; then
+            echo "$NAME@$VERSION is waiting in $REGISTRY#$pr"
+            echo "state=pending" >> "$GITHUB_OUTPUT"
+            echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=missing" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Require the registry token
+        if: steps.registry.outputs.state != 'published'
+        env:
+          CRATER_GITHUB_TOKEN: ${{ secrets.CRATER_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$CRATER_GITHUB_TOKEN" ]; then
+            echo "::error::CRATER_GITHUB_TOKEN is not set, add a classic PAT with public_repo and read:org as a repository secret and rerun this workflow"
+            exit 1
+          fi
+
+      - name: Setup Python
+        if: steps.registry.outputs.state == 'missing'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install gpp
+        if: steps.registry.outputs.state == 'missing'
+        run: sudo apt-get update && sudo apt-get install -y gpp
+
+      - name: Install crater
+        if: steps.registry.outputs.state == 'missing'
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl --fail --location --output "$HOME/.local/bin/crater" "https://github.com/TheExeDEV/crater/releases/download/$CRATER_VERSION/crater-linux-x64"
+          chmod +x "$HOME/.local/bin/crater"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.crater/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
+        if: steps.registry.outputs.state == 'missing'
+        run: crater install --locked -y
+
       - name: Publish to the crater registry
-        if: steps.existing.outputs.exists == 'false'
+        if: steps.registry.outputs.state == 'missing'
         env:
           CRATER_GITHUB_TOKEN: ${{ secrets.CRATER_GITHUB_TOKEN }}
           CORE_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: crater publish -y
+
+      - name: Merge the registry pull request
+        if: steps.registry.outputs.state != 'published'
+        env:
+          GH_TOKEN: ${{ secrets.CRATER_GITHUB_TOKEN }}
+          NAME: ${{ steps.package.outputs.name }}
+          VERSION: ${{ steps.package.outputs.version }}
+          PR: ${{ steps.registry.outputs.pr }}
         run: |
-          if [ -z "$CRATER_GITHUB_TOKEN" ]; then
-            echo "::warning::CRATER_GITHUB_TOKEN is not set, run crater publish by hand for ${{ steps.version.outputs.tag }}"
+          pr="$PR"
+          for attempt in $(seq 1 12); do
+            [ -n "$pr" ] && break
+            sleep 5
+            pr=$(gh pr list -R "$REGISTRY" --state open --search "Publish $NAME@$VERSION in:title" --json number --jq '.[0].number // empty')
+          done
+
+          if [ -z "$pr" ]; then
+            echo "::error::cannot find the registry pull request for $NAME@$VERSION"
+            exit 1
+          fi
+
+          if [ "$(gh api "repos/$REGISTRY" --jq .permissions.maintain)" != "true" ]; then
+            echo "::notice::$REGISTRY#$pr is opened, the registry owner has to merge it"
             exit 0
           fi
-          crater publish -y
+
+          sleep 20
+          gh pr checks "$pr" -R "$REGISTRY" --watch --fail-fast
+          gh pr merge "$pr" -R "$REGISTRY" --squash
+          echo "$NAME@$VERSION is merged into $REGISTRY"

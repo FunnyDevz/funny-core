@@ -442,9 +442,12 @@ PR из форков секретов не получают и тесты в Ope
 2. ставит gpp и crater `v0.7.5`, выполняет `crater install --locked -y`;
 3. собирает архив пакета `crater pack -o dist/funny-core-<version>.zip` и место `python3 build/build.py`, копирует `build.rbxl` в `dist/funny-core-<version>.rbxl`;
 4. создаёт GitHub Release `v<version>` на слитом коммите с этими двумя файлами и автоматическими release notes;
-5. выполняет `crater publish -y`, который открывает PR в `TheExeDEV/crater-registry`. Для этого нужен секрет `CRATER_GITHUB_TOKEN`: classic personal access token участника организации `funnydevz` (членство публичное) со scope `public_repo` и `read:org`. Встроенный `GITHUB_TOKEN` не подходит: он не может открыть PR в другом репозитории. Если секрета нет, шаг пропускается с предупреждением, и `crater publish` нужно выполнить вручную.
+Затем job `registry` публикует пакет в реестр crater (работает и для уже существующего релиза, поэтому повторный запуск через `workflow_dispatch` дозаливает пропущенную версию):
 
-Публикация запускается только тогда, когда workflow создал новый релиз, поэтому одна версия не отправляется в реестр дважды.
+1. проверяет `TheExeDEV/crater-registry`: если `<name>@<version>` уже есть в `index.json`, ничего не делает; если PR `Publish <name>@<version>` уже открыт, сразу переходит к слиянию;
+2. требует секрет `CRATER_GITHUB_TOKEN` и падает с ошибкой, если его нет. Это classic personal access token участника организации `funnydevz` (членство публичное) со scope `public_repo` и `read:org`. Встроенный `GITHUB_TOKEN` не подходит: он не может открыть PR в другом репозитории;
+3. выполняет `crater publish -y`, который открывает PR в реестр;
+4. если у владельца токена есть права maintain на реестр, дожидается проверки `Check packages` и сливает PR (squash). Иначе оставляет PR владельцу реестра.
 
 Чтобы выпустить новый релиз, подними версию (`crater bump`) в PR и слей его в `main`.
 
