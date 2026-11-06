@@ -1,6 +1,6 @@
 {
   "lock_version": 1,
-  "manifest_hash": "e7fb04e909d1f53fb708ddf30da62a887007b92c8554be306a4ad5e130650523",
+  "manifest_hash": "7a1ae9c34d8464a3c527ac8b8b04333f69978556effa382ab0ad36ebb9f89d28",
   "packages": [
     {
       "realm": "develop",
@@ -723,7 +723,7 @@
     {
       "realm": "client",
       "name": "daily3014/cryptography",
-      "version": "1.11.0",
+      "version": "4.1.0",
       "direct": true,
       "links": [
         "Cryptography"
@@ -734,37 +734,26 @@
     },
     {
       "realm": "client",
-      "name": "ifmnb/algorithm-sat",
-      "version": "2609.7.0",
+      "name": "ifmnb/algo-sat",
+      "version": "0.0.1",
       "direct": true,
       "links": [
         "SAT"
       ],
-      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
-      "sha256": "",
+      "registry": "https://raw.githubusercontent.com/TheExeDEV/crater-registry/main",
+      "sha256": "98dfd17325a9d4afeb5c04ad1c76d4ef61064596517ee970f80596e87e823ec0",
       "dependencies": []
     },
     {
       "realm": "client",
-      "name": "ifmnb/array-buffer",
-      "version": "2609.7.1",
+      "name": "ifmnb/buffer-array",
+      "version": "0.0.1",
       "direct": true,
       "links": [
         "BufferedArrays"
       ],
-      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
-      "sha256": "",
-      "dependencies": [
-        "BitMap:ifmnb/bitmap@2609.3.0"
-      ]
-    },
-    {
-      "realm": "client",
-      "name": "ifmnb/bitmap",
-      "version": "2609.3.0",
-      "direct": false,
-      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
-      "sha256": "",
+      "registry": "https://raw.githubusercontent.com/TheExeDEV/crater-registry/main",
+      "sha256": "c447e0ef127d824c6775a4020736b59a04427a10ae0f172e9ad506d59e864c12",
       "dependencies": []
     },
     {
@@ -779,13 +768,13 @@
     {
       "realm": "client",
       "name": "ifmnb/quat",
-      "version": "2609.23.1",
+      "version": "0.0.1",
       "direct": true,
       "links": [
         "Quat"
       ],
-      "registry": "https://raw.githubusercontent.com/UpliftGames/wally-index/main",
-      "sha256": "",
+      "registry": "https://raw.githubusercontent.com/TheExeDEV/crater-registry/main",
+      "sha256": "59ecfef2a86e3136bc2a98c59f517698de73e079536f60ba4a5da6c15faa9de2",
       "dependencies": []
     },
     {

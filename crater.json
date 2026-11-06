@@ -3,7 +3,7 @@
 
   "name": "funnydevz/funny-core",
   "version": "0.0.1",
-  "description": "An unloaded raw version of funny-core. It is not intended to be executed.",
+  "description": "The object foundation for Roblox, which provides tools for creating games without spending time developing tools",
   "authors": ["IFMNB", "TheExeDEV"],
   "license": "MPLv2",
   "keywords": ["roblox", "core", "foundation", "library", "engine", "game-ready"],
@@ -33,11 +33,11 @@
   "vendor_packages": {
     "import_client": [
       "LINQ:luarocks#rocks/lualinq",
-      "Quat:wally#ifmnb/quat@2609.23.1",
-      "SAT:wally#ifmnb/algorithm-sat@2609.7.0",
-      "Cryptography:wally#daily3014/cryptography@1.5.0",
-      "BufferedArrays:wally#ifmnb/array-buffer",
-      "ifmnb/crate^"
+      "Quat:ifmnb/quat@0.0.1",
+      "SAT:ifmnb/algo-sat@0.0.1",
+      "Cryptography:wally#daily3014/cryptography@4.1.0",
+      "BufferedArrays:ifmnb/buffer-array@0.0.1",
+      "ifmnb/crate@0.0.1"
     ],
     "import_server": ["ProfileStore:wally#lm-loleris/profilestore@1.0.3"]
   },
