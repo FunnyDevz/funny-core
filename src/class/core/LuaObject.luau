@@ -10,7 +10,6 @@ const tables = require("@declare/tables")
 const types = require("@declare/types")
 const std = require("@extension/std")
 const ttable = require("@extension/ttable")
-const Cryptography = require("@import/Cryptography")
 const mtluaobject = require("@project/mtluaobject")
 const ctype = require("@static/ctype")
 const ftype = require("@static/ftype")
@@ -124,7 +123,7 @@ const class: luaobject = {
 		if identity then
 			const object = that :: luaobject
 			if object:is(otype) then
-				return otype
+				return object
 			end
 		end
 
@@ -266,6 +265,7 @@ do
 
 	private.identity = setmetatable({} :: { [luaobject]: string }, tables.__mode_ks)
 	private.identity_back = setmetatable({} :: { [string]: luaobject }, tables.__mode_vs)
+	private.identity_count = 0
 
 	private.host_list = setmetatable({} :: { [luaobject]: host? }, tables.__mode_ks)
 	private.finally = setmetatable({} :: { [luaobject]: object_finally_type? }, tables.__mode_ks)
@@ -342,7 +342,8 @@ do
 	end
 
 	private.generate_identity = function(of: luaobject): ()
-		const new_identity = Cryptography.Verification.EdDSA.CSPRNG.RandomString(32) :: string
+		private.identity_count += 1
+		const new_identity = std:get_luau_universal_name(tostring(private.identity_count))
 		private.identity[of] = new_identity
 		private.identity_back[new_identity] = of
 	end
