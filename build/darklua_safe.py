@@ -26,6 +26,8 @@ from pathlib import Path
 TYPEINST_MARKER = "__CORE_TYPEINST_{}__"
 TYPEINST_PREFIX = "--[[__CORE_TYPEINST_"
 LONG_BRACKET_OPEN = re.compile(r"\[(=*)\[")
+BLANK_RUN = re.compile(r"\n(?:[ \t]*\n){2,}")
+LEADING_BLANK = re.compile(r"\A(?:[ \t]*\n)+")
 
 
 def type_instantiation_marker(index: int) -> str:
@@ -200,3 +202,66 @@ def restore_tree(masked: dict[Path, list[str]]) -> None:
             raise ValueError(f"{file}: {error}") from error
 
         file.write_text(text, "utf-8")
+
+
+def _long_spans(text: str) -> list[tuple[int, int]]:
+    spans: list[tuple[int, int]] = []
+    cursor = 0
+
+    while cursor < len(text):
+        char = text[cursor]
+
+        if char in "\"'":
+            cursor = _short_string_end(text, cursor)
+            continue
+
+        if text.startswith("--", cursor):
+            end = _comment_end(text, cursor)
+
+            if text.startswith("--[", cursor) and "\n" in text[cursor:end]:
+                spans.append((cursor, end))
+
+            cursor = end
+            continue
+
+        if char == "[":
+            end = _long_bracket_end(text, cursor)
+
+            if end is not None:
+                spans.append((cursor, end))
+                cursor = end
+                continue
+
+        cursor += 1
+
+    return spans
+
+
+def compact(text: str) -> str:
+    parts: list[str] = []
+    cursor = 0
+
+    for start, end in _long_spans(text):
+        parts.append(BLANK_RUN.sub("\n\n", text[cursor:start]))
+        parts.append(text[start:end])
+        cursor = end
+
+    parts.append(BLANK_RUN.sub("\n\n", text[cursor:]))
+    return LEADING_BLANK.sub("", "".join(parts)).rstrip() + "\n"
+
+
+def compact_tree(directory: Path, skip: str | None = None) -> int:
+    changed = 0
+
+    for file in sorted(directory.rglob("*.luau")):
+        if skip and skip in file.relative_to(directory).parts:
+            continue
+
+        text = file.read_text("utf-8")
+        updated = compact(text)
+
+        if updated != text:
+            file.write_text(updated, "utf-8")
+            changed += 1
+
+    return changed

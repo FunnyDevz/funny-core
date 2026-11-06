@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from crater_layout import load as load_layout
-from darklua_safe import mask_tree, restore_tree
+from darklua_safe import compact_tree, mask_tree, restore_tree
 
 SKIPPED = (".gpp", ".d.luau", ".project.json", ".darklua.json", ".md")
 DARKLUA_CONFIG = "build_info.darklua.json"
@@ -207,6 +207,7 @@ def main() -> None:
     # `build_info.darklua.json` skips `vendor/**`, so the files stay pristine.
     copy_vendor(layout, output)
     transform(darklua, source, core)
+    print(f"compact > {compact_tree(core, layout['vendor_name'])} files")
 
     project = write_project(output)
     place = output / "build.rbxl"
