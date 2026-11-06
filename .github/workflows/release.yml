@@ -203,5 +203,9 @@ jobs:
 
           sleep 20
           gh pr checks "$pr" -R "$REGISTRY" --watch --fail-fast
-          gh pr merge "$pr" -R "$REGISTRY" --squash
-          echo "$NAME@$VERSION is merged into $REGISTRY"
+
+          if gh pr merge "$pr" -R "$REGISTRY" --squash; then
+            echo "$NAME@$VERSION is merged into $REGISTRY"
+          else
+            echo "::notice::$REGISTRY#$pr passed the checks but the registry rules block the merge, merge it by hand: https://github.com/$REGISTRY/pull/$pr"
+          fi
