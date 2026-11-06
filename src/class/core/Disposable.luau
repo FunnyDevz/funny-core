@@ -52,10 +52,10 @@ const class: disposable = LuaObject:new({
 		for i = 1, n do
 			const val = select(i, ...)
 
-			if self.is(val, private.type) then
+			if LuaObject:that(val, private.type) then
 				const v_disp = val :: disposable
 				const iden = v_disp:iden()
-				dest[len + 1] = function (id: string)
+				dest[len + i] = function (id: string)
 					const object = LuaObject:fetch(iden)
 					if LuaObject:that(object, private.type) then
 						const disposable_object = object :: disposable

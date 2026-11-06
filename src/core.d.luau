@@ -3430,7 +3430,9 @@ export type enumitem_data_internal_variant = enumitem<enum_data_internal_variant
 export type enum_data_internal_variant = extend<{
     read DataSnapshot: enumitem_data_internal_variant,
     read DataSet: enumitem_data_internal_variant,
-    read DataReady: enumitem_data_internal_variant
+    read DataReady: enumitem_data_internal_variant,
+    read DataRequest: enumitem_data_internal_variant,
+    read DataExit: enumitem_data_internal_variant,
 }, enumobject>
 
 export type enumitem_data_state = enumitem<enum_data_state>
