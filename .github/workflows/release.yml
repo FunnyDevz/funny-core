@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  CRATER_VERSION: v0.7.5
+
+jobs:
+  release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Read version
+        id: version
+        run: |
+          version=$(python3 -c 'import json; print(json.load(open("crater.json"))["version"])')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Skip an existing release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" > /dev/null 2>&1; then
+            echo "Release ${{ steps.version.outputs.tag }} already exists, bump the version in crater.json to release again"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Python
+        if: steps.existing.outputs.exists == 'false'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install gpp
+        if: steps.existing.outputs.exists == 'false'
+        run: sudo apt-get update && sudo apt-get install -y gpp
+
+      - name: Install crater
+        if: steps.existing.outputs.exists == 'false'
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl --fail --location --output "$HOME/.local/bin/crater" "https://github.com/TheExeDEV/crater/releases/download/$CRATER_VERSION/crater-linux-x64"
+          chmod +x "$HOME/.local/bin/crater"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.crater/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
+        if: steps.existing.outputs.exists == 'false'
+        run: crater install --locked -y
+
+      - name: Build package and place
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          CORE_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          mkdir -p dist
+          crater pack -o "dist/funny-core-${{ steps.version.outputs.version }}.zip"
+          python3 build/build.py -o "$RUNNER_TEMP/place"
+          cp "$RUNNER_TEMP/place/build.rbxl" "dist/funny-core-${{ steps.version.outputs.version }}.rbxl"
+
+      - name: Publish release
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" dist/* \
+            --target "${{ github.event.workflow_run.head_sha || github.sha }}" \
+            --title "funny-core ${{ steps.version.outputs.version }}" \
+            --generate-notes

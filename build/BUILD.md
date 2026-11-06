@@ -430,7 +430,18 @@ git push --tags
 
 PR из форков секретов не получают и тесты в Open Cloud не запускают.
 
-Публикация в CI не настроена намеренно: релиз делает человек после зелёного `main`.
+Публикация в реестр crater в CI не настроена намеренно: `crater publish` делает человек после зелёного `main`.
+
+### 6.1. GitHub Release
+
+`.github/workflows/release.yml` запускается после успешного `Tests` на push в `main` (то есть после слияния PR) и вручную через `workflow_dispatch`:
+
+1. читает `version` из `crater.json`; если релиз `v<version>` уже есть, ничего не делает;
+2. ставит gpp и crater `v0.7.5`, выполняет `crater install --locked -y`;
+3. собирает архив пакета `crater pack -o dist/funny-core-<version>.zip` и место `python3 build/build.py`, копирует `build.rbxl` в `dist/funny-core-<version>.rbxl`;
+4. создаёт GitHub Release `v<version>` на слитом коммите с этими двумя файлами и автоматическими release notes.
+
+Чтобы выпустить новый релиз, подними версию (`crater bump`) в PR и слей его в `main`.
 
 CI выполняет `crater install -y`, а не `crater install --locked`. Если нужна строгая проверка соответствия `crater.lock`, замени команду в `.github/workflows/test.yml` или добавь отдельный шаг с `--locked`.
 
