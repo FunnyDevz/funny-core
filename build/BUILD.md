@@ -460,15 +460,16 @@ PR из форков секретов не получают и тесты в Ope
 
 Job `promote` запускается после успешного `Tests` на push в `pre-main-tests` и вручную через `workflow_dispatch`:
 
-1. берёт проверенный коммит `pre-main-tests` и, если в `src/project.gpp` стоит `--#define DEBUG 1`, добавляет коммит `Disable DEBUG for main` с `0`;
-2. если результат не отличается от `main`, ничего не делает;
-3. иначе force-push в ветку `release/main` и открывает PR `release/main` → `main`, а если он уже открыт, обновляет заголовок и описание. Заголовок `Release <version>`, если версия в `crater.json` отличается от `main`, иначе `Merge pre-main-tests into main`.
+1. сравнивает `pre-main-tests` с `main`, считая `DEBUG` равным `0`; если отличий нет, ничего не делает;
+2. иначе, если в `src/project.gpp` стоит `--#define DEBUG 1`, пушит в `pre-main-tests` коммит `Disable DEBUG for main` с `0`;
+3. открывает PR `pre-main-tests` → `main`, а если он уже открыт, обновляет заголовок и описание. Заголовок `Release <version>`, если версия в `crater.json` отличается от `main`, иначе `Merge pre-main-tests into main`.
+
+Пока PR открыт, в `pre-main-tests` стоит `DEBUG 0`: это то состояние, которое уйдёт в `main`.
 
 Job `sync` запускается на push в `main` (то есть после слияния PR): вливает `main` в `pre-main-tests`, возвращает `--#define DEBUG 1` коммитом `Enable DEBUG for pre-main-tests` и пушит. Если `main` не вливается без конфликтов, job падает, и слияние нужно сделать вручную, оставив `DEBUG 1`.
 
-Обоим job нужен секрет `CRATER_GITHUB_TOKEN` (тот же PAT, что и для реестра). PR, открытый встроенным `GITHUB_TOKEN`, не запускает `Tests`, и его нельзя слить. Если в `pre-main-tests` меняются файлы в `.github/workflows`, у токена должен быть ещё scope `workflow`, иначе GitHub не даст запушить `release/main`.
+Обоим job нужен секрет `CRATER_GITHUB_TOKEN` (тот же PAT, что и для реестра). PR, открытый встроенным `GITHUB_TOKEN`, не запускает `Tests`, и его нельзя слить. Если в `pre-main-tests` меняются файлы в `.github/workflows`, у токена должен быть ещё scope `workflow`, иначе GitHub не даст workflow запушить в `pre-main-tests`.
 
-Ветку `release/main` руками не трогай: каждый запуск `promote` перезаписывает её.
 
 CI выполняет `crater install -y`, а не `crater install --locked`. Если нужна строгая проверка соответствия `crater.lock`, замени команду в `.github/workflows/test.yml` или добавь отдельный шаг с `--locked`.
 
