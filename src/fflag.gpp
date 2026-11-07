@@ -1,11 +1,11 @@
---#define ALL_ASSERT_FUNCTION_ARGS false
---#define ALL_LOG_MISC_INFO false
+--#define ALL_ASSERT_FUNCTION_ARGS 0
+--#define ALL_LOG_MISC_INFO 0
 
---#define ALL_USE_PRINT_AS_OUTPUT false
---#define ALL_USE_WARN_AS_OUTPUT false
---#define ALL_USE_ERROR_AS_OUTPUT false
+--#define ALL_USE_PRINT_AS_OUTPUT 0
+--#define ALL_USE_WARN_AS_OUTPUT 0
+--#define ALL_USE_ERROR_AS_OUTPUT 0
 
---#define ALL_CLASS_USEABLE true
+--#define VALUE_PRINT_ACT 0
+--#define IKR6LIMB_PRINT_ACT 0
 
-
---#define STD_
+--#define ALL_CLASS_USEABLE 1

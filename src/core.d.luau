@@ -4266,3 +4266,5 @@ export type I_targetable<T = unknown, U = unknown> = {
     ]==]
 	read get_target: (self: T) -> U,
 }
+
+return true

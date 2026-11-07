@@ -54,7 +54,7 @@ jobs:
       - name: Disable DEBUG
         run: |
           git fetch origin main
-          sed -i -E 's/^(--#define DEBUG) true\b/\1 false/' src/project.gpp
+          sed -i -E 's/^(--#define DEBUG)[[:space:]]+(true|1)\b/\1 0/' src/project.gpp
           if ! git diff --quiet -- src/project.gpp; then
             git commit -m "Disable DEBUG for main" -- src/project.gpp
           fi
@@ -88,7 +88,7 @@ jobs:
           fi
 
           {
-            echo "Automatic pull request from \`$SOURCE_BRANCH\` (${{ github.event.workflow_run.head_sha || github.sha }}). \`DEBUG\` is set to \`false\` in \`src/project.gpp\` for \`main\`."
+            echo "Automatic pull request from \`$SOURCE_BRANCH\` (${{ github.event.workflow_run.head_sha || github.sha }}). \`DEBUG\` is set to \`0\` in \`src/project.gpp\` for \`main\`."
             echo
             if [ "$version" != "$released" ]; then
               echo "Bumps the version from $released to $version, after the merge the Release workflow publishes \`v$version\` and opens the crater registry pull request."
@@ -137,7 +137,7 @@ jobs:
             exit 1
           fi
 
-          sed -i -E 's/^(--#define DEBUG) false\b/\1 true/' src/project.gpp
+          sed -i -E 's/^(--#define DEBUG)[[:space:]]+(false|0)\b/\1 1/' src/project.gpp
           if ! git diff --quiet -- src/project.gpp; then
             git commit -m "Enable DEBUG for $SOURCE_BRANCH" -- src/project.gpp
           fi
