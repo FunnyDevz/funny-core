@@ -21,6 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Require DEBUG 0 for main
+        if: github.base_ref == 'main' || github.ref == 'refs/heads/main'
+        run: |
+          if ! grep -qE '^--#define DEBUG[[:space:]]+0[[:space:]]*$' src/project.gpp; then
+            echo "::error::src/project.gpp must contain --#define DEBUG 0 for main"
+            exit 1
+          fi
+
       - name: Install Rokit
         uses: CompeyDev/setup-rokit@v0.1.2
 
