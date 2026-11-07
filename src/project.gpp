@@ -1,6 +1,6 @@
 
 --#define EXPERIMENTAL false
---#define DEBUG false
+--#define DEBUG true
 --#define PLATFORM "Roblox"
 
 --#ifndef PLATFORM
