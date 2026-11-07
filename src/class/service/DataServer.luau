@@ -125,11 +125,19 @@ const class: dataserver = Service:new({
 	end, ftype:opt(types.table), private.type, rbxtypes.Instance),
 
 	wait_data = ftype:write(function(self: dataserver, player: Player): data_snapshot?
-		while private.states[player] == DataState.ProfileLoading do
+		if not std:check(self.enabled, "DataServer isn't started, call DataServer:start before wait_data") then
+			return nil
+		end
+
+		while players.is_in_game(player) and not private.is_settled(player) do
+			if not std:check(coroutine.isyieldable(), `cannot wait for {player.Name}'s data outside of a yieldable thread`) then
+				return nil
+			end
+
 			private.event:wait(DataNotification.DataStateChanged)
 		end
 
-		return self:get_data(player)
+		return if players.is_in_game(player) then self:get_data(player) else nil
 	end, ftype:opt(types.table), private.type, rbxtypes.Instance),
 
 	get_value = ftype:write(function<T>(self: dataserver, player: Player, path: data_path): T
@@ -229,6 +237,16 @@ do
 	private.profiles = {} :: { [Player]: profile }
 	private.states = setmetatable({} :: { [Player]: enumitem_data_state }, private.meta)
 	private.ready = setmetatable({} :: { [Player]: true }, private.meta)
+	private.settled_states = table.freeze({
+		[DataState.ProfileLoading] = false,
+		[DataState.ProfileLoaded] = true,
+		[DataState.ProfileReleased] = true,
+	}) :: { read [enumitem_data_state]: boolean }
+
+	function private.is_settled(player: Player): boolean
+		const state = private.states[player]
+		return state ~= nil and private.settled_states[state]
+	end
 
 	function private.get_store(): any
 		const store: any = std:assert(private.store, "DataServer isn't started")
@@ -336,6 +354,8 @@ do
 				user.last_seen_at = now
 			end
 			profile:EndSession()
+		elseif private.states[player] == nil then
+			private.set_state(player, DataState.ProfileReleased)
 		end
 
 		private.ready[player] = nil

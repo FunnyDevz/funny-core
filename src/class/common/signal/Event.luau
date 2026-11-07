@@ -22,43 +22,31 @@ const class: event = Observer:new({
 	type = private.type,
 
 	connect = ftype:write(function(self: event, on: enumitem?, f: any): connection
-		const list = private.get_store(self)
-		const con = Connection:new({ on = on })
-		con:notificate(SetupNotification.Install, ConnectionVariant.Ever, f)
-		con:subscribe(SetupNotification.Disconnected, ConnectionVariant.Once, function ()
-			table.remove(list, table.find(list, con) or 0)
-		end)
-
-		table.insert(list, con)
-		return con
+		return private.attach(self, on, ConnectionVariant.Ever, f)
 	end, Connection.type, private.type, ftype:opt(EnumItem.type), ftype:uor(Observer.type, types["function"], types.thread)),
 
 	once = ftype:write(function(self: event, on: enumitem?, f: any): connection
-		const list = private.get_store(self)
-		const con = Connection:new({ on = on })
-
-		con:notificate(SetupNotification.Install, ConnectionVariant.Once, f)
-		con:subscribe(SetupNotification.Disconnected, ConnectionVariant.Once, function ()
-			table.remove(list, table.find(list, con) or 0)
-		end)
-
-		table.insert(list, con)
-		return con
+		return private.attach(self, on, ConnectionVariant.Once, f)
 	end, Connection.type, private.type, ftype:opt(EnumItem.type), ftype:uor(Observer.type, types["function"], types.thread)),
 
 	wait = ftype:write(function(self: event, on: enumitem?): ...any
 		const to = (on or DefaultVariant.Unknown) :: enumitem
+		const waiting = private.get_waiting(self)
+		const con = private.attach(self, to, ConnectionVariant.Once, coroutine.running())
 
-		self:once(to, coroutine.running())
-		return coroutine.yield()
+		waiting[con] = true
+		const result = table.pack(coroutine.yield())
+		waiting[con] = nil
+
+		return table.unpack(result, 1, result.n)
 	end, ftype:var(mtypes.anyt), private.type, ftype:opt(EnumItem.type)),
 
 	invoke = ftype:write(function(self: event, call: enumitem, ...: any): ()
 		const list = private.get_store(self)
 
-		for _, v in list do
+		for _, v in table.clone(list) do
 			v:notificate(SetupNotification.Require, call, ...)
-		end 
+		end
 	end, mtypes.never, private.type, EnumItem.type, ftype:var_opt(mtypes.anyt)),
 
 	invoke_deferred = ftype:write(function (self: event, on: enumitem, ...: any) : ()
@@ -119,15 +107,36 @@ const class: event = Observer:new({
 class:host(function(new)
 	const new = new:as <<event>> (class.type)
 	new:set(private.key, setmetatable({}, private.meta))
+	new:set(private.waiting_key, {})
 end)
 
 do
 	type store = {connection}
+	type waiting = {[connection]: true}
 
 	private.meta = tables.__mode_vs
 	private.key = newproxy()
+	private.waiting_key = newproxy()
 	private.get_store = function (of: event)
 		return of:get(private.key) :: store
+	end
+
+	private.get_waiting = function (of: event)
+		return of:get(private.waiting_key) :: waiting
+	end
+
+	private.attach = function (of: event, on: enumitem?, mode: enumitem_connection_variant, f: any): connection
+		const list = private.get_store(of)
+		const con = Connection:new({ on = on, deferred_call = false })
+
+		con:notificate(SetupNotification.Install, mode, f)
+		con:subscribe(SetupNotification.Disconnected, ConnectionVariant.Once, function ()
+			table.remove(list, table.find(list, con) or 0)
+		end)
+		con.deferred_call = Connection.deferred_call
+
+		table.insert(list, con)
+		return con
 	end
 end
 

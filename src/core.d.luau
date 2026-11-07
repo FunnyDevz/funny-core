@@ -1142,6 +1142,20 @@ export type dataserver = extend<{
 	read get_env: (self: dataserver) -> dataserver_env,
 	read get_state: (self: dataserver, player: Player) -> enumitem_data_state,
 	read get_data: (self: dataserver, player: Player) -> data_snapshot?,
+	--[==[
+        Ждёт, пока данные игрока не загрузятся, и возвращает их (`get_data`).
+
+        Ждёт, пока состояние игрока ещё не выставлено (DataServer не успел начать загрузку) или равно
+        `DataState.ProfileLoading`. Просыпается только на `DataStateChanged` своего игрока.
+
+        Возвращает `nil` сразу, без ожидания:
+        - если DataServer не запущен (`start` не вызван), с предупреждением `std:check`;
+        - если игрок уже не в игре;
+        - если состояние `DataState.ProfileReleased` (профиль не загрузился или уже освобождён);
+        - если поток нельзя приостановить, а данные ещё не готовы.
+
+        Если игрок выходит во время ожидания, возвращает `nil`.
+    ]==]
 	read wait_data: (self: dataserver, player: Player) -> data_snapshot?,
 	read get_value: <T>(self: dataserver, player: Player, path: data_path) -> T,
 	read set_value: (self: dataserver, player: Player, path: data_path, to: unknown) -> (),
