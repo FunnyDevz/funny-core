@@ -136,6 +136,9 @@ python3 build/build.py -o /tmp/funny-build
    - раскрывает `--#include <fflag_core.gpp>`, `--#include <fflag.gpp>` и остальные include;
    - удаляет `--#if` / `--#else` / `--#endif` вместе с неактивными ветками;
    - пропускает `.d.luau`, `.gpp`, `*.project.json`, `.darklua.json` и `.md`.
+
+   Флаги в `.gpp` задаются только числами `1` и `0`. `gpp` вычисляет `--#if` арифметически и считает любое нечисловое выражение истинным, поэтому `true`/`false` (как и неопределённый флаг) не вырезают ветку, а оставляют её. `build/run`, `build/build_test.py`, `build/prepack.py` и `CI/prepare.py` используют тот же формат.
+
 4. Копирует `src/vendor` в `core/vendor` как есть (darklua их не обрабатывает). Это те же пакеты, что crater кладёт потребителю по тому же пути `src/vendor`.
 5. Прогоняет `darklua process` с правилом `convert_require`: `require("@class/...")` превращается в путь внутри собранного дерева. Правило лежит в `src/build_info.darklua.json`, алиасы — в `src/config.luaurc` (он временно копируется в собранное дерево как `.luaurc` и удаляется после обработки). Корневой `.darklua.json` для `build/build.py` не используется. В `src/config.luaurc` есть алиасы `import` и `include` на `vendor/...` — darklua переписывает и их. `skip_files: ["**/vendor/**"]` не даёт darklua трогать вендоренные пакеты.
 
@@ -453,19 +456,20 @@ PR из форков секретов не получают и тесты в Ope
 
 ### 6.2. Автоматический PR в `main` и флаг `DEBUG`
 
-`.github/workflows/promote.yml` держит `DEBUG true` в `pre-main-tests` и `DEBUG false` в `main`. Руками `--#define DEBUG` в `src/project.gpp` менять не нужно.
+`.github/workflows/promote.yml` держит `DEBUG 1` в `pre-main-tests` и `DEBUG 0` в `main`. Руками `--#define DEBUG` в `src/project.gpp` менять не нужно.
 
 Job `promote` запускается после успешного `Tests` на push в `pre-main-tests` и вручную через `workflow_dispatch`:
 
-1. берёт проверенный коммит `pre-main-tests` и, если в `src/project.gpp` стоит `--#define DEBUG true`, добавляет коммит `Disable DEBUG for main` с `false`;
-2. если результат не отличается от `main`, ничего не делает;
-3. иначе force-push в ветку `release/main` и открывает PR `release/main` → `main`, а если он уже открыт, обновляет заголовок и описание. Заголовок `Release <version>`, если версия в `crater.json` отличается от `main`, иначе `Merge pre-main-tests into main`.
+1. сравнивает `pre-main-tests` с `main`, считая `DEBUG` равным `0`; если отличий нет, ничего не делает;
+2. иначе, если в `src/project.gpp` стоит `--#define DEBUG 1`, пушит в `pre-main-tests` коммит `Disable DEBUG for main` с `0`;
+3. открывает PR `pre-main-tests` → `main`, а если он уже открыт, обновляет заголовок и описание. Заголовок `Release <version>`, если версия в `crater.json` отличается от `main`, иначе `Merge pre-main-tests into main`.
 
-Job `sync` запускается на push в `main` (то есть после слияния PR): вливает `main` в `pre-main-tests`, возвращает `--#define DEBUG true` коммитом `Enable DEBUG for pre-main-tests` и пушит. Если `main` не вливается без конфликтов, job падает, и слияние нужно сделать вручную, оставив `DEBUG true`.
+Пока PR открыт, в `pre-main-tests` стоит `DEBUG 0`: это то состояние, которое уйдёт в `main`.
 
-Обоим job нужен секрет `CRATER_GITHUB_TOKEN` (тот же PAT, что и для реестра). PR, открытый встроенным `GITHUB_TOKEN`, не запускает `Tests`, и его нельзя слить. Если в `pre-main-tests` меняются файлы в `.github/workflows`, у токена должен быть ещё scope `workflow`, иначе GitHub не даст запушить `release/main`.
+Job `sync` запускается на push в `main` (то есть после слияния PR): вливает `main` в `pre-main-tests`, возвращает `--#define DEBUG 1` коммитом `Enable DEBUG for pre-main-tests` и пушит. Если `main` не вливается без конфликтов, job падает, и слияние нужно сделать вручную, оставив `DEBUG 1`.
 
-Ветку `release/main` руками не трогай: каждый запуск `promote` перезаписывает её.
+Обоим job нужен секрет `CRATER_GITHUB_TOKEN` (тот же PAT, что и для реестра). PR, открытый встроенным `GITHUB_TOKEN`, не запускает `Tests`, и его нельзя слить. Если в `pre-main-tests` меняются файлы в `.github/workflows`, у токена должен быть ещё scope `workflow`, иначе GitHub не даст workflow запушить в `pre-main-tests`.
+
 
 CI выполняет `crater install -y`, а не `crater install --locked`. Если нужна строгая проверка соответствия `crater.lock`, замени команду в `.github/workflows/test.yml` или добавь отдельный шаг с `--locked`.
 
