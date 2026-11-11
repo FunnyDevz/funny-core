@@ -248,17 +248,24 @@ do
 		return state ~= nil and private.settled_states[state]
 	end
 
+	function private.is_mocked(): boolean
+		if not engine.is_studio then
+			return false
+		end
+
+		const studio = private.env.studio
+		return type(studio) == types.table and studio.mock == true
+	end
+
 	function private.get_store(): any
 		const store: any = std:assert(private.store, "DataServer isn't started")
 		if not store then
 			return nil
 		end
 
-		--#if DEBUG
-		if engine.is_studio and private.env.studio.mock then
+		if private.is_mocked() then
 			return store.Mock
 		end
-		--#endif
 
 		return store
 	end

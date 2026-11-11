@@ -1119,6 +1119,11 @@ export type data_snapshot = { [string]: any }
     `update_value`, чтобы репликация не разошлась. События через `get_data_event()`:
     `DataNotification.DataLoaded` / `DataReleased` (player, data), `DataStateChanged` (player, state),
     `DataMessage` (player, message, processed)
+
+    `studio.mock` (по умолчанию `false`) работает только в Studio: при `true` все операции с профилями
+    (`StartSessionAsync`, `MessageAsync` и прочие) идут через `store.Mock` ProfileStore. Профили живут
+    в памяти сервера и в DataStore не пишутся, поэтому между плейтестами ничего не сохраняется.
+    На живом сервере `studio.mock` игнорируется и всегда используется настоящий DataStore.
 ]==]
 export type dataserver_env = {
 	store: string?,
@@ -1128,6 +1133,12 @@ export type dataserver_env = {
 	studio: { mock: boolean },
 }
 
+--[==[
+    Частичный `dataserver_env` для `DataServer:set_env`, вливается в текущий env через `ttable.merge`:
+    `set_env({ studio = { mock = true } })` меняет только `studio.mock`, остальные поля остаются.
+    `studio.mock` действует только в Studio, профили тогда живут в памяти сервера и не переживают
+    перезапуск плейтеста. Вне Studio значение игнорируется.
+]==]
 export type dataserver_env_patch = {
 	store: string?,
 	key: ((id: number) -> string)?,
